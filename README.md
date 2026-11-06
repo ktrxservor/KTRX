@@ -30,7 +30,8 @@ ktrx --help
 ktrx run tools/base64/base64.tool --encode 'Hello World'
 ktrx run tools/base64/base64.tool --help
 ktrx run tools/hash/hash.tool 'Hello World'
-ktrx run tools/port-scanner/port-scanner.tool example.com --ports 22,80,443,3306,8080,8443\nktrx run tools/tech-fingerprint/tech-fingerprint.tool https://example.com --max-requests 50 --depth 2
+ktrx run tools/port-scanner/port-scanner.tool example.com --ports 22,80,443,3306,8080,8443
+ktrx run tools/tech-fingerprint/tech-fingerprint.tool https://example.com --max-requests 50 --depth 2
 ktrx run tools/port-scanner/port-scanner.tool example.com --ports all --timeout-ms 200 --concurrency 128
 ktrx run tools/hash-audit/hash-audit.tool 900150983cd24fb0d6963f7d28e17f72 --algorithm md5 --file ./wordlist.txt
 ktrx info tools/hello-tool/hello-tool.tool
