@@ -215,11 +215,21 @@ name = "ktrx-js-audit"
 version = "1.0.0"
 dependencies = [
  "base64",
+ "ktrx-net-sdk",
  "regex",
  "serde",
  "serde_json",
  "url",
  "wit-bindgen",
+]
+
+[[package]]
+name = "ktrx-net-sdk"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "serde_json",
+ "url",
 ]
 
 [[package]]

@@ -479,12 +479,13 @@ fn looks_like_kind(url: &Url, kind: ResourceKind, content_type: &str) -> bool {
 }
 
 fn fetch(url: &Url, max_body: usize) -> Result<Response, String> {
-    let raw = ktrx::tool::host::request("http.get", &json!({"url":url.as_str(),"include_body":true,"max_body_bytes":max_body}).to_string()).map_err(|e| e.to_string())?;
+    let host_request = |operation: &str, input: &str| ktrx::tool::host::request(operation, input);
+    let raw = ktrx_net_sdk::http_get(url.as_str(), true, max_body, &host_request).map_err(|e| e.to_string())?;
     let value: Value = serde_json::from_str(&raw).map_err(|e| format!("réponse HTTP illisible : {e}"))?;
     let status = value.get("status").and_then(Value::as_u64).unwrap_or(0) as u16;
     let content_type = value.get("headers").and_then(Value::as_array).into_iter().flatten().find_map(|h| {
-        let name = h.get("name")?.as_str()?;
-        name.eq_ignore_ascii_case("content-type").then(|| h.get("value").and_then(Value::as_str).unwrap_or("").to_owned())
+        let name = h.get("name").and_then(Value::as_str).or_else(||h.get(0).and_then(Value::as_str))?;
+        name.eq_ignore_ascii_case("content-type").then(|| h.get("value").and_then(Value::as_str).or_else(||h.get(1).and_then(Value::as_str)).unwrap_or("").to_owned())
     }).unwrap_or_default();
     let encoded = value.get("body_base64").and_then(Value::as_str).unwrap_or("");
     let bytes = base64::engine::general_purpose::STANDARD.decode(encoded).map_err(|e| format!("corps base64 invalide : {e}"))?;

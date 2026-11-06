@@ -1,7 +1,7 @@
 id = "dns-inspector"
 name = "DNS Inspector"
 description = "Resolve a hostname through the permissioned KTRX host network API."
-version = "1.0.0"
+version = "1.0.1"
 author = "KTRX"
 api_version = "1"
 permissions = ["network"]

@@ -11,3 +11,4 @@ base64 = "0.22"
 serde_json = "1.0"
 url = "2.5"
 wit-bindgen = "0.51"
+ktrx-net-sdk = { path = "../ktrx-net-sdk" }

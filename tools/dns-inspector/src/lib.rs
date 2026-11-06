@@ -10,9 +10,9 @@ impl exports::ktrx::tool::tool::Guest for Plugin {
             Some(h) => h,
             None => return "{\"error\":\"missing hostname\"}".into(),
         };
-        match ktrx::tool::host::request("dns.lookup", &serde_json::json!({"host":host}).to_string())
-        {
-            Ok(response) => response,
+        let host_request = |operation: &str, input: &str| ktrx::tool::host::request(operation, input);
+        match ktrx_net_sdk::resolve(host, 0, &host_request) {
+            Ok(addresses) => serde_json::json!({"host":host,"addresses":addresses}).to_string(),
             Err(e) => serde_json::json!({"error":e}).to_string(),
         }
     }

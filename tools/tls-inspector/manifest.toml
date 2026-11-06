@@ -1,7 +1,7 @@
 id = "tls-inspector"
 name = "TLS Inspector"
 description = "Verify TLS connectivity and inspect the HTTPS response for a user-selected target."
-version = "1.0.0"
+version = "1.0.1"
 author = "KTRX"
 api_version = "1"
 permissions = ["network"]

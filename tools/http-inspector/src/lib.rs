@@ -10,7 +10,8 @@ impl exports::ktrx::tool::tool::Guest for Plugin {
             Some(u) => u,
             None => return "{\"error\":\"missing URL\"}".into(),
         };
-        match ktrx::tool::host::request("http.get", &serde_json::json!({"url":url}).to_string()) {
+        let host_request = |operation: &str, input: &str| ktrx::tool::host::request(operation, input);
+        match ktrx_net_sdk::http_get(url, false, 0, &host_request) {
             Ok(v) => v,
             Err(e) => serde_json::json!({"error":e}).to_string(),
         }

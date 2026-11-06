@@ -25,17 +25,21 @@ positional = false
 default = "world"
 ```
 
-`id` uses lowercase ASCII letters, digits, and hyphens. `api_version` must match the host API. Argument types are `string`, `integer`, `boolean`, and `path`; `positional` assigns the argument to the next non-option CLI value. Defaults are TOML scalar values. API 1 permissions are `network` and `file-read`. Network destinations come from tool arguments at run time. The engine requests interactive approval for each network invocation and allows destinations returned by DNS resolution, including private and reserved addresses.
+`id` uses lowercase ASCII letters, digits, and hyphens. `api_version` must match the host API. Argument types are `string`, `integer`, `boolean`, and `path`; `positional` assigns the argument to the next non-option CLI value. API 1 permissions are `network` and `file-read`.
 
-## Component interface
+## Component interface and capabilities
 
-`engine/wit/ktrx.wit` declares package `ktrx:tool@1.0.0`:
+`engine/wit/ktrx.wit` declares package `ktrx:tool@1.0.0`: `tool.run(input: string) -> string` receives validated JSON arguments and returns JSON text. `host.request(operation, input)` provides only generic capabilities:
 
-- `tool.run(input: string) -> string`: receives a JSON object with validated argument values and returns JSON text.
-- host.request(operation: string, input: string) -> result<string, string>: requests permissioned host operations. http.get returns status, headers, and body byte count; include_body=true adds an optional Base64 sample up to 256 KiB, reducible with max_body_bytes. Full responses remain capped at 1 MiB. Other operations include dns.lookup, tls.inspect, tcp.scan, chunked file.read, and terminal-only progress.update.
+- `progress.update`: publish a tool-authored progress snapshot.
+- `file.read`: read a user-approved regular file in bounded chunks.
+- `network.resolve`: resolve a hostname through the operating system resolver.
+- `socket.open`, `socket.connect`, `socket.poll`, `socket.read`, `socket.write`, `socket.close`: open permission-gated byte streams and transfer bounded byte chunks. `socket.connect` is asynchronous so a guest tool can manage concurrent connections; connection concurrency and scan policy remain the tool's responsibility. TLS on `socket.open` gives the tool a verified encrypted byte stream.
 
-`tcp.scan` accepts a user-selected hostname after interactive network approval, a unique array of TCP ports, a connect timeout, bounded concurrency (up to 128), and a service-detection flag. It performs full TCP connect handshakes concurrently, returns open/closed/filtered classifications, connect latency and optional lightweight application banners (capped at 1,024 services per run). A runtime permits up to four scans at once. It does not implement raw SYN, UDP, or OS fingerprinting. Tools have no automatic execution deadline by default; a manifest may request 30–180 seconds explicitly. Long-running tools should report progress where useful and should remain cancellable by the user.
+The host does not expose HTTP requests, TLS inspection, TCP scans, service identification, or other tool-specific operations. Tools implement protocol framing, limits, scheduling, and interpretation themselves. Do not add tool names or protocol workflows to the engine host API.
 
-Tools may call `host.request("progress.update", JSON)` to report live progress. The host displays throttled updates on an interactive terminal and also publishes structured progress events. `ktrx run <file.tool> --events` emits progress and the final result as newline-delimited JSON. The queue holds at most 256 events; intermediate progress snapshots may be dropped under backpressure. Updates may include total, item_label, and result_label fields for tool-specific live counters. Progress requests do not require network or file permissions. Ctrl+C requests cancellation; Wasm is interrupted at its next engine checkpoint, while a host network call may take up to its own timeout to return.
+Network and file calls require the corresponding manifest permission and interactive approval. Non-interactive invocations deny these permissions. Network access is available only through the permission-checked host socket bridge; tools do not receive ambient WASI sockets or operating-system access. Socket calls enforce bounded active connections, chunk sizes, and I/O timeouts. File reads are limited to regular files no larger than 64 MiB and 64 KiB per chunk.
 
-Host calls remain subject to manifest permissions, user approval, engine limits. Plugins must handle returned errors and should return structured JSON errors rather than trap.
+Tools may call `progress.update` to report live progress. The host displays throttled terminal updates and publishes structured events. `ktrx run <file.tool> --events` emits progress and the final result as newline-delimited JSON. The queue holds at most 256 events; intermediate snapshots may be dropped under backpressure. Ctrl+C requests cancellation. Tools have no execution deadline by default; a manifest may request an explicit 30–180 second deadline.
+
+Capability failures return errors and never grant access silently. Plugins should handle returned errors and return structured JSON errors rather than trap.

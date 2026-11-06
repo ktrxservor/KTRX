@@ -1,5 +1,3 @@
-mod proxy;
-
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use ktrx_core::{ToolPackage, validate_arguments, validate_manifest};
@@ -7,7 +5,6 @@ use ktrx_runtime::Runtime;
 use std::{
     fs::File,
     io::{self, IsTerminal, Write},
-    net::SocketAddr,
     path::{Path, PathBuf},
 };
 
@@ -15,7 +12,7 @@ use std::{
 #[command(
     name = "ktrx",
     version,
-    about = "KTRX — portable WebAssembly tool runner and local intercepting proxy",
+    about = "KTRX — portable WebAssembly tool runner",
     arg_required_else_help = true
 )]
 struct Cli {
@@ -52,27 +49,6 @@ enum Command {
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
-    /// Run the interactive local HTTP/HTTPS interception proxy.
-    Proxy {
-        #[command(subcommand)]
-        command: ProxyCommand,
-    },
-}
-
-#[derive(Subcommand)]
-enum ProxyCommand {
-    /// Create a local CA certificate for decrypting test HTTPS traffic.
-    InitCa {
-        #[arg(long)]
-        directory: Option<PathBuf>,
-    },
-    /// Start the intercepting proxy on a loopback address.
-    Start {
-        #[arg(long, default_value = "127.0.0.1:8080")]
-        listen: SocketAddr,
-        #[arg(long)]
-        ca_dir: Option<PathBuf>,
-    },
 }
 
 fn main() {
@@ -107,31 +83,16 @@ fn execute(cli: Cli) -> Result<()> {
             let package =
                 ToolPackage::open(&tool).with_context(|| format!("opening {}", tool.display()))?;
             let values = validate_arguments(&package.manifest, &args)?;
-            let network_details = values
-                .get("host")
-                .and_then(|value| value.as_str())
-                .map(str::to_owned)
-                .or_else(|| {
-                    values
-                        .get("url")
-                        .and_then(|value| value.as_str())
-                        .and_then(url_target_host)
-                        .map(str::to_owned)
-                })
-                .map(|host| format!(" to {host}"));
             let network_approved = approve(
                 &package.manifest.name,
                 &package.manifest.permissions,
                 ktrx_core::Permission::Network,
-                network_details.as_deref(),
             )?;
-            let file_read_approved = values.get("file").is_some()
-                && approve(
-                    &package.manifest.name,
-                    &package.manifest.permissions,
-                    ktrx_core::Permission::FileRead,
-                    None,
-                )?;
+            let file_read_approved = approve(
+                &package.manifest.name,
+                &package.manifest.permissions,
+                ktrx_core::Permission::FileRead,
+            )?;
             let runtime = std::sync::Arc::new(Runtime::new()?);
             let session = runtime.start_run(
                 package,
@@ -168,11 +129,6 @@ fn execute(cli: Cli) -> Result<()> {
             }
             let output = session.join()?;
             let output = output_event.unwrap_or(output);
-            if let Ok(value) = serde_json::from_str::<serde_json::Value>(&output) {
-                if let Some(error) = value.get("error") {
-                    return Err(anyhow::anyhow!("tool error: {error}"));
-                }
-            }
             if events {
                 // The final result was already included in the Finished event.
             } else if json {
@@ -224,14 +180,6 @@ fn execute(cli: Cli) -> Result<()> {
             println!("Valid: {} ({})", p.manifest.name, p.manifest.id);
         }
         Command::Pack { directory, output } => pack(&directory, output.as_deref())?,
-        Command::Proxy { command } => match command {
-            ProxyCommand::InitCa { directory } => {
-                proxy::init_ca(&directory.unwrap_or_else(proxy::default_ca_dir))?
-            }
-            ProxyCommand::Start { listen, ca_dir } => {
-                proxy::start(listen, &ca_dir.unwrap_or_else(proxy::default_ca_dir))?
-            }
-        },
     }
     Ok(())
 }
@@ -240,7 +188,6 @@ fn approve(
     name: &str,
     permissions: &[ktrx_core::Permission],
     permission: ktrx_core::Permission,
-    details: Option<&str>,
 ) -> Result<bool> {
     if !permissions
         .iter()
@@ -253,14 +200,9 @@ fn approve(
     }
     let label = match permission {
         ktrx_core::Permission::Network => "network access",
-        ktrx_core::Permission::FileRead => "read access to the file path passed to the tool",
+        ktrx_core::Permission::FileRead => "file access",
     };
-    eprint!(
-        "{} requests {}{} for this run. Allow? [y/N] ",
-        name,
-        label,
-        details.unwrap_or_default()
-    );
+    eprint!("{} requests {} for this run. Allow? [y/N] ", name, label);
     io::stderr().flush()?;
     let mut answer = String::new();
     io::stdin().read_line(&mut answer)?;
@@ -268,17 +210,6 @@ fn approve(
         answer.trim().to_ascii_lowercase().as_str(),
         "y" | "yes"
     ))
-}
-
-fn url_target_host(url: &str) -> Option<&str> {
-    let authority = url.split_once("://")?.1.split('/').next()?;
-    let authority = authority.rsplit('@').next()?;
-    let host = if let Some(bracketed) = authority.strip_prefix('[') {
-        bracketed.split(']').next()?
-    } else {
-        authority.split(':').next()?
-    };
-    (!host.is_empty()).then_some(host)
 }
 
 fn print_tool_help(m: &ktrx_core::Manifest) -> Result<()> {

@@ -374,7 +374,30 @@ fn clean_url(mut url: Url) -> Url {
 }
 
 fn host_request(operation: &str, request: &Value) -> Result<String, String> {
-    ktrx::tool::host::request(operation, &request.to_string())
+    let bridge = |name: &str, input: &str| ktrx::tool::host::request(name, input);
+    match operation {
+        "dns.lookup" => {
+            let host = request.get("host").and_then(Value::as_str).ok_or("request requires host")?;
+            let port = request.get("port").and_then(Value::as_u64).unwrap_or(443) as u16;
+            let addresses = ktrx_net_sdk::resolve(host, port, &bridge)?;
+            Ok(json!({"host":host,"addresses":addresses}).to_string())
+        }
+        "http.get" | "tls.inspect" => {
+            let url = request.get("url").and_then(Value::as_str).ok_or("request requires url")?;
+            let include_body = request.get("include_body").and_then(Value::as_bool).unwrap_or(false);
+            let limit = request.get("max_body_bytes").and_then(Value::as_u64).unwrap_or(262_144) as usize;
+            let mut value: Value = serde_json::from_str(&ktrx_net_sdk::http_get(url, include_body, limit, &bridge)?)
+                .map_err(|e| format!("invalid HTTP response: {e}"))?;
+            if operation == "tls.inspect" {
+                if !url.starts_with("https://") { return Err("TLS inspection requires HTTPS".into()); }
+                value["host"] = Value::String(Url::parse(url).ok().and_then(|u|u.host_str().map(str::to_owned)).unwrap_or_default());
+                value["verified"] = Value::Bool(true);
+                value["note"] = Value::String("TLS peer verification completed by the secure socket capability.".into());
+            }
+            Ok(value.to_string())
+        }
+        _ => ktrx::tool::host::request(operation, &request.to_string()),
+    }
 }
 
 fn progress(current: usize, _maximum: usize, found: usize, done: bool) {

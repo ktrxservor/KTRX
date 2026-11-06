@@ -136,7 +136,8 @@ struct Response {
 }
 
 fn fetch(url: &str) -> Result<Response, String> {
-    let raw = ktrx::tool::host::request("http.get", &json!({"url": url}).to_string())
+    let host_request = |operation: &str, input: &str| ktrx::tool::host::request(operation, input);
+    let raw = ktrx_net_sdk::http_get(url, false, 0, &host_request)
         .map_err(|e| format!("requête refusée ou échouée: {e}"))?;
     let v: Value = serde_json::from_str(&raw).map_err(|e| format!("réponse HTTP invalide: {e}"))?;
     let headers = v

@@ -1,7 +1,7 @@
 id = "http-inspector"
 name = "HTTP Inspector"
 description = "Inspect status and response headers for an allowed HTTP or HTTPS URL."
-version = "1.0.0"
+version = "1.0.1"
 author = "KTRX"
 api_version = "1"
 permissions = ["network"]

@@ -1,7 +1,7 @@
 id = "web-discovery"
 name = "Web Discovery"
 description = "Découverte prudente de chemins web à partir d’une liste de mots, inspirée de Gobuster."
-version = "1.0.0"
+version = "1.0.1"
 author = "KTRX"
 api_version = "1"
 execution_timeout_seconds = 0

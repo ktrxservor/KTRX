@@ -39,7 +39,7 @@ ktrx describe tools/hello-tool/hello-tool.tool --json
 ktrx validate tools/hello-tool/hello-tool.tool
 ```
 
-When a tool requests network or local-file access, KTRX asks for approval on an interactive terminal. Non-interactive runs deny these permissions. Network operations are routed through the engine and require approval on an interactive terminal for each run. Targets are chosen at run time; private and reserved IPs are permitted. Redirects are not followed. HTTP/TLS operations have a 10-second timeout and a 1 MiB response-body cap; tools may request a Base64 sample of up to 256 KiB from an HTTP response. DNS uses the operating system resolver and its timeout behavior. The permissioned `tcp.scan` host operation performs bounded-parallel TCP connect scans and lightweight banner probes.
+When a tool requests network or local-file access, KTRX asks for approval on an interactive terminal. Non-interactive runs deny these permissions. Network and file access require an interactive approval for each run. Tools use generic resolver and socket byte-stream capabilities; protocol handling, scan behavior, service identification, and response limits belong to each tool. The runtime does not implement scanning or HTTP/TLS workflows.
 
 Tools have no overall execution deadline by default. The runner streams progress events while a tool runs; use `ktrx run <tool.tool> --events` for newline-delimited JSON. Press `Ctrl+C` to request cancellation. Wasm execution stops at the next engine checkpoint; an in-flight network call may take up to its configured timeout to return. A manifest can set an explicit per-tool deadline.
 
@@ -65,15 +65,14 @@ See [architecture](engine/docs/ARCHITECTURE.md), [tool specification](engine/doc
 
 ## HTTP/HTTPS interception proxy
 
-KTRX also includes a native interactive request proxy. See engine/docs/PROXY_WORKBENCH.md for CA setup, browser configuration, editing and replay controls, and supported protocol limits.
+The interception proxy is a separate native program outside the tool runner. See engine/docs/PROXY_WORKBENCH.md for CA setup, browser configuration, editing and replay controls, and supported protocol limits. Build it from `proxy-app/`.
 
 Commands:
 
-    engine/target/release/ktrx proxy init-ca
-    engine/target/release/ktrx proxy start
+    cargo run --manifest-path proxy-app/Cargo.toml -- init-ca
+    cargo run --manifest-path proxy-app/Cargo.toml -- start
 
 
 ## Technology fingerprinting
 
 Tech Fingerprint inspects HTTP headers, cookies, HTML, scripts, styles, same-origin links, common discovery paths, DNS, and TLS metadata. It reports version evidence and detection confidence. See tools/tech-fingerprint/README.md for its limits and options.
-

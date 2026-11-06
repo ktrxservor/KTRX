@@ -9,7 +9,7 @@ base64.workspace = true
 ktrx-core = { path = "../ktrx-core" }
 wasmtime.workspace = true
 wasmtime-wasi.workspace = true
-reqwest.workspace = true
+openssl = "0.10"
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true

@@ -1,27 +1,29 @@
 # KTRX architecture
 
-## Boundaries
+## Strict boundary
 
-- `ktrx-core` parses and validates manifests and archives, enforces archive size limits, and converts CLI arguments to a JSON object.
-- `ktrx-runtime` owns the Wasmtime engine, component compilation cache, per-call store, memory limit, execution deadline, and host capability implementation.
-- `ktrx-cli` provides commands, user-facing permission prompts, packaging, and text or JSON output.
-- `ktrx-sdk` exposes the guest-side WIT bindings dependency and API version.
-- `tools/` contains independent guest crates and does not participate in the engine workspace.
+- `ktrx-core` loads and validates manifests and archives and turns CLI arguments into JSON.
+- `ktrx-runtime` compiles and executes WebAssembly components. It owns Wasmtime, per-run stores, memory limits, execution deadlines, cancellation, and the generic host-call bridge. It has no knowledge of tool names, protocols, discovery, scanning, fingerprints, CVEs, or hash algorithms.
+- `ktrx-cli` handles run/inspect/validate/package commands, asks the user to grant manifest-declared permissions, and displays results/events.
+- `tools/` contains the independent tool implementations. HTTP parsing, DNS lookup policy, TLS interpretation, port selection, scan scheduling, service detection, and result interpretation belong here.
+- `proxy-app/` is a separate native program. It is not linked into the runner or runtime.
 
 ## Execution
 
-The host reads a `.tool` as a ZIP archive and accepts only `manifest.toml` and `module.wasm`. The manifest API version is checked before compiling the component. Arguments become a JSON object serialized as UTF-8 and passed to the exported `ktrx:tool/tool.run` function. The plugin returns JSON text, which KTRX emits without decoration in JSON mode.
+The runner opens the `.tool` archive, validates its manifest and component, converts validated arguments to JSON, then asks the runtime to execute `ktrx:tool/tool.run`. The runtime caches compiled components by SHA-256, creates a fresh Wasmtime store per invocation, and enforces a 64 MiB memory limit. Tools have no deadline by default; a manifest may set one. Wasmtime receives an empty WASI context with no ambient sockets, stdio, environment, or filesystem access. User approval gates the runtime's generic host socket capabilities.
 
-Wasmtime compiles a component once per runtime process and caches it by SHA-256 of the component bytes. Each call receives a fresh store with a 64 MiB memory cap. Tools have no execution deadline by default; a manifest can set an explicit 30–180 second deadline. The runtime supplies WASI Preview 2 interfaces with an empty default context: no stdio inheritance, environment, preopened filesystem, or ambient sockets. KTRX `host.request` is the supported way for plugins to request network or file capabilities.
+The engine does not schedule tool-specific work or interpret tool output. A tool returns JSON text. The engine forwards progress updates and the final output, and enforces generic resource and permission boundaries.
 
-## Capabilities and network policy
+## Generic host capabilities
 
-Permissions are opt-in in the manifest and require interactive approval at each invocation. Non-interactive invocation denies them. Host calls check both the declared permission and runtime approval. Network requests require the manifest network permission and interactive approval for each invocation. Destinations are selected by tool arguments; DNS results are resolved once and pinned into the HTTP client to avoid resolving again at connect time. Redirects are disabled. HTTP/TLS requests time out after 10 seconds (5 seconds to connect), and response bodies are limited to 1 MiB. A 60-second DNS cache and a bounded pool of clients reuse connections. Independent DNS and HTTP operations can run concurrently; TCP scans are capped at four per runtime, with each scan limited to 128 workers. Local file reads are host-mediated in 64 KiB chunks, limited to regular files no larger than 64 MiB, and require the `file-read` permission and user approval.
+API 1 exposes only generic calls: `progress.update`, `file.read`, `network.resolve`, and `socket.*` byte-stream operations (`open`, asynchronous `connect`/`poll`, `read`, `write`, `close`). The bridge checks manifest declaration and per-run approval before network or file access. Socket I/O chunks and active connections are bounded. TLS may be requested when opening a socket; the host provides a verified encrypted byte stream, while the tool constructs requests and interprets protocol responses.
 
-Each invocation has its own bounded event queue. Existing API 1 `progress.update` calls become structured progress events, while `ktrx run --events` writes them as newline-delimited JSON. Intermediate progress snapshots may be dropped if the consumer falls behind; the final result is preserved. Cancellation and manifest deadlines are checked independently for each Wasm store using epoch callbacks, so timing out one invocation does not cancel other invocations. Cancellation interrupts Wasm at the next epoch checkpoint; an in-flight host network operation returns at its own timeout.
+No HTTP operation, TLS inspection operation, TCP scan operation, scan concurrency policy, banner probe, tool-specific DNS cache, or service fingerprinting code exists in the engine. These are implemented by individual tools using the generic capabilities. The standalone proxy owns its listener, interception workflow, and request editing.
 
-The current DNS operation resolves A and AAAA addresses through the system resolver. That resolver's blocking timeout is platform-controlled. HTTP inspection performs a GET and reports status, response headers, and body byte count; a tool can request a Base64 body sample capped at 256 KiB while the host retains the 1 MiB full-response cap. TLS inspection verifies the TLS peer through rustls via reqwest, but this V1 host API does not expose full certificate fields or chain details. DNS record-type selection, HTTP methods, and TLS certificate detail inspection are future API extensions.
+## Events and cancellation
 
-## Resource and error model
+Each invocation has a bounded event queue. `progress.update` produces structured events, and `ktrx run --events` writes newline-delimited JSON. Intermediate progress snapshots can be dropped under backpressure; the final event is preserved. Cancellation and manifest deadlines are checked per Wasm store. An in-flight host call completes or errors according to its own I/O timeout.
 
-Malformed archives, manifests, arguments, unsupported API versions, missing imports, and execution traps become CLI errors with exit code 2. Tool-level errors are returned as JSON by plugins. Capability failures are returned through the host interface and never silently grant access.
+## Architecture guard
+
+The runtime integration test scans its source and dependencies for protocol- and tool-specific APIs. It also checks that the primary CLI does not link the standalone proxy. When adding a host capability, keep it mechanism-level and reusable across unrelated tools; place parsing, policy, workflow, and interpretation in the guest tool or a separate application.

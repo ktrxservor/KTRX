@@ -1,7 +1,7 @@
 id = "js-audit"
 name = "JS Audit"
 description = "Audit statique approfondi du JavaScript front-end : secrets, fonctions dangereuses, logique exposée et source maps."
-version = "1.0.0"
+version = "1.0.1"
 author = "KTRX"
 api_version = "1"
 execution_timeout_seconds = 0

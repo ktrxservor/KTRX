@@ -3,7 +3,7 @@
 1. Create a standalone Rust crate under `tools/<id>/` with `crate-type = ["cdylib"]`.
 2. Add `wit-bindgen` and generate bindings from `../../engine/wit`, selecting world `tool`.
 3. Implement `exports::ktrx::tool::tool::Guest::run`. Parse JSON input, perform the tool's own work, and return a JSON string.
-4. Use `ktrx::tool::host::request` for network or file operations. Do not access the host OS directly. Declare each required capability in the manifest and handle denial errors. For parallel, bounded TCP connect scanning, request `tcp.scan`; the host resolves the requested hostname and enforces the 128-connection concurrency limit.
+4. Use `ktrx::tool::host::request` for network or file operations. Do not access the host OS directly. Declare each required capability in the manifest and handle denial errors. Use only generic `network.resolve` and `socket.*` operations. Implement DNS policy, protocol framing, concurrency, scanning, and result interpretation in your tool; the engine must not gain a tool-specific operation. The generic socket bridge caps active connections at 128.
 5. Add `manifest.toml`, examples, and unit tests. Do not declare host allowlists. Declare the network permission when needed; KTRX prompts for approval on each invocation; private and reserved destinations are permitted.
 6. Build and package:
 

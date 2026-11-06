@@ -1,7 +1,7 @@
 id = "tech-fingerprint"
 name = "Tech Fingerprint"
 description = "Fingerprint technologique web multicouche avec versions, ressources, DNS, TLS, cookies et navigation same-origin."
-version = "1.0.0"
+version = "1.0.1"
 author = "KTRX"
 api_version = "1"
 execution_timeout_seconds = 0
