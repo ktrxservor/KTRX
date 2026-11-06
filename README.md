@@ -21,7 +21,7 @@ cp tools/base64/target/wasm32-wasip2/release/ktrx_base64_tool.wasm tools/base64/
 engine/target/release/ktrx pack tools/base64 --output tools/base64/base64.tool
 ```
 
-Build each plugin separately with the same pattern. Each has its own `Cargo.toml`; building the engine does not build plugins. Network tools ask for interactive approval on every run. The destination is selected by the tool arguments; private and reserved IP destinations remain blocked by the engine.
+Build each plugin separately with the same pattern. Each has its own `Cargo.toml`; building the engine does not build plugins. Network tools ask for interactive approval on every run. The destination is selected by the tool arguments; approved private and reserved destinations are allowed.
 
 ## Use
 
@@ -40,7 +40,7 @@ ktrx validate tools/hello-tool/hello-tool.tool
 
 When a tool requests network or local-file access, KTRX asks for approval on an interactive terminal. Non-interactive runs deny these permissions. Network operations are routed through the engine and require approval on an interactive terminal for each run. Targets are chosen at run time; private and reserved IPs are permitted. Redirects are not followed. HTTP/TLS operations have a 10-second timeout and a 1 MiB response-body cap; tools may request a Base64 sample of up to 256 KiB from an HTTP response. DNS uses the operating system resolver and its timeout behavior. The permissioned `tcp.scan` host operation performs bounded-parallel TCP connect scans and lightweight banner probes.
 
-Tools have no overall execution deadline by default. Long-running tools can send progress updates to the interactive terminal; press `Ctrl+C` to cancel them. A manifest can still set an explicit per-tool deadline when that is desired.
+Tools have no overall execution deadline by default. The runner streams progress events while a tool runs; use `ktrx run <tool.tool> --events` for newline-delimited JSON. Press `Ctrl+C` to request cancellation. Wasm execution stops at the next engine checkpoint; an in-flight network call may take up to its configured timeout to return. A manifest can set an explicit per-tool deadline.
 
 Port Explorer is an independently built plugin. It scans TCP ports 1–1000 by default, supports all 65,535 ports, and reports state, latency, service guesses, and basic application banners. Choose the target hostname at launch; KTRX prompts for network approval.
 
@@ -70,4 +70,9 @@ Commands:
 
     engine/target/release/ktrx proxy init-ca
     engine/target/release/ktrx proxy start
-\n\n## Technology fingerprinting\n\nTech Fingerprint inspects HTTP headers, cookies, HTML, scripts, styles, same-origin links, common discovery paths, DNS, and TLS metadata. It reports version evidence and detection confidence. See tools/tech-fingerprint/README.md for its limits and options.\n
+
+
+## Technology fingerprinting
+
+Tech Fingerprint inspects HTTP headers, cookies, HTML, scripts, styles, same-origin links, common discovery paths, DNS, and TLS metadata. It reports version evidence and detection confidence. See tools/tech-fingerprint/README.md for its limits and options.
+
