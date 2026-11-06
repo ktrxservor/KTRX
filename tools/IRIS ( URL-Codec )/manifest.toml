@@ -1,0 +1,21 @@
+id = "url-codec"
+name = "K~IRIS"
+description = "Percent-encode or decode URL components and form values."
+version = "1.0.0"
+author = "KTRX"
+api_version = "1"
+permissions = []
+examples = ["ktrx run 'tools/IRIS ( URL-Codec )/K~IRIS.tool' --encode 'admin/test?x=1'", "ktrx run 'tools/IRIS ( URL-Codec )/K~IRIS.tool' --decode 'admin%2Ftest%3Fx%3D1'"]
+[[arguments]]
+name = "text"
+description = "Text or percent-encoded input."
+positional = true
+required = true
+[[arguments]]
+name = "encode"
+description = "Encode as a URL component."
+value_type = "boolean"
+[[arguments]]
+name = "decode"
+description = "Decode percent escapes as UTF-8."
+value_type = "boolean"

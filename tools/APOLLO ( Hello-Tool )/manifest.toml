@@ -1,0 +1,12 @@
+id = "hello-tool"
+name = "K~APOLLO"
+description = "A minimal example KTRX component."
+version = "1.0.0"
+author = "KTRX"
+api_version = "1"
+permissions = []
+examples = ["ktrx run 'tools/APOLLO ( Hello-Tool )/K~APOLLO.tool' --name Ada"]
+[[arguments]]
+name = "name"
+description = "Name to greet."
+default = "world"

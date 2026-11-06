@@ -1,0 +1,13 @@
+id = "http-inspector"
+name = "K~HERMES"
+description = "Inspect status and response headers for an allowed HTTP or HTTPS URL."
+version = "1.0.1"
+author = "KTRX"
+api_version = "1"
+permissions = ["network"]
+examples = ["ktrx run 'tools/HERMES ( HTTP-Inspector )/K~HERMES.tool' https://example.com"]
+[[arguments]]
+name = "url"
+description = "HTTP or HTTPS URL to inspect after network approval."
+positional = true
+required = true

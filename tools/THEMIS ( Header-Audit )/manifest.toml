@@ -1,0 +1,13 @@
+id = "header-audit"
+name = "K~THEMIS"
+description = "Review pasted HTTP response headers for common security controls and cookie flags."
+version = "1.0.0"
+author = "KTRX"
+api_version = "1"
+permissions = []
+examples = ["ktrx run 'tools/THEMIS ( Header-Audit )/K~THEMIS.tool' --headers 'HTTP/1.1 200 OK\nServer: nginx\nSet-Cookie: sid=abc'"]
+[[arguments]]
+name = "headers"
+description = "Raw HTTP response status and header lines."
+positional = true
+required = true

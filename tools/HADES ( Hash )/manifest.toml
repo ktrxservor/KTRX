@@ -1,0 +1,17 @@
+id = "hash"
+name = "K~HADES"
+description = "Calculate SHA-256 digests for UTF-8 text."
+version = "1.0.0"
+author = "KTRX"
+api_version = "1"
+permissions = ["file-read"]
+examples = ["ktrx run 'tools/HADES ( Hash )/K~HADES.tool' 'Hello World'", "ktrx run 'tools/HADES ( Hash )/K~HADES.tool' --file ./document.pdf"]
+[[arguments]]
+name = "text"
+description = "Text to hash."
+positional = true
+required = false
+[[arguments]]
+name = "file"
+description = "Local file to hash; prompts for file-read access."
+value_type = "path"

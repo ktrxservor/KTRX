@@ -1,0 +1,13 @@
+id = "jwt-inspector"
+name = "K~JANUS"
+description = "Decode JWT header and claims locally and report common time claims. Does not verify signatures."
+version = "1.0.0"
+author = "KTRX"
+api_version = "1"
+permissions = []
+examples = ["ktrx run 'tools/JANUS ( JWT-Inspector )/K~JANUS.tool' eyJhbGciOiJub25lIn0.eyJzdWIiOiIxMjMifQ.sig"]
+[[arguments]]
+name = "token"
+description = "Compact JWT token to inspect."
+positional = true
+required = true

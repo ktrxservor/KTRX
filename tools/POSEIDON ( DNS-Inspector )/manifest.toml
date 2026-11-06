@@ -1,0 +1,13 @@
+id = "dns-inspector"
+name = "K~POSEIDON"
+description = "Resolve a hostname through the permissioned KTRX host network API."
+version = "1.0.1"
+author = "KTRX"
+api_version = "1"
+permissions = ["network"]
+examples = ["ktrx run 'tools/POSEIDON ( DNS-Inspector )/K~POSEIDON.tool' example.com"]
+[[arguments]]
+name = "host"
+description = "Hostname to resolve after network approval."
+positional = true
+required = true

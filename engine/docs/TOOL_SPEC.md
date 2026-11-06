@@ -8,13 +8,13 @@ A `.tool` is a ZIP archive with root entries `manifest.toml` and `module.wasm`. 
 
 ```toml
 id = "hello-tool"
-name = "Hello Tool"
+name = "K~APOLLO"
 description = "Example."
 version = "1.0.0"
 author = "Example Author"
 api_version = "1"
 permissions = []
-examples = ["ktrx run hello-tool.tool --name Ada"]
+examples = ["ktrx run 'tools/APOLLO ( Hello-Tool )/K~APOLLO.tool' --name Ada"]
 
 [[arguments]]
 name = "name"
