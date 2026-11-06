@@ -6,8 +6,8 @@ use std::{
     net::{IpAddr, SocketAddr, TcpStream, ToSocketAddrs},
     sync::{
         Arc, Mutex,
-        atomic::{AtomicUsize, Ordering},
-        mpsc,
+        atomic::{AtomicBool, AtomicUsize, Ordering},
+        mpsc::{self, Receiver, SyncSender},
     },
     time::{Duration, Instant},
 };
@@ -22,12 +22,54 @@ pub struct Runtime {
     limits: StoreLimits,
     components: Mutex<HashMap<[u8; 32], Arc<Component>>>,
     network: Arc<NetworkState>,
+    active_scans: Arc<AtomicUsize>,
 }
 
 struct NetworkState {
     dns_cache: Mutex<HashMap<(String, u16), (Instant, Vec<IpAddr>)>>,
     clients: Mutex<HashMap<(String, u16, Vec<IpAddr>), reqwest::blocking::Client>>,
-    gate: Mutex<()>,
+}
+
+/// Structured events emitted during a tool invocation. The queue is bounded; if
+/// a consumer falls behind, intermediate progress snapshots may be dropped.
+#[derive(Clone, Debug, serde::Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum RunEvent {
+    Progress {
+        data: serde_json::Value,
+    },
+    Finished {
+        success: bool,
+        output: Option<String>,
+    },
+}
+
+pub struct RunSession {
+    pub events: Receiver<RunEvent>,
+    result: std::thread::JoinHandle<Result<String>>,
+    cancelled: Arc<AtomicBool>,
+    engine: Engine,
+}
+
+impl RunSession {
+    /// Interrupt this invocation at its next Wasm epoch checkpoint.
+    pub fn cancel(&self) {
+        self.cancelled.store(true, Ordering::Release);
+        self.engine.increment_epoch();
+    }
+
+    pub fn join(self) -> Result<String> {
+        self.result
+            .join()
+            .map_err(|_| anyhow::anyhow!("tool worker thread panicked"))?
+    }
+}
+
+struct ScanSlot(Arc<AtomicUsize>);
+impl Drop for ScanSlot {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::AcqRel);
+    }
 }
 
 impl NetworkState {
@@ -120,6 +162,9 @@ struct HostState {
     progress_active: bool,
     last_progress_at: Option<Instant>,
     network: Arc<NetworkState>,
+    events: Option<SyncSender<RunEvent>>,
+    cancelled: Arc<AtomicBool>,
+    active_scans: Arc<AtomicUsize>,
 }
 
 impl WasiView for HostState {
@@ -204,6 +249,11 @@ impl ktrx::tool::host::Host for HostState {
                     self.last_progress_at = Some(now);
                 }
             }
+            if let Some(events) = &self.events {
+                let _ = events.try_send(RunEvent::Progress {
+                    data: request.clone(),
+                });
+            }
             return Ok(serde_json::json!({"accepted":true}).to_string());
         }
         if operation == "file.read" {
@@ -281,11 +331,6 @@ impl ktrx::tool::host::Host for HostState {
             .ok_or("request must include host or url")?;
         match operation.as_str() {
             "dns.lookup" => {
-                let _guard = self
-                    .network
-                    .gate
-                    .lock()
-                    .map_err(|_| "network gate lock poisoned")?;
                 let port = match request.get("port").and_then(|v| v.as_u64()) {
                     Some(value) => {
                         u16::try_from(value).map_err(|_| "port must be between 1 and 65535")?
@@ -299,11 +344,14 @@ impl ktrx::tool::host::Host for HostState {
                 Ok(serde_json::json!({"host":host,"addresses":addresses}).to_string())
             }
             "tcp.scan" => {
-                let _guard = self
-                    .network
-                    .gate
-                    .lock()
-                    .map_err(|_| "network gate lock poisoned")?;
+                self.active_scans
+                    .try_update(Ordering::AcqRel, Ordering::Acquire, |n| {
+                        (n < 4).then_some(n + 1)
+                    })
+                    .map_err(
+                        |_| "KTRX is already running four network scans; retry when one finishes",
+                    )?;
+                let _scan_slot = ScanSlot(Arc::clone(&self.active_scans));
                 let ports = request
                     .get("ports")
                     .and_then(|v| v.as_array())
@@ -352,6 +400,7 @@ impl ktrx::tool::host::Host for HostState {
                     Duration::from_millis(timeout_ms),
                     concurrency.min(ports.len()),
                     detect_services,
+                    Arc::clone(&self.cancelled),
                 );
                 let open = results.iter().filter(|r| r.state == "open").count();
                 let closed = results.iter().filter(|r| r.state == "closed").count();
@@ -372,11 +421,6 @@ impl ktrx::tool::host::Host for HostState {
                 .to_string())
             }
             "http.get" | "tls.inspect" => {
-                let _guard = self
-                    .network
-                    .gate
-                    .lock()
-                    .map_err(|_| "network gate lock poisoned")?;
                 let url = request
                     .get("url")
                     .and_then(|v| v.as_str())
@@ -462,8 +506,8 @@ impl Runtime {
             network: Arc::new(NetworkState {
                 dns_cache: Mutex::new(HashMap::new()),
                 clients: Mutex::new(HashMap::new()),
-                gate: Mutex::new(()),
             }),
+            active_scans: Arc::new(AtomicUsize::new(0)),
         })
     }
 
@@ -478,6 +522,62 @@ impl Runtime {
         input_json: &str,
         network_approved: bool,
         file_read_approved: bool,
+    ) -> Result<String> {
+        self.run_inner(
+            package,
+            input_json,
+            network_approved,
+            file_read_approved,
+            None,
+            Arc::new(AtomicBool::new(false)),
+        )
+    }
+
+    /// Start a run on a worker thread and receive bounded progress events while
+    /// it executes. A consumer must call `join` to collect the final JSON result.
+    pub fn start_run(
+        self: &Arc<Self>,
+        package: ToolPackage,
+        input_json: String,
+        network_approved: bool,
+        file_read_approved: bool,
+    ) -> RunSession {
+        let (tx, rx) = mpsc::sync_channel(256);
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let worker_cancelled = Arc::clone(&cancelled);
+        let runtime = Arc::clone(self);
+        let worker = std::thread::spawn(move || {
+            let result = runtime.run_inner(
+                &package,
+                &input_json,
+                network_approved,
+                file_read_approved,
+                Some(tx.clone()),
+                worker_cancelled,
+            );
+            let event = RunEvent::Finished {
+                success: result.is_ok(),
+                output: result.as_ref().ok().cloned(),
+            };
+            let _ = tx.send(event);
+            result
+        });
+        RunSession {
+            events: rx,
+            result: worker,
+            cancelled,
+            engine: self.engine.clone(),
+        }
+    }
+
+    fn run_inner(
+        &self,
+        package: &ToolPackage,
+        input_json: &str,
+        network_approved: bool,
+        file_read_approved: bool,
+        events: Option<SyncSender<RunEvent>>,
+        cancelled: Arc<AtomicBool>,
     ) -> Result<String> {
         let component = self.component(package)?;
         let show_run_status = std::io::stderr().is_terminal();
@@ -501,17 +601,27 @@ impl Runtime {
                 progress_active: show_run_status,
                 last_progress_at: None,
                 network: Arc::clone(&self.network),
+                events,
+                cancelled: Arc::clone(&cancelled),
+                active_scans: Arc::clone(&self.active_scans),
             },
         );
         store.limiter(|state| &mut state.limits);
         let execution_timeout = package.manifest.execution_timeout_seconds.unwrap_or(0);
         let unlimited_execution = execution_timeout == 0;
-        if unlimited_execution {
-            // Epoch interruption is enabled for this engine; an unlimited tool still needs a future deadline.
-            store.set_epoch_deadline(u64::MAX);
-        } else {
-            store.set_epoch_deadline(1);
-        }
+        store.set_epoch_deadline(1);
+        let started = Instant::now();
+        let deadline = (execution_timeout != 0).then(|| Duration::from_secs(execution_timeout));
+        let cancel_check = Arc::clone(&cancelled);
+        store.epoch_deadline_callback(move |_| {
+            if cancel_check.load(Ordering::Acquire)
+                || deadline.is_some_and(|limit| started.elapsed() >= limit)
+            {
+                Ok(wasmtime::UpdateDeadline::Interrupt)
+            } else {
+                Ok(wasmtime::UpdateDeadline::Continue(1))
+            }
+        });
         let mut linker = Linker::new(&self.engine);
         wasmtime_wasi::p2::add_to_linker_sync(&mut linker)?;
         KtrxTool::add_to_linker::<_, HasSelf<_>>(&mut linker, |state| state)?;
@@ -522,20 +632,24 @@ impl Runtime {
             eprint!("{run_label} — exécution en cours…");
             let _ = std::io::stderr().flush();
         }
-        let timer = if unlimited_execution {
-            None
-        } else {
+        let timer = {
             let (stop_tx, stop_rx) = std::sync::mpsc::channel();
             let engine = self.engine.clone();
+            let timer_cancelled = Arc::clone(&cancelled);
             let timer = std::thread::spawn(move || {
-                if stop_rx
-                    .recv_timeout(Duration::from_secs(execution_timeout))
-                    .is_err()
-                {
-                    engine.increment_epoch();
+                loop {
+                    if stop_rx.recv_timeout(Duration::from_millis(10)).is_ok() {
+                        break;
+                    }
+                    if timer_cancelled.load(Ordering::Acquire)
+                        || deadline.is_some_and(|limit| started.elapsed() >= limit)
+                    {
+                        engine.increment_epoch();
+                        break;
+                    }
                 }
             });
-            Some((stop_tx, timer))
+            (stop_tx, timer)
         };
         let result = bindings
             .ktrx_tool_tool()
@@ -549,10 +663,8 @@ impl Runtime {
                     )
                 }
             });
-        if let Some((stop_tx, timer)) = timer {
-            let _ = stop_tx.send(());
-            let _ = timer.join();
-        }
+        let _ = timer.0.send(());
+        let _ = timer.1.join();
         if store.data().progress_active {
             eprintln!();
         }
@@ -597,6 +709,7 @@ fn scan_tcp_ports(
     timeout: Duration,
     concurrency: usize,
     detect_services: bool,
+    cancelled: Arc<AtomicBool>,
 ) -> (Vec<TcpPortResult>, bool) {
     let (job_tx, job_rx) = mpsc::channel::<u16>();
     let job_rx = Arc::new(Mutex::new(job_rx));
@@ -612,8 +725,12 @@ fn scan_tcp_ports(
             let jobs = Arc::clone(&job_rx);
             let output = result_tx.clone();
             let remaining_fingerprints = Arc::clone(&fingerprint_budget);
+            let cancelled = Arc::clone(&cancelled);
             scope.spawn(move || {
                 loop {
+                    if cancelled.load(Ordering::Acquire) {
+                        break;
+                    }
                     let port = match jobs.lock().ok().and_then(|rx| rx.recv().ok()) {
                         Some(port) => port,
                         None => break,
@@ -842,6 +959,7 @@ mod tcp_scan_tests {
             Duration::from_millis(500),
             2,
             true,
+            Arc::new(AtomicBool::new(false)),
         );
         server.join().unwrap();
         assert!(complete);
