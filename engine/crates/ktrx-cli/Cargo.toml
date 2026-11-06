@@ -10,6 +10,7 @@ path = "src/main.rs"
 [dependencies]
 anyhow.workspace = true
 clap.workspace = true
+ctrlc.workspace = true
 ktrx-core = { path = "../ktrx-core" }
 ktrx-runtime = { path = "../ktrx-runtime" }
 serde_json.workspace = true
