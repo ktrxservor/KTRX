@@ -1,0 +1,44 @@
+id = "port-scanner"
+name = "Port Explorer"
+description = "Concurrent TCP connect scanning with DNS discovery and lightweight service fingerprinting."
+version = "1.1.0"
+author = "KTRX"
+api_version = "1"
+execution_timeout_seconds = 0
+permissions = ["network"]
+examples = [
+  "ktrx run tools/port-scanner/port-scanner.tool --help",
+  "ktrx run tools/port-scanner/port-scanner.tool example.com",
+  "ktrx run tools/port-scanner/port-scanner.tool example.com --ports 22,80,443,3306,8080,8443",
+  "ktrx run tools/port-scanner/port-scanner.tool example.com --ports all --timeout-ms 200 --concurrency 128",
+  "ktrx run tools/port-scanner/port-scanner.tool pixees.fr --ports 1-1000",
+]
+
+[[arguments]]
+name = "host"
+description = "Target hostname; network access requires approval for this run."
+positional = true
+required = true
+
+[[arguments]]
+name = "ports"
+description = "TCP ports as numbers or ranges; use all for 1-65535. Defaults to 1-1000."
+default = "1-1000"
+
+[[arguments]]
+name = "timeout-ms"
+description = "Per-port TCP connect timeout in milliseconds (50-2000)."
+value_type = "integer"
+default = 250
+
+[[arguments]]
+name = "concurrency"
+description = "Maximum parallel TCP connections (1-128)."
+value_type = "integer"
+default = 128
+
+[[arguments]]
+name = "service-detection"
+description = "Probe common TCP services for banners and basic versions."
+value_type = "boolean"
+default = true

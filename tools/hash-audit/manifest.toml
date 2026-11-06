@@ -1,0 +1,71 @@
+id = "hash-audit"
+name = "Hash Audit"
+description = "Offline hash audit with live progress, wordlists and configurable brute-force search."
+version = "1.0.0"
+author = "KTRX"
+api_version = "1"
+execution_timeout_seconds = 0
+permissions = ["file-read"]
+examples = ["ktrx run hash-audit.tool 900150983cd24fb0d6963f7d28e17f72 --algorithm md5 --file ./wordlist.txt", "ktrx run hash-audit.tool 900150983cd24fb0d6963f7d28e17f72 --algorithm md5 --bruteforce --charset lower --min-length 1 --max-length 4"]
+
+[[arguments]]
+name = "hashes"
+description = "One or more comma-separated hexadecimal hashes."
+value_type = "string"
+required = true
+positional = true
+
+[[arguments]]
+name = "algorithm"
+description = "Hash algorithm; auto checks algorithms compatible with the digest length."
+value_type = "string"
+required = false
+positional = false
+default = "auto"
+
+[[arguments]]
+name = "file"
+description = "Optional local wordlist. Requires approval to read this exact file."
+value_type = "path"
+required = false
+positional = false
+
+[[arguments]]
+name = "bruteforce"
+description = "Generate candidates from the selected character set instead of reading a wordlist."
+value_type = "boolean"
+required = false
+positional = false
+default = false
+
+[[arguments]]
+name = "charset"
+description = "Brute-force alphabet: digits, lower, lower-digit, or alnum."
+value_type = "string"
+required = false
+positional = false
+default = "lower-digit"
+
+[[arguments]]
+name = "min-length"
+description = "Minimum generated candidate length (1-16)."
+value_type = "integer"
+required = false
+positional = false
+default = 1
+
+[[arguments]]
+name = "max-length"
+description = "Maximum generated candidate length (1-16)."
+value_type = "integer"
+required = false
+positional = false
+default = 4
+
+[[arguments]]
+name = "max-candidates"
+description = "Maximum candidate guesses; 0 means unlimited, otherwise 1-2000000."
+value_type = "integer"
+required = false
+positional = false
+default = 0

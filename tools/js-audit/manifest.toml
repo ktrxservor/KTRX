@@ -1,0 +1,46 @@
+id = "js-audit"
+name = "JS Audit"
+description = "Audit statique approfondi du JavaScript front-end : secrets, fonctions dangereuses, logique exposée et source maps."
+version = "1.0.0"
+author = "KTRX"
+api_version = "1"
+execution_timeout_seconds = 0
+permissions = ["network"]
+examples = ["ktrx run js-audit.tool https://example.com --max-requests 80", "ktrx run js-audit.tool https://example.com --external-scripts --reveal-secrets"]
+
+[[arguments]]
+name = "url"
+description = "URL HTTP(S) de la page front-end à auditer."
+value_type = "string"
+required = true
+positional = true
+
+[[arguments]]
+name = "max-requests"
+description = "Nombre maximal de pages, scripts et source maps téléchargés (1 à 150)."
+value_type = "integer"
+required = false
+positional = false
+default = 80
+
+[[arguments]]
+name = "script-kb"
+description = "Taille maximale analysée par ressource (16 à 512 Kio)."
+value_type = "integer"
+required = false
+positional = false
+default = 512
+
+[[arguments]]
+name = "external-scripts"
+description = "Télécharger et analyser aussi les scripts tiers référencés dans la page."
+value_type = "boolean"
+required = false
+positional = false
+
+[[arguments]]
+name = "reveal-secrets"
+description = "Afficher les valeurs de secrets détectées au lieu de les masquer dans le rapport."
+value_type = "boolean"
+required = false
+positional = false

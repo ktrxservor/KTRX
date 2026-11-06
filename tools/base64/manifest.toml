@@ -1,0 +1,21 @@
+id = "base64"
+name = "Base64 Tool"
+description = "Encode and decode UTF-8 text using standard Base64."
+version = "1.0.0"
+author = "KTRX"
+api_version = "1"
+permissions = []
+examples = ["ktrx run base64.tool --encode 'Hello World'", "ktrx run base64.tool --decode SGVsbG8="]
+[[arguments]]
+name = "text"
+description = "Text to encode, or Base64 input to decode."
+positional = true
+required = true
+[[arguments]]
+name = "encode"
+description = "Encode text."
+value_type = "boolean"
+[[arguments]]
+name = "decode"
+description = "Decode Base64."
+value_type = "boolean"

@@ -1,0 +1,40 @@
+id = "tech-fingerprint"
+name = "Tech Fingerprint"
+description = "Fingerprint technologique web multicouche avec versions, ressources, DNS, TLS, cookies et navigation same-origin."
+version = "1.0.0"
+author = "KTRX"
+api_version = "1"
+execution_timeout_seconds = 0
+permissions = ["network"]
+examples = ["ktrx run tech-fingerprint.tool https://example.com --max-requests 50 --depth 2"]
+
+[[arguments]]
+name = "url"
+description = "URL HTTP(S) de départ à analyser."
+value_type = "string"
+required = true
+positional = true
+
+[[arguments]]
+name = "max-requests"
+description = "Nombre maximal de ressources HTTP analysées (1 à 150)."
+value_type = "integer"
+required = false
+positional = false
+default = 50
+
+[[arguments]]
+name = "depth"
+description = "Profondeur de navigation same-origin (0 à 4)."
+value_type = "integer"
+required = false
+positional = false
+default = 2
+
+[[arguments]]
+name = "body-kb"
+description = "Échantillon maximal du corps par ressource (16 à 256 Kio)."
+value_type = "integer"
+required = false
+positional = false
+default = 256

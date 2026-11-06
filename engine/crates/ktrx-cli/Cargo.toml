@@ -1,0 +1,19 @@
+[package]
+name = "ktrx-cli"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "ktrx"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+ktrx-core = { path = "../ktrx-core" }
+ktrx-runtime = { path = "../ktrx-runtime" }
+serde_json.workspace = true
+toml.workspace = true
+zip.workspace = true
+openssl = "0.10"
+reqwest.workspace = true

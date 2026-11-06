@@ -1,0 +1,15 @@
+[package]
+name = "ktrx-runtime"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+base64.workspace = true
+ktrx-core = { path = "../ktrx-core" }
+wasmtime.workspace = true
+wasmtime-wasi.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true

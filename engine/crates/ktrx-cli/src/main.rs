@@ -1,0 +1,303 @@
+mod proxy;
+
+use anyhow::{Context, Result};
+use clap::{Parser, Subcommand};
+use ktrx_core::{ToolPackage, validate_arguments, validate_manifest};
+use ktrx_runtime::Runtime;
+use std::{
+    fs::File,
+    io::{self, IsTerminal, Write},
+    net::SocketAddr,
+    path::{Path, PathBuf},
+};
+
+#[derive(Parser)]
+#[command(
+    name = "ktrx",
+    version,
+    about = "KTRX — portable WebAssembly tool runner and local intercepting proxy",
+    arg_required_else_help = true
+)]
+struct Cli {
+    #[command(subcommand)]
+    command: Command,
+}
+
+#[derive(Subcommand)]
+enum Command {
+    /// Run a packaged WebAssembly tool.
+    Run {
+        tool: PathBuf,
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
+        #[arg(long, global = true)]
+        json: bool,
+    },
+    /// Show manifest details.
+    Info { tool: PathBuf },
+    /// Print the manifest as JSON.
+    Describe {
+        tool: PathBuf,
+        #[arg(long, default_value_t = true)]
+        json: bool,
+    },
+    /// Validate the archive, manifest, and WebAssembly component.
+    Validate { tool: PathBuf },
+    /// Package manifest.toml and module.wasm from a tool directory.
+    Pack {
+        directory: PathBuf,
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+    /// Run the interactive local HTTP/HTTPS interception proxy.
+    Proxy {
+        #[command(subcommand)]
+        command: ProxyCommand,
+    },
+}
+
+#[derive(Subcommand)]
+enum ProxyCommand {
+    /// Create a local CA certificate for decrypting test HTTPS traffic.
+    InitCa {
+        #[arg(long)]
+        directory: Option<PathBuf>,
+    },
+    /// Start the intercepting proxy on a loopback address.
+    Start {
+        #[arg(long, default_value = "127.0.0.1:8080")]
+        listen: SocketAddr,
+        #[arg(long)]
+        ca_dir: Option<PathBuf>,
+    },
+}
+
+fn main() {
+    let raw_args: Vec<_> = std::env::args_os().collect();
+    if raw_args.len() == 4
+        && raw_args[1].to_str() == Some("run")
+        && raw_args[3].to_str() == Some("--help")
+    {
+        let result = ToolPackage::open(&raw_args[2])
+            .map_err(anyhow::Error::from)
+            .and_then(|package| print_tool_help(&package.manifest));
+        if let Err(err) = result {
+            eprintln!("ktrx: {err:#}");
+            std::process::exit(2);
+        }
+        return;
+    }
+    if let Err(err) = execute(Cli::parse()) {
+        eprintln!("ktrx: {err:#}");
+        std::process::exit(2);
+    }
+}
+
+fn execute(cli: Cli) -> Result<()> {
+    match cli.command {
+        Command::Run { tool, args, json } => {
+            let package =
+                ToolPackage::open(&tool).with_context(|| format!("opening {}", tool.display()))?;
+            let values = validate_arguments(&package.manifest, &args)?;
+            let network_details = values
+                .get("host")
+                .and_then(|value| value.as_str())
+                .map(str::to_owned)
+                .or_else(|| {
+                    values
+                        .get("url")
+                        .and_then(|value| value.as_str())
+                        .and_then(url_target_host)
+                        .map(str::to_owned)
+                })
+                .map(|host| format!(" to {host}"));
+            let network_approved = approve(
+                &package.manifest.name,
+                &package.manifest.permissions,
+                ktrx_core::Permission::Network,
+                network_details.as_deref(),
+            )?;
+            let file_read_approved = values.get("file").is_some()
+                && approve(
+                    &package.manifest.name,
+                    &package.manifest.permissions,
+                    ktrx_core::Permission::FileRead,
+                    None,
+                )?;
+            let runtime = Runtime::new()?;
+            let output = runtime.run(
+                &package,
+                &serde_json::to_string(&values)?,
+                network_approved,
+                file_read_approved,
+            )?;
+            if let Ok(value) = serde_json::from_str::<serde_json::Value>(&output) {
+                if let Some(error) = value.get("error") {
+                    if json {
+                        println!("{}", serde_json::to_string(&value)?);
+                    }
+                    return Err(anyhow::anyhow!("tool error: {error}"));
+                }
+            }
+            if json {
+                println!("{output}");
+            } else if let Ok(value) = serde_json::from_str::<serde_json::Value>(&output) {
+                println!("{}", serde_json::to_string_pretty(&value)?);
+            } else {
+                println!("{output}");
+            }
+        }
+        Command::Info { tool } => {
+            let p = ToolPackage::open(tool)?;
+            println!("{}  {}", p.manifest.name, p.manifest.version);
+            println!("{}", p.manifest.description);
+            println!(
+                "\nID       {}\nAuthor   {}\nKTRX API {}\nPerms    {}",
+                p.manifest.id,
+                p.manifest.author,
+                p.manifest.api_version,
+                if p.manifest.permissions.is_empty() {
+                    "none".into()
+                } else {
+                    p.manifest
+                        .permissions
+                        .iter()
+                        .map(|x| match x {
+                            ktrx_core::Permission::Network => "network",
+                            ktrx_core::Permission::FileRead => "file-read",
+                        })
+                        .map(str::to_owned)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                }
+            );
+            if !p.manifest.examples.is_empty() {
+                println!("\nExamples");
+                for ex in p.manifest.examples {
+                    println!("  {ex}");
+                }
+            }
+        }
+        Command::Describe { tool, .. } => {
+            let p = ToolPackage::open(tool)?;
+            println!("{}", serde_json::to_string_pretty(&p.manifest)?);
+        }
+        Command::Validate { tool } => {
+            let p = ToolPackage::open(&tool)?;
+            Runtime::new()?.validate(&p)?;
+            println!("Valid: {} ({})", p.manifest.name, p.manifest.id);
+        }
+        Command::Pack { directory, output } => pack(&directory, output.as_deref())?,
+        Command::Proxy { command } => match command {
+            ProxyCommand::InitCa { directory } => {
+                proxy::init_ca(&directory.unwrap_or_else(proxy::default_ca_dir))?
+            }
+            ProxyCommand::Start { listen, ca_dir } => {
+                proxy::start(listen, &ca_dir.unwrap_or_else(proxy::default_ca_dir))?
+            }
+        },
+    }
+    Ok(())
+}
+
+fn approve(
+    name: &str,
+    permissions: &[ktrx_core::Permission],
+    permission: ktrx_core::Permission,
+    details: Option<&str>,
+) -> Result<bool> {
+    if !permissions
+        .iter()
+        .any(|p| std::mem::discriminant(p) == std::mem::discriminant(&permission))
+    {
+        return Ok(false);
+    }
+    if !io::stdin().is_terminal() {
+        return Ok(false);
+    }
+    let label = match permission {
+        ktrx_core::Permission::Network => "network access",
+        ktrx_core::Permission::FileRead => "read access to the file path passed to the tool",
+    };
+    eprint!(
+        "{} requests {}{} for this run. Allow? [y/N] ",
+        name,
+        label,
+        details.unwrap_or_default()
+    );
+    io::stderr().flush()?;
+    let mut answer = String::new();
+    io::stdin().read_line(&mut answer)?;
+    Ok(matches!(
+        answer.trim().to_ascii_lowercase().as_str(),
+        "y" | "yes"
+    ))
+}
+
+fn url_target_host(url: &str) -> Option<&str> {
+    let authority = url.split_once("://")?.1.split('/').next()?;
+    let authority = authority.rsplit('@').next()?;
+    let host = if let Some(bracketed) = authority.strip_prefix('[') {
+        bracketed.split(']').next()?
+    } else {
+        authority.split(':').next()?
+    };
+    (!host.is_empty()).then_some(host)
+}
+
+fn print_tool_help(m: &ktrx_core::Manifest) -> Result<()> {
+    println!("{} — {}\n\n{}", m.name, m.version, m.description);
+    println!("\nUsage: ktrx run <file.tool> [arguments]");
+    for a in &m.arguments {
+        let form = if a.positional {
+            format!("<{}>", a.name)
+        } else {
+            format!("--{}", a.name)
+        };
+        println!(
+            "  {:24} {}{}",
+            form,
+            a.description,
+            if a.required { " (required)" } else { "" }
+        );
+    }
+    if !m.examples.is_empty() {
+        println!("\nExamples");
+        for e in &m.examples {
+            println!("  {e}");
+        }
+    }
+    Ok(())
+}
+
+fn pack(directory: &Path, output: Option<&Path>) -> Result<()> {
+    let manifest = directory.join("manifest.toml");
+    let module = directory.join("module.wasm");
+    let manifest_data =
+        std::fs::read(&manifest).with_context(|| format!("reading {}", manifest.display()))?;
+    let manifest: ktrx_core::Manifest = toml::from_str(std::str::from_utf8(&manifest_data)?)?;
+    validate_manifest(&manifest)?;
+    let module_data =
+        std::fs::read(&module).with_context(|| format!("reading {}", module.display()))?;
+    anyhow::ensure!(
+        module_data.starts_with(b"\0asm"),
+        "module.wasm is not a WebAssembly binary"
+    );
+    let output = output.map(Path::to_path_buf).unwrap_or_else(|| {
+        directory.join(format!(
+            "{}.tool",
+            directory.file_name().unwrap_or_default().to_string_lossy()
+        ))
+    });
+    let file = File::create(&output)?;
+    let mut zip = zip::ZipWriter::new(file);
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+    zip.start_file("manifest.toml", options)?;
+    zip.write_all(&manifest_data)?;
+    zip.start_file("module.wasm", options)?;
+    zip.write_all(&module_data)?;
+    zip.finish()?;
+    println!("Created {}", output.display());
+    Ok(())
+}

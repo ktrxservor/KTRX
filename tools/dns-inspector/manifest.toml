@@ -1,0 +1,13 @@
+id = "dns-inspector"
+name = "DNS Inspector"
+description = "Resolve a hostname through the permissioned KTRX host network API."
+version = "1.0.0"
+author = "KTRX"
+api_version = "1"
+permissions = ["network"]
+examples = ["ktrx run dns-inspector.tool example.com"]
+[[arguments]]
+name = "host"
+description = "Hostname to resolve after network approval."
+positional = true
+required = true

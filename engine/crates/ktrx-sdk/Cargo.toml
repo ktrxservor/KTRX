@@ -1,0 +1,8 @@
+[package]
+name = "ktrx-sdk"
+version.workspace = true
+edition.workspace = true
+description = "Guest-side SDK for KTRX WebAssembly components"
+
+[dependencies]
+wit-bindgen = "0.51"
