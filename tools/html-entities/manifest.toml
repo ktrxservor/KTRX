@@ -1,0 +1,21 @@
+id = "html-entities"
+name = "HTML Entity Codec"
+description = "Encode text as HTML entities or decode common named and numeric entities."
+version = "1.0.0"
+author = "KTRX"
+api_version = "1"
+permissions = []
+examples = ["ktrx run html-entities.tool --encode '<script>alert(1)</script>'", "ktrx run html-entities.tool --decode '&lt;script&gt;'"]
+[[arguments]]
+name = "text"
+description = "Text to encode or decode."
+positional = true
+required = true
+[[arguments]]
+name = "encode"
+description = "Encode HTML special characters."
+value_type = "boolean"
+[[arguments]]
+name = "decode"
+description = "Decode common named or numeric entities."
+value_type = "boolean"

@@ -1,0 +1,21 @@
+id = "hex-codec"
+name = "Hex Codec"
+description = "Convert UTF-8 text to hexadecimal and hexadecimal bytes back to UTF-8."
+version = "1.0.0"
+author = "KTRX"
+api_version = "1"
+permissions = []
+examples = ["ktrx run hex-codec.tool --encode 'GET / HTTP/1.1'", "ktrx run hex-codec.tool --decode '474554202f'"]
+[[arguments]]
+name = "text"
+description = "Text to encode, or even-length hexadecimal input to decode."
+positional = true
+required = true
+[[arguments]]
+name = "encode"
+description = "Encode UTF-8 text as lowercase hexadecimal."
+value_type = "boolean"
+[[arguments]]
+name = "decode"
+description = "Decode hexadecimal bytes as UTF-8."
+value_type = "boolean"

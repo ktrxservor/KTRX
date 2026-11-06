@@ -1,0 +1,9 @@
+[package]
+name = "ktrx-header-audit"
+version = "1.0.0"
+edition = "2024"
+[lib]
+crate-type = ["cdylib"]
+[dependencies]
+serde_json = "1.0"
+wit-bindgen = "0.51"

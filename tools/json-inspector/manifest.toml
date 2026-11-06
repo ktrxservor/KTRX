@@ -1,0 +1,21 @@
+id = "json-inspector"
+name = "JSON Inspector"
+description = "Validate, pretty-print, or compact JSON and summarize its top-level structure."
+version = "1.0.0"
+author = "KTRX"
+api_version = "1"
+permissions = []
+examples = ["ktrx run json-inspector.tool --pretty '{\"ok\":true}'", "ktrx run json-inspector.tool --compact '{ \"ok\": true }'"]
+[[arguments]]
+name = "json"
+description = "JSON document to inspect or format."
+positional = true
+required = true
+[[arguments]]
+name = "pretty"
+description = "Output indented JSON (default)."
+value_type = "boolean"
+[[arguments]]
+name = "compact"
+description = "Output compact JSON."
+value_type = "boolean"

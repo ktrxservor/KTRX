@@ -1,0 +1,18 @@
+id = "regex-lab"
+name = "Regex Lab"
+description = "Search pasted text with a Rust regular expression and inspect matches and capture groups."
+version = "1.0.0"
+author = "KTRX"
+api_version = "1"
+permissions = []
+examples = ["ktrx run regex-lab.tool 'user=(\\w+)' --text 'user=alice'", "ktrx run regex-lab.tool '(?i)token' --text 'Token: abc'"]
+[[arguments]]
+name = "pattern"
+description = "Regular expression pattern (Rust regex syntax)."
+positional = true
+required = true
+[[arguments]]
+name = "text"
+description = "Text in which to search."
+value_type = "string"
+required = true
