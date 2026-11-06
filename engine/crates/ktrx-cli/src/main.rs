@@ -32,6 +32,9 @@ enum Command {
         args: Vec<String>,
         #[arg(long, global = true)]
         json: bool,
+        /// Stream progress and the final result as newline-delimited JSON events.
+        #[arg(long, conflicts_with = "json")]
+        events: bool,
     },
     /// Show manifest details.
     Info { tool: PathBuf },
@@ -95,7 +98,12 @@ fn main() {
 
 fn execute(cli: Cli) -> Result<()> {
     match cli.command {
-        Command::Run { tool, args, json } => {
+        Command::Run {
+            tool,
+            args,
+            json,
+            events,
+        } => {
             let package =
                 ToolPackage::open(&tool).with_context(|| format!("opening {}", tool.display()))?;
             let values = validate_arguments(&package.manifest, &args)?;
@@ -124,22 +132,50 @@ fn execute(cli: Cli) -> Result<()> {
                     ktrx_core::Permission::FileRead,
                     None,
                 )?;
-            let runtime = Runtime::new()?;
-            let output = runtime.run(
-                &package,
-                &serde_json::to_string(&values)?,
+            let runtime = std::sync::Arc::new(Runtime::new()?);
+            let session = runtime.start_run(
+                package,
+                serde_json::to_string(&values)?,
                 network_approved,
                 file_read_approved,
-            )?;
+            );
+            let (interrupt_tx, interrupt_rx) = std::sync::mpsc::channel();
+            ctrlc::set_handler(move || {
+                let _ = interrupt_tx.send(());
+            })
+            .context("installing Ctrl+C handler")?;
+            let mut output_event = None;
+            loop {
+                if interrupt_rx.try_recv().is_ok() {
+                    session.cancel();
+                }
+                match session
+                    .events
+                    .recv_timeout(std::time::Duration::from_millis(50))
+                {
+                    Ok(event) => {
+                        if events {
+                            println!("{}", serde_json::to_string(&event)?);
+                        }
+                        if let ktrx_runtime::RunEvent::Finished { output, .. } = event {
+                            output_event = output;
+                            break;
+                        }
+                    }
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
+                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+                }
+            }
+            let output = session.join()?;
+            let output = output_event.unwrap_or(output);
             if let Ok(value) = serde_json::from_str::<serde_json::Value>(&output) {
                 if let Some(error) = value.get("error") {
-                    if json {
-                        println!("{}", serde_json::to_string(&value)?);
-                    }
                     return Err(anyhow::anyhow!("tool error: {error}"));
                 }
             }
-            if json {
+            if events {
+                // The final result was already included in the Finished event.
+            } else if json {
                 println!("{output}");
             } else if let Ok(value) = serde_json::from_str::<serde_json::Value>(&output) {
                 println!("{}", serde_json::to_string_pretty(&value)?);
