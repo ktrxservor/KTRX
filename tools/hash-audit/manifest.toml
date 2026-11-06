@@ -1,7 +1,7 @@
 id = "hash-audit"
 name = "Hash Audit"
 description = "Offline hash audit with live progress, wordlists and configurable brute-force search."
-version = "1.0.0"
+version = "1.1.0"
 author = "KTRX"
 api_version = "1"
 execution_timeout_seconds = 0
