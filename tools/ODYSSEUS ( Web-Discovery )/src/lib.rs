@@ -7,7 +7,7 @@ use url::Url;
 const MAX_WORDLIST_BYTES: u64 = 1_048_576;
 const MAX_CANDIDATES: usize = 5_000;
 const MAX_RESULTS: usize = 500;
-const BUILTIN_WORDS: &str = "admin\napi\nassets\nauth\nbackup\nbin\nblog\ncache\nconfig\nconsole\ncss\ndashboard\ndata\ndebug\ndocs\ndownload\nexport\nfiles\nhealth\nhelp\nhome\nimages\nimg\nincludes\njs\nlogin\nlogout\nmedia\nold\nprivate\nprofile\npublic\nrobots.txt\nsitemap.xml\nstatic\nstatus\nstorage\ntest\ntmp\nuser\nusers\nversion\nwebmail\nwp-admin\nwp-content\nwp-includes\n.env\n.git\n.htaccess\nserver-status\nactuator\nactuator/health\napi/v1\napi/docs\napi/swagger\nbackup.zip\nconfig.php\nconfig.json\ndatabase.sql\nindex.php\nindex.html\nphpinfo.php\nserver-info\n";
+const BUILTIN_WORDS: &str = "admin\napi\nassets\nauth\nbackup\nbin\nblog\ncache\nconfig\nconsole\ncss\ndashboard\ndata\ndebug\ndocs\ndownload\nexport\nfiles\nhealth\nhelp\nhome\nimages\nimg\nincludes\njs\nlogin\nlogout\nmedia\nold\nprivate\nprofile\npublic\nrobots.txt\nsitemap.xml\nstatic\nstatus\nstorage\ntest\ntmp\nuser\nusers\nversion\nwebmail\nwp-admin\nwp-content\nwp-includes\n.env\n.git\n.htaccess\nserver-status\nactuator\nactuator/health\napi/v1\napi/docs\napi/swagger\nbackup.zip\nconfig.php\nconfig.json\ndatabase.sql\nindex.php\nindex.html\nphpinfo.php\nserver-info\n.env.local\n.env.production\n.env.backup\n.git/config\n.git/HEAD\n.svn\n.svn/entries\n.ds_store\n.npmrc\n.aws/credentials\n.dockerignore\nDockerfile\ndocker-compose.yml\nid_rsa\nid_rsa.pub\nweb.config\ncomposer.json\ncomposer.lock\npackage.json\npackage-lock.json\nyarn.lock\nrequirements.txt\nGemfile\nGemfile.lock\napi/v2\napi/v3\napi/graphql\ngraphql\nopenapi.json\nswagger.json\nswagger-ui\napi-docs\nmetrics\nprometheus\ndebug/vars\nelmah.axd\ntrace.axd\nphpmyadmin\nadminer.php\ngrafana\nkibana\njenkins\n.well-known/security.txt\n.well-known/change-password\nhealthz\nreadyz\nversion.json\nstatus.json\nbackup.tar.gz\nbackup.sql\ndump.sql\nsitemap_index.xml\ncrossdomain.xml\nhumans.txt\n";
 
 struct Plugin;
 
@@ -88,8 +88,7 @@ fn scan(input: &str) -> Result<Value, String> {
                 continue;
             }
         };
-        let soft_404 =
-            response.status == baseline.status && response.body_bytes == baseline.body_bytes;
+        let soft_404 = is_soft_404(&response, &baseline);
         if !soft_404 && statuses.contains(&response.status) {
             match_count += 1;
             let finding = json!({
@@ -168,6 +167,29 @@ fn fetch(url: &str) -> Result<Response, String> {
         content_type: header("content-type"),
         location: header("location"),
     })
+}
+
+/// Many single-page apps and storefronts serve their homepage (status 200) for
+/// any unknown path instead of a distinct 404, and some even reflect the
+/// requested path somewhere in that page (a canonical link, breadcrumb, or
+/// error banner), so the soft-404 body size drifts by a few bytes per path
+/// instead of matching the probe baseline exactly. Treat a response as a
+/// soft-404 when its status and content type match the baseline and its body
+/// size is within a small tolerance of it, rather than requiring an exact
+/// byte-for-byte match.
+fn is_soft_404(response: &Response, baseline: &Response) -> bool {
+    if response.status != baseline.status {
+        return false;
+    }
+    if response.content_type != baseline.content_type {
+        return false;
+    }
+    if response.body_bytes == baseline.body_bytes {
+        return true;
+    }
+    let delta = response.body_bytes.abs_diff(baseline.body_bytes);
+    let tolerance = (baseline.body_bytes / 100).max(64);
+    delta <= tolerance
 }
 
 fn candidate_url(base: &Url, base_path: &str, relative: &str) -> String {
@@ -290,3 +312,52 @@ fn parse_statuses(value: &str) -> Result<HashSet<u16>, String> {
 }
 
 export!(Plugin);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn response(status: u16, body_bytes: u64, content_type: Option<&str>) -> Response {
+        Response {
+            status,
+            body_bytes,
+            content_type: content_type.map(str::to_owned),
+            location: None,
+        }
+    }
+
+    #[test]
+    fn exact_body_match_is_a_soft_404() {
+        let baseline = response(200, 889_714, Some("text/html"));
+        let probe = response(200, 889_714, Some("text/html"));
+        assert!(is_soft_404(&probe, &baseline));
+    }
+
+    #[test]
+    fn small_drift_from_a_reflected_path_is_still_a_soft_404() {
+        let baseline = response(200, 889_714, Some("text/html"));
+        let probe = response(200, 889_666, Some("text/html"));
+        assert!(is_soft_404(&probe, &baseline));
+    }
+
+    #[test]
+    fn a_distinct_content_type_is_never_a_soft_404() {
+        let baseline = response(200, 889_714, Some("text/html"));
+        let probe = response(200, 2_344, Some("text/plain"));
+        assert!(!is_soft_404(&probe, &baseline));
+    }
+
+    #[test]
+    fn a_different_status_is_never_a_soft_404() {
+        let baseline = response(200, 889_714, Some("text/html"));
+        let probe = response(403, 512, Some("text/html"));
+        assert!(!is_soft_404(&probe, &baseline));
+    }
+
+    #[test]
+    fn a_body_far_outside_tolerance_is_a_real_finding() {
+        let baseline = response(200, 889_714, Some("text/html"));
+        let probe = response(200, 50_000, Some("text/html"));
+        assert!(!is_soft_404(&probe, &baseline));
+    }
+}
