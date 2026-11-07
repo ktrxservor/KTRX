@@ -1,0 +1,42 @@
+id = "subdomain-sentinel"
+name = "K~CERBERUS"
+description = "Énumère des sous-domaines à partir d’une liste intégrée ou fournie et repère les signes de prise de contrôle : échec de résolution DNS ou page d’erreur caractéristique d’un fournisseur cloud connu."
+version = "1.0.0"
+author = "KTRX"
+api_version = "1"
+execution_timeout_seconds = 0
+permissions = ["network", "file-read"]
+examples = [
+    "ktrx run 'tools/CERBERUS ( Subdomain-Sentinel )/K~CERBERUS.tool' example.com",
+    "ktrx run 'tools/CERBERUS ( Subdomain-Sentinel )/K~CERBERUS.tool' example.com --file ./subdomains.txt --max-subdomains 250",
+]
+
+[[arguments]]
+name = "domain"
+description = "Domaine racine à tester (par exemple example.com), après accord réseau."
+value_type = "string"
+required = true
+positional = true
+
+[[arguments]]
+name = "file"
+description = "Liste locale facultative de préfixes de sous-domaines, un par ligne."
+value_type = "path"
+required = false
+positional = false
+
+[[arguments]]
+name = "max-subdomains"
+description = "Nombre maximal de sous-domaines testés, de 1 à 300."
+value_type = "integer"
+required = false
+positional = false
+default = 100
+
+[[arguments]]
+name = "include-unresolved"
+description = "Inclure aussi les sous-domaines dont la résolution DNS échoue entièrement (bruyant, mais utile si le sous-domaine est déjà connu par ailleurs)."
+value_type = "boolean"
+required = false
+positional = false
+default = false

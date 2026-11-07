@@ -1,0 +1,13 @@
+[package]
+name = "ktrx-subdomain-sentinel"
+version = "1.0.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+base64 = "0.22"
+serde_json = "1.0"
+wit-bindgen = "0.51"
+ktrx-net-sdk = { path = "../ktrx-net-sdk" }
