@@ -4,6 +4,8 @@ const resultCount = document.querySelector("#result-count");
 const emptyState = document.querySelector("#empty-state");
 const errorState = document.querySelector("#error-state");
 const categoryFilters = document.querySelector("#category-filters");
+const moduleTotal = document.querySelector("#module-total");
+const catalogTotal = document.querySelector("#catalog-total");
 
 const permissionLabels = {
   network: "Réseau",
@@ -11,10 +13,10 @@ const permissionLabels = {
 };
 
 const categories = {
-  investigation: { label: "Investigation", sigil: "⌖" },
-  analysis: { label: "Analyse", sigil: "✳" },
-  encoding: { label: "Conversion", sigil: "⟡" },
-  example: { label: "Démonstration", sigil: "✦" },
+  investigation: { label: "Réseau", sigil: "⌖" },
+  analysis: { label: "Analyse", sigil: "⟐" },
+  encoding: { label: "Utilitaires", sigil: "⌁" },
+  example: { label: "Exemple", sigil: "⊹" },
 };
 
 const toolCategories = {
@@ -134,7 +136,7 @@ function render(tools) {
       .includes(query),
   );
   grid.replaceChildren(...filtered.map(createCard));
-  resultCount.textContent = `${String(filtered.length).padStart(2, "0")} INSTRUMENT${filtered.length === 1 ? "" : "S"} RÉPERTORIÉ${filtered.length === 1 ? "" : "S"}`;
+  resultCount.textContent = `${String(filtered.length).padStart(2, "0")} MODULE${filtered.length === 1 ? "" : "S"} CORRESPONDANT${filtered.length === 1 ? "" : "S"}`;
   emptyState.hidden = filtered.length !== 0;
 }
 
@@ -145,6 +147,8 @@ async function loadCatalog() {
     const catalog = await response.json();
     if (!Array.isArray(catalog.tools)) throw new Error("Catalog has an invalid format");
     const tools = catalog.tools.map((tool, index) => ({ ...tool, catalogIndex: index + 1 }));
+    moduleTotal.textContent = String(tools.length).padStart(2, "0");
+    catalogTotal.textContent = String(tools.length).padStart(2, "0");
     render(tools);
     search.addEventListener("input", () => render(tools));
     categoryFilters.addEventListener("click", (event) => {
@@ -170,6 +174,19 @@ document.addEventListener("keydown", (event) => {
     event.preventDefault();
     search.focus();
   }
+  if (event.key === "Escape" && document.activeElement === search) {
+    search.value = "";
+    search.blur();
+    search.dispatchEvent(new Event("input"));
+  }
+});
+
+grid.addEventListener("pointermove", (event) => {
+  const card = event.target.closest(".tool-card");
+  if (!card || event.pointerType !== "mouse") return;
+  const bounds = card.getBoundingClientRect();
+  card.style.setProperty("--pointer-x", `${event.clientX - bounds.left}px`);
+  card.style.setProperty("--pointer-y", `${event.clientY - bounds.top}px`);
 });
 
 loadCatalog();
