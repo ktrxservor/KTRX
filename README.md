@@ -56,6 +56,7 @@ ktrx run 'tools/HADES ( Hash )/K~HADES.tool' 'Hello World'
 ktrx run 'tools/HORUS ( Port-Scanner )/K~HORUS.tool' example.com --ports 22,80,443,3306,8080,8443
 ktrx run 'tools/PROMETHEUS ( Tech-Fingerprint )/K~PROMETHEUS.tool' https://example.com --max-requests 50 --depth 2
 ktrx run 'tools/HORUS ( Port-Scanner )/K~HORUS.tool' example.com --ports all --timeout-ms 200 --concurrency 128
+ktrx run 'tools/CERBERUS ( Subdomain-Sentinel )/K~CERBERUS.tool' example.com --max-subdomains 250
 ktrx run 'tools/ANUBIS ( Hash-Audit )/K~ANUBIS.tool' 900150983cd24fb0d6963f7d28e17f72 --algorithm md5 --file ./wordlist.txt
 ktrx info 'tools/APOLLO ( Hello-Tool )/K~APOLLO.tool'
 ktrx describe 'tools/APOLLO ( Hello-Tool )/K~APOLLO.tool' --json
