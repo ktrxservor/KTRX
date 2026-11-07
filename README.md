@@ -4,7 +4,7 @@ KTRX is a Rust command-line host for portable WebAssembly Component Model tools.
 
 ## Build
 
-Install Rust and the WebAssembly component target:
+Install Rust and the WebAssembly component target. On Windows, install Perl as well; the native TLS dependency builds OpenSSL from source:
 
 ```sh
 rustup target add wasm32-wasip2
@@ -12,6 +12,15 @@ cargo build --manifest-path engine/Cargo.toml --release -p ktrx-cli
 ```
 
 The executable is `engine/target/release/ktrx` (or `ktrx.exe` on Windows). Ready-to-run `.tool` packages are included in each plugin directory.
+
+## Engine CI and releases
+
+Changes to `engine/` are tested on Linux, Windows, and macOS by GitHub Actions. To build and publish platform binaries, push a version tag beginning with `v` (for example, `v0.1.0`). The resulting GitHub Release contains a `.tar.gz` archive for Linux, a `.zip` for Windows, and a `.tar.gz` archive for macOS.
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
 
 Build an individual plugin, then package it:
 

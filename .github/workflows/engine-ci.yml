@@ -1,0 +1,30 @@
+name: Engine CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "engine/**"
+      - ".github/workflows/engine-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "engine/**"
+      - ".github/workflows/engine-ci.yml"
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Perl for Windows OpenSSL build
+        if: runner.os == 'Windows'
+        uses: shogo82148/actions-setup-perl@v1
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Test engine workspace
+        run: cargo test --manifest-path engine/Cargo.toml --workspace --locked
