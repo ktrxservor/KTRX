@@ -8,14 +8,19 @@ Découvrez les outils disponibles et téléchargez directement leurs archives `.
 
 ## Build
 
-Install Rust and the WebAssembly component target. On Windows, install Perl as well; the native TLS dependency builds OpenSSL from source:
+Install Rust and the WebAssembly component target:
 
 ```sh
 rustup target add wasm32-wasip2
 cargo build --manifest-path engine/Cargo.toml --release -p ktrx-cli
 ```
 
-The executable is `engine/target/release/ktrx` (or `ktrx.exe` on Windows). Ready-to-run `.tool` packages are included in each plugin directory.
+On Windows the native TLS dependency builds OpenSSL from source, which adds three requirements:
+
+- **The MSVC build tools and a native Perl must be on `PATH`.** Build from a "x64 Native Tools Command Prompt for VS" (or after running `vcvars64.bat`) so that `cl`, `nmake`, and `link` resolve to MSVC, and install a native Perl such as [Strawberry Perl](https://strawberryperl.com/) (which also provides the NASM assembler OpenSSL needs). A Cygwin, MSYS2, or Git-for-Windows Perl cannot configure OpenSSL for the MSVC target and will fail; likewise make sure their `link.exe` does not shadow the MSVC linker.
+- **The build path must be ASCII.** OpenSSL's build script cannot decode non-ASCII characters in its output directory, so a user name or checkout path containing non-ASCII characters (for example an accented letter or `µ`) breaks the build with a `FromUtf8Error`. Point the build at an ASCII directory, for example `set "CARGO_TARGET_DIR=C:\ktrx-build"`, before running `cargo build`.
+
+The executable is `engine/target/release/ktrx` (`ktrx.exe` on Windows, or under `%CARGO_TARGET_DIR%\release` when that is set). Ready-to-run `.tool` packages are included in each plugin directory.
 
 ## Engine CI and releases
 
