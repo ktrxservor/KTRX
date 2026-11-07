@@ -235,7 +235,7 @@ where
         if ktrx_net_sdk::write_socket(socket, probe.as_bytes(), bridge).is_err() {
             return (None, None, None);
         }
-    } else if !matches!(port, 21 | 22 | 25 | 110 | 143 | 3306 | 587) {
+    } else if !matches!(port, 21 | 22 | 23 | 25 | 110 | 143 | 3306 | 587 | 5900) {
         return (None, None, None);
     }
     let bytes = match ktrx_net_sdk::read_socket(socket, 4096, 250, bridge) {
@@ -269,6 +269,7 @@ where
     let detected = match port {
         21 => first.starts_with("220 ").then_some("ftp"),
         22 => first.starts_with("SSH-").then_some("ssh"),
+        23 => (!first.is_empty()).then_some("telnet"),
         25 | 587 => first.starts_with("220 ").then_some("smtp"),
         110 => first.starts_with("+OK").then_some("pop3"),
         143 => first
@@ -276,6 +277,7 @@ where
             .starts_with("* OK")
             .then_some("imap"),
         3306 => (bytes.get(4) == Some(&0x0a)).then_some("mysql"),
+        5900 => first.starts_with("RFB ").then_some("vnc"),
         6379 => first.starts_with("+PONG").then_some("redis"),
         _ => None,
     };
