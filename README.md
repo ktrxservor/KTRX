@@ -2,6 +2,10 @@
 
 KTRX is a Rust command-line host for portable WebAssembly Component Model tools. The engine lives in `engine/`; each independently built plugin lives under `tools/`. Plugins are packaged as ZIP-based `.tool` archives containing `manifest.toml` and `module.wasm`.
 
+## Catalogue des outils
+
+Découvrez les outils disponibles et téléchargez directement leurs archives `.tool` depuis le [catalogue officiel KTRX](https://ktrxservor.github.io/KTRX/). Le catalogue se met à jour automatiquement lorsque les outils sont ajoutés ou modifiés sur `main`.
+
 ## Build
 
 Install Rust and the WebAssembly component target. On Windows, install Perl as well; the native TLS dependency builds OpenSSL from source:

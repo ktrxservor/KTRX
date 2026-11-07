@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f7f8fa">
+    <meta name="description" content="Découvrez et téléchargez les outils KTRX, des plugins WebAssembly portables.">
+    <title>Outils — KTRX</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="wordmark" href="./" aria-label="KTRX, accueil">
+        <span class="mark" aria-hidden="true">K</span>
+        <span>KTRX</span>
+      </a>
+      <a class="repo-link" href="https://github.com/ktrxservor/KTRX">Dépôt GitHub <span aria-hidden="true">↗</span></a>
+    </header>
+
+    <main>
+      <section class="intro" aria-labelledby="page-title">
+        <p class="eyebrow">CATALOGUE OFFICIEL</p>
+        <h1 id="page-title">Les outils KTRX.</h1>
+        <p class="lede">Des outils portables, conçus pour fonctionner dans l’environnement KTRX.</p>
+      </section>
+
+      <section class="catalog" aria-label="Catalogue des outils">
+        <div class="catalog-heading">
+          <p id="result-count" class="result-count" aria-live="polite">Chargement du catalogue…</p>
+          <label class="search">
+            <span class="sr-only">Rechercher un outil</span>
+            <svg aria-hidden="true" viewBox="0 0 20 20" fill="none">
+              <circle cx="8.75" cy="8.75" r="5.75"></circle>
+              <path d="m13 13 4 4"></path>
+            </svg>
+            <input id="search" type="search" placeholder="Rechercher un outil" autocomplete="off">
+            <kbd>/</kbd>
+          </label>
+        </div>
+        <div id="tool-grid" class="tool-grid" aria-live="polite"></div>
+        <p id="empty-state" class="empty-state" hidden>Aucun outil ne correspond à cette recherche.</p>
+        <p id="error-state" class="error-state" hidden>Le catalogue n’a pas pu être chargé. Réessayez plus tard.</p>
+      </section>
+    </main>
+
+    <footer>
+      <span>Des outils indépendants. Un moteur commun.</span>
+      <a href="https://github.com/ktrxservor/KTRX">KTRX sur GitHub <span aria-hidden="true">↗</span></a>
+    </footer>
+  </body>
+</html>
