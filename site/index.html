@@ -3,50 +3,119 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#f7f8fa">
-    <meta name="description" content="Découvrez et téléchargez les outils KTRX, des plugins WebAssembly portables.">
-    <title>Outils — KTRX</title>
+    <meta name="theme-color" content="#090e18">
+    <meta name="description" content="Explorez l’arsenal KTRX : des outils WebAssembly indépendants, inspirés des mythes et prêts à télécharger.">
+    <title>L’Arsenal — KTRX</title>
     <link rel="stylesheet" href="styles.css">
     <script src="app.js" defer></script>
   </head>
   <body>
     <header class="topbar">
       <a class="wordmark" href="./" aria-label="KTRX, accueil">
-        <span class="mark" aria-hidden="true">K</span>
-        <span>KTRX</span>
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" fill="none">
+            <path d="M7 5v22M25 5 10 16l15 11" />
+            <path d="M7 5h5M7 27h5" class="brand-accent" />
+          </svg>
+        </span>
+        <span class="brand-name">KTRX<span class="brand-period">.</span></span>
       </a>
-      <a class="repo-link" href="https://github.com/ktrxservor/KTRX">Dépôt GitHub <span aria-hidden="true">↗</span></a>
+      <nav class="top-nav" aria-label="Navigation principale">
+        <a class="nav-current" href="#catalogue">L’arsenal</a>
+        <a href="https://github.com/ktrxservor/KTRX">Le projet <span aria-hidden="true">↗</span></a>
+      </nav>
     </header>
 
     <main>
-      <section class="intro" aria-labelledby="page-title">
-        <p class="eyebrow">CATALOGUE OFFICIEL</p>
-        <h1 id="page-title">Les outils KTRX.</h1>
-        <p class="lede">Des outils portables, conçus pour fonctionner dans l’environnement KTRX.</p>
+      <section class="hero" aria-labelledby="page-title">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="eyebrow-rule"></span> KTRX · ATELIER DES OUTILS</p>
+          <h1 id="page-title">L’arsenal<br>des <em>mythes.</em></h1>
+          <p class="hero-description">Des instruments spécialisés. Des noms venus des légendes. Une seule fondation : des outils WebAssembly portables, conçus pour faire leur travail — et rien de plus.</p>
+          <a class="hero-cta" href="#catalogue">Explorer les outils <span aria-hidden="true">↓</span></a>
+          <div class="hero-note">
+            <span class="status-dot"></span>
+            <span>Composants WASM indépendants</span>
+            <span class="note-divider"></span>
+            <span>Exécutés par KTRX Engine</span>
+          </div>
+        </div>
+
+        <div class="hero-emblem" aria-hidden="true">
+          <div class="orbit orbit-outer"></div>
+          <div class="orbit orbit-middle"></div>
+          <div class="orbit orbit-inner"></div>
+          <div class="orbit-tick tick-one"></div>
+          <div class="orbit-tick tick-two"></div>
+          <div class="orbit-tick tick-three"></div>
+          <span class="orbit-label label-top">API · 01</span>
+          <span class="orbit-label label-bottom">PORTABLE BY DESIGN</span>
+          <svg class="constellation" viewBox="0 0 320 320" fill="none">
+            <path d="m92 88 64 72 77-86M92 88l21 131 43-59 70 67M233 74l-7 153M113 219l113 8" />
+            <circle cx="92" cy="88" r="3" /><circle cx="233" cy="74" r="3" />
+            <circle cx="113" cy="219" r="3" /><circle cx="226" cy="227" r="3" />
+            <circle cx="156" cy="160" r="4" class="constellation-core" />
+          </svg>
+          <div class="emblem-core">
+            <span class="core-k">K</span>
+            <span class="core-caption">THE TOOL ENGINE</span>
+          </div>
+          <span class="emblem-star star-one">✳</span>
+          <span class="emblem-star star-two">✦</span>
+          <span class="emblem-cross cross-one">+</span>
+        </div>
+
+        <div class="hero-index"><span>01</span><span class="index-line"></span><span>LE CATALOGUE</span></div>
       </section>
 
-      <section class="catalog" aria-label="Catalogue des outils">
-        <div class="catalog-heading">
-          <p id="result-count" class="result-count" aria-live="polite">Chargement du catalogue…</p>
+      <section id="catalogue" class="catalog" aria-labelledby="catalog-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow"><span class="eyebrow-rule"></span> LE CATALOGUE</p>
+            <h2 id="catalog-title">Choisissez votre <em>instrument.</em></h2>
+          </div>
+          <p class="section-aside">Chaque outil possède sa spécialité.<br>À vous de choisir le vôtre.</p>
+        </div>
+
+        <div class="catalog-toolbar">
+          <div id="category-filters" class="category-filters" aria-label="Filtrer par catégorie">
+            <button class="filter-button is-active" type="button" data-category="all" aria-pressed="true">Tout l’arsenal</button>
+            <button class="filter-button" type="button" data-category="investigation" aria-pressed="false">Investigation</button>
+            <button class="filter-button" type="button" data-category="analysis" aria-pressed="false">Analyse</button>
+            <button class="filter-button" type="button" data-category="encoding" aria-pressed="false">Conversion</button>
+            <button class="filter-button" type="button" data-category="example" aria-pressed="false">Démonstration</button>
+          </div>
           <label class="search">
             <span class="sr-only">Rechercher un outil</span>
             <svg aria-hidden="true" viewBox="0 0 20 20" fill="none">
               <circle cx="8.75" cy="8.75" r="5.75"></circle>
               <path d="m13 13 4 4"></path>
             </svg>
-            <input id="search" type="search" placeholder="Rechercher un outil" autocomplete="off">
+            <input id="search" type="search" placeholder="Chercher un outil" autocomplete="off">
             <kbd>/</kbd>
           </label>
         </div>
+
+        <div class="catalog-meta">
+          <p id="result-count" class="result-count" aria-live="polite">Consultation des archives…</p>
+          <span class="meta-right"><span class="meta-star">✳</span> COLLECTION KTRX</span>
+        </div>
         <div id="tool-grid" class="tool-grid" aria-live="polite"></div>
         <p id="empty-state" class="empty-state" hidden>Aucun outil ne correspond à cette recherche.</p>
-        <p id="error-state" class="error-state" hidden>Le catalogue n’a pas pu être chargé. Réessayez plus tard.</p>
+        <p id="error-state" class="error-state" hidden>Les archives ne sont pas accessibles pour le moment. Réessayez un peu plus tard.</p>
+      </section>
+
+      <section class="closing-note" aria-label="À propos de KTRX">
+        <span class="closing-symbol" aria-hidden="true">✳</span>
+        <p><strong>Un moteur. Des outils. Aucune magie noire.</strong><br>Chaque composant fonctionne dans le cadre de permissions explicites de KTRX.</p>
+        <a href="https://github.com/ktrxservor/KTRX">Découvrir le projet <span aria-hidden="true">↗</span></a>
       </section>
     </main>
 
     <footer>
+      <a class="footer-brand" href="./">KTRX<span>.</span></a>
       <span>Des outils indépendants. Un moteur commun.</span>
-      <a href="https://github.com/ktrxservor/KTRX">KTRX sur GitHub <span aria-hidden="true">↗</span></a>
+      <span class="footer-right">FAIT POUR L’EXPLORATION <span aria-hidden="true">✳</span></span>
     </footer>
   </body>
 </html>
