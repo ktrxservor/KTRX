@@ -12,6 +12,9 @@ use std::{
     time::Duration,
 };
 
+#[cfg(windows)]
+use std::collections::HashSet;
+
 pub(crate) const ALLOWED_OPERATIONS: [&str; 7] = [
     "network.resolve",
     "socket.open",
@@ -229,10 +232,7 @@ impl NetworkState {
                         .map_err(|e| e.to_string())?;
                     let secure = request.get("tls").and_then(Value::as_bool).unwrap_or(false);
                     let socket = if secure {
-                        let mut builder = SslConnector::builder(SslMethod::tls())
-                            .map_err(|e| format!("TLS setup failed: {e}"))?;
-                        builder.set_verify(SslVerifyMode::PEER);
-                        let connector = builder.build();
+                        let connector = tls_connector()?;
                         Socket::Tls(
                             connector
                                 .connect(&host, stream)
@@ -309,6 +309,60 @@ impl NetworkState {
     }
 }
 
+fn tls_connector() -> Result<SslConnector, String> {
+    let mut builder =
+        SslConnector::builder(SslMethod::tls()).map_err(|e| format!("TLS setup failed: {e}"))?;
+    builder.set_verify(SslVerifyMode::PEER);
+    #[cfg(windows)]
+    add_windows_root_certificates(&mut builder)?;
+    Ok(builder.build())
+}
+
+#[cfg(windows)]
+fn add_windows_root_certificates(
+    builder: &mut openssl::ssl::SslConnectorBuilder,
+) -> Result<(), String> {
+    use openssl::x509::X509;
+    use schannel::cert_store::CertStore;
+
+    // The vendored OpenSSL used on Windows starts with an empty trust store, so
+    // the machine's installed root certificates must be added explicitly. Either
+    // system store may be unavailable (for example, opening the local-machine
+    // store can be denied to an unprivileged process), so a store that cannot be
+    // opened is skipped rather than aborting TLS setup for every tool; the
+    // current-user "Root" store normally already carries the public trust
+    // anchors. The user and machine stores frequently overlap, so deduplicate by
+    // DER before inserting, and skip certificates OpenSSL cannot parse or that
+    // are already present.
+    let mut added = 0usize;
+    let mut seen = HashSet::new();
+    for store in [
+        CertStore::open_current_user("Root"),
+        CertStore::open_local_machine("Root"),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        for certificate in store.certs() {
+            let der = certificate.to_der();
+            if !seen.insert(der.to_vec()) {
+                continue;
+            }
+            if let Ok(certificate) = X509::from_der(der) {
+                if builder.cert_store_mut().add_cert(certificate).is_ok() {
+                    added += 1;
+                }
+            }
+        }
+    }
+    if added == 0 {
+        return Err(
+            "TLS setup failed: no Windows root certificates could be loaded".to_string(),
+        );
+    }
+    Ok(())
+}
+
 fn string(request: &Value, key: &str) -> Result<String, String> {
     request
         .get(key)
@@ -343,5 +397,15 @@ mod architecture_tests {
                 "socket.close",
             ]
         );
+    }
+}
+
+#[cfg(test)]
+mod tls_tests {
+    use super::tls_connector;
+
+    #[test]
+    fn builds_a_peer_verifying_tls_connector() {
+        let _connector = tls_connector().expect("TLS trust roots should load successfully");
     }
 }

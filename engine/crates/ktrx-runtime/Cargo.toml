@@ -15,6 +15,7 @@ sha2.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }
+schannel = "0.1"
 
 [target.'cfg(not(windows))'.dependencies]
 openssl = "0.10"

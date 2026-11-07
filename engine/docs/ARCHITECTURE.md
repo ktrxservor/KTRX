@@ -16,7 +16,7 @@ The engine does not schedule tool-specific work or interpret tool output. A tool
 
 ## Generic host capabilities
 
-API 1 exposes only generic calls: `progress.update`, `file.read`, `network.resolve`, and `socket.*` byte-stream operations (`open`, asynchronous `connect`/`poll`, `read`, `write`, `close`). The bridge checks manifest declaration and per-run approval before network or file access. Socket I/O chunks and active connections are bounded. TLS may be requested when opening a socket; the host provides a verified encrypted byte stream, while the tool constructs requests and interprets protocol responses.
+API 1 exposes only generic calls: `progress.update`, `file.read`, `network.resolve`, and `socket.*` byte-stream operations (`open`, asynchronous `connect`/`poll`, `read`, `write`, `close`). The bridge checks manifest declaration and per-run approval before network or file access. Socket I/O chunks and active connections are bounded. TLS may be requested when opening a socket; the host provides a verified encrypted byte stream, while the tool constructs requests and interprets protocol responses. On Windows, the runtime adds the current-user and local-machine trusted root certificates to OpenSSL's trust store so TLS uses the machine's installed trust anchors.
 
 No HTTP operation, TLS inspection operation, TCP scan operation, scan concurrency policy, banner probe, tool-specific DNS cache, or service fingerprinting code exists in the engine. These are implemented by individual tools using the generic capabilities. The standalone proxy owns its listener, interception workflow, and request editing.
 

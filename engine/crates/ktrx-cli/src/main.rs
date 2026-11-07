@@ -24,6 +24,12 @@ struct Cli {
 enum Command {
     /// Run a packaged WebAssembly tool.
     Run {
+        /// Approve requested network and file-read access for this run without
+        /// prompting. Pass before the tool path, e.g. `ktrx run -y <tool> ...`.
+        /// Equivalent to answering "y" at the interactive prompt; access is
+        /// still limited to permissions the manifest declares.
+        #[arg(short = 'y', long = "assume-yes")]
+        assume_yes: bool,
         tool: PathBuf,
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
@@ -75,6 +81,7 @@ fn main() {
 fn execute(cli: Cli) -> Result<()> {
     match cli.command {
         Command::Run {
+            assume_yes,
             tool,
             args,
             json,
@@ -87,11 +94,13 @@ fn execute(cli: Cli) -> Result<()> {
                 &package.manifest.name,
                 &package.manifest.permissions,
                 ktrx_core::Permission::Network,
+                assume_yes,
             )?;
             let file_read_approved = approve(
                 &package.manifest.name,
                 &package.manifest.permissions,
                 ktrx_core::Permission::FileRead,
+                assume_yes,
             )?;
             let runtime = std::sync::Arc::new(Runtime::new()?);
             let session = runtime.start_run(
@@ -188,12 +197,16 @@ fn approve(
     name: &str,
     permissions: &[ktrx_core::Permission],
     permission: ktrx_core::Permission,
+    assume_yes: bool,
 ) -> Result<bool> {
     if !permissions
         .iter()
         .any(|p| std::mem::discriminant(p) == std::mem::discriminant(&permission))
     {
         return Ok(false);
+    }
+    if assume_yes {
+        return Ok(true);
     }
     if !io::stdin().is_terminal() {
         return Ok(false);
