@@ -1,0 +1,155 @@
+id = "webshell-forge"
+name = "K~APATE"
+version = "1.0.0"
+api_version = "1"
+description = "Forge de webshells furtifs PHP/JSP/ASPX : transports et chiffrements empilables, obfuscation par graine, linter de signatures et score d'exposition."
+author = "KTRX"
+license = "MIT"
+tags = ["webshell", "php", "jsp", "aspx", "obfuscation", "pentest", "generator"]
+permissions = []
+
+examples = [
+  "ktrx run 'tools/APATE ( Webshell-Forge )/K~APATE.tool' php --token MonSecret",
+  "ktrx run 'tools/APATE ( Webshell-Forge )/K~APATE.tool' php --action all --cipher layered --output bundle",
+  "ktrx run 'tools/APATE ( Webshell-Forge )/K~APATE.tool' jsp --action file --cipher gzinflate --auth sha1 --token MonSecret",
+]
+
+[[arguments]]
+name = "language"
+value_type = "string"
+description = "Langage cible du shell."
+required = true
+positional = true
+choices = ["php", "jsp", "aspx"]
+
+[[arguments]]
+name = "action"
+value_type = "string"
+description = "Capacités embarquées : exec (commandes), eval (code arbitraire), file (lecture/écriture/listage/suppression), all."
+required = false
+positional = false
+default = "exec"
+choices = ["exec", "eval", "file", "all"]
+
+[[arguments]]
+name = "mode"
+value_type = "string"
+description = "Niveau d'armement : simple (nu), advanced (garde-fous, variante d'exécution aléatoire), stealth (noms de fonctions reconstruits, superglobales concaténées)."
+required = false
+positional = false
+default = "advanced"
+choices = ["simple", "advanced", "stealth"]
+
+[[arguments]]
+name = "transport"
+value_type = "string"
+description = "Canal de réception du payload : post, cookie ou header (le header échappe aux WAF qui ne loggent que le corps)."
+required = false
+positional = false
+default = "post"
+choices = ["post", "cookie", "header"]
+
+[[arguments]]
+name = "cipher"
+value_type = "string"
+description = "Chaîne de décodage : none, b64, gzinflate, xor, rot13, layered (rot13 -> xor -> base64 -> gzinflate)."
+required = false
+positional = false
+default = "b64"
+choices = ["none", "b64", "gzinflate", "xor", "rot13", "layered"]
+
+[[arguments]]
+name = "auth"
+value_type = "string"
+description = "Vérification du secret : none, plain, md5, sha1 (le shell ne stocke qu'un hash sauf en plain)."
+required = false
+positional = false
+default = "md5"
+choices = ["none", "plain", "md5", "sha1"]
+
+[[arguments]]
+name = "param"
+value_type = "string"
+description = "Nom du paramètre portant le payload."
+required = false
+positional = false
+default = "p"
+
+[[arguments]]
+name = "auth-param"
+value_type = "string"
+description = "Nom du paramètre portant le secret."
+required = false
+positional = false
+default = "k"
+
+[[arguments]]
+name = "token"
+value_type = "string"
+description = "Secret d'authentification. Généré aléatoirement s'il est absent alors que auth n'est pas none."
+required = false
+positional = false
+
+[[arguments]]
+name = "key"
+value_type = "string"
+description = "Clé XOR (4 caractères minimum). Générée aléatoirement si cipher est xor ou layered et que la clé est absente."
+required = false
+positional = false
+
+[[arguments]]
+name = "seed"
+value_type = "integer"
+description = "Graine du générateur. Même graine et mêmes arguments produisent le même shell ; 0 dérive la graine des arguments."
+required = false
+positional = false
+default = 0
+
+[[arguments]]
+name = "pad"
+value_type = "boolean"
+description = "Insère des lignes vides et des espaces aléatoires entre les instructions."
+required = false
+positional = false
+default = false
+
+[[arguments]]
+name = "decoy"
+value_type = "boolean"
+description = "Ajoute des fonctions leurres jamais appelées."
+required = false
+positional = false
+default = false
+
+[[arguments]]
+name = "minify"
+value_type = "boolean"
+description = "Compacte la sortie (supprime commentaires et sauts de ligne)."
+required = false
+positional = false
+default = false
+
+[[arguments]]
+name = "comments"
+value_type = "boolean"
+description = "Ajoute un en-tête de commentaire au nom plausible pour servir de camouflage."
+required = false
+positional = false
+default = false
+
+[[arguments]]
+name = "output"
+value_type = "string"
+description = "raw (code seul), json (rapport complet), bundle (code + client assorti)."
+required = false
+positional = false
+default = "raw"
+choices = ["raw", "json", "bundle"]
+
+[[arguments]]
+name = "max-bytes"
+value_type = "integer"
+description = "Taille maximale du shell produit, en octets."
+required = false
+positional = false
+default = 1048576
