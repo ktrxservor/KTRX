@@ -1,0 +1,29 @@
+id = "host-probe"
+name = "K~PROBE"
+description = "Engine test fixture that forwards host operations to exercise permissions and capabilities."
+version = "1.0.0"
+author = "KTRX"
+api_version = "1"
+permissions = ["network", "file-read", "file-write", "raw-net"]
+examples = ["ktrx run -y host-probe.tool --op file.stat --input '{\"path\":\".\"}'"]
+
+[[arguments]]
+name = "op"
+description = "Host operation name, for example file.stat."
+value_type = "string"
+required = false
+positional = false
+
+[[arguments]]
+name = "input"
+description = "JSON payload for the operation."
+value_type = "string"
+required = false
+positional = false
+
+[[arguments]]
+name = "steps"
+description = "JSON array of {op, input} steps run in order."
+value_type = "string"
+required = false
+positional = false

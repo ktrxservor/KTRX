@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="icon.png" width="220" alt="Emblème de K~IRIS — URL Codec">
+</p>
+
+<p align="center"><sub><code>DOSSIER K~IRIS</code> &nbsp;·&nbsp; <code>KTRX SYSTEMS ARCHIVE</code> &nbsp;·&nbsp; <code>ARCHIVE PUBLIQUE</code></sub></p>
+
 # K~IRIS — URL Codec
 > Iris, messagère grecque reliant ciel et terre : cet outil encode et décode les composants textuels d’URL.
 

@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="icon.png" width="220" alt="Emblème de K~THEMIS — Header Audit">
+</p>
+
+<p align="center"><sub><code>DOSSIER K~THEMIS</code> &nbsp;·&nbsp; <code>KTRX SYSTEMS ARCHIVE</code> &nbsp;·&nbsp; <code>ARCHIVE PUBLIQUE</code></sub></p>
+
 # K~THEMIS — Header Audit
 > Thémis, figure grecque de la loi et de l’ordre : cet outil examine les en-têtes HTTP de sécurité et les attributs des cookies.
 

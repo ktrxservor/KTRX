@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="icon.png" width="220" alt="Emblème de K~ATHENA — JS Audit">
+</p>
+
+<p align="center"><sub><code>DOSSIER K~ATHENA</code> &nbsp;·&nbsp; <code>KTRX SYSTEMS ARCHIVE</code> &nbsp;·&nbsp; <code>ARCHIVE PUBLIQUE</code></sub></p>
+
 # K~ATHENA — JS Audit
 > Athéna, déesse grecque de la sagesse : cet outil analyse le JavaScript front-end à la recherche de secrets exposés et de fonctions risquées.
 

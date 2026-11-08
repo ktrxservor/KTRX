@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="icon.png" width="220" alt="Emblème de K~HEPHAESTUS — HTML Entities">
+</p>
+
+<p align="center"><sub><code>DOSSIER K~HEPHAESTUS</code> &nbsp;·&nbsp; <code>KTRX SYSTEMS ARCHIVE</code> &nbsp;·&nbsp; <code>ARCHIVE PUBLIQUE</code></sub></p>
+
 # K~HEPHAESTUS — HTML Entities
 > Héphaïstos, artisan des dieux grecs : cet outil encode et décode les entités HTML courantes.
 

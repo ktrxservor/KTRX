@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="icon.png" width="220" alt="Emblème de K~HADES — Hash">
+</p>
+
+<p align="center"><sub><code>DOSSIER K~HADES</code> &nbsp;·&nbsp; <code>KTRX SYSTEMS ARCHIVE</code> &nbsp;·&nbsp; <code>ARCHIVE PUBLIQUE</code></sub></p>
+
 # K~HADES — Hash
 > Hadès, gardien du monde souterrain grec : cet outil calcule des empreintes cryptographiques à sens unique pour les données fournies.
 

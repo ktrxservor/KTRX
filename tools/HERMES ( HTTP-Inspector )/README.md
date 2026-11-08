@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="icon.png" width="220" alt="Emblème de K~HERMES — HTTP Inspector">
+</p>
+
+<p align="center"><sub><code>DOSSIER K~HERMES</code> &nbsp;·&nbsp; <code>KTRX SYSTEMS ARCHIVE</code> &nbsp;·&nbsp; <code>ARCHIVE PUBLIQUE</code></sub></p>
+
 # K~HERMES — HTTP Inspector
 > Hermès, messager des dieux grecs : cet outil inspecte les échanges HTTP et en structure les informations utiles.
 

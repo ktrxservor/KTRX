@@ -8,6 +8,8 @@ on:
       - "scripts/build_tool_catalog.py"
       - "tools/**/manifest.toml"
       - "tools/**/*.tool"
+      - "tools/**/icon.png"
+      - "docs/images/default-icon.png"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 

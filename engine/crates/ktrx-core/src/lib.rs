@@ -29,8 +29,28 @@ pub struct Manifest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Permission {
+    /// DNS, TCP, TLS, and UDP communication with a destination chosen at run time.
     Network,
+    /// Read files and inspect directories chosen at run time.
     FileRead,
+    /// Create, write, and append to files, and create directories, inside a
+    /// directory chosen by the user at run time.
+    FileWrite,
+    /// Privileged network primitives: ICMP echo, ARP resolution, and raw TCP
+    /// probes. These may need elevated rights on the host operating system.
+    RawNet,
+}
+
+impl Permission {
+    /// The identifier used in manifests.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Network => "network",
+            Self::FileRead => "file-read",
+            Self::FileWrite => "file-write",
+            Self::RawNet => "raw-net",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -143,6 +163,15 @@ pub fn validate_manifest(m: &Manifest) -> Result<(), ToolError> {
             return Err(ToolError::Manifest(
                 "execution_timeout_seconds must be 0 (unlimited) or between 30 and 180".into(),
             ));
+        }
+    }
+    let mut declared = std::collections::HashSet::new();
+    for permission in &m.permissions {
+        if !declared.insert(permission.as_str()) {
+            return Err(ToolError::Manifest(format!(
+                "permission {} is declared more than once",
+                permission.as_str()
+            )));
         }
     }
     let mut seen = std::collections::HashSet::new();
@@ -267,6 +296,46 @@ mod tests {
             examples: vec![],
         };
         assert!(validate_manifest(&m).is_err());
+    }
+
+    #[test]
+    fn parses_every_permission_and_rejects_duplicates() {
+        let manifest: Manifest = toml::from_str(
+            "id='demo'
+name='Demo'
+description='D'
+version='1.0.0'
+author='A'
+api_version='1'
+permissions=['network','file-read','file-write','raw-net']
+",
+        )
+        .unwrap();
+        let names: Vec<_> = manifest
+            .permissions
+            .iter()
+            .map(Permission::as_str)
+            .collect();
+        assert_eq!(names, ["network", "file-read", "file-write", "raw-net"]);
+        assert!(validate_manifest(&manifest).is_ok());
+
+        let mut duplicated = manifest.clone();
+        duplicated.permissions.push(Permission::Network);
+        assert!(validate_manifest(&duplicated).is_err());
+
+        assert!(
+            toml::from_str::<Manifest>(
+                "id='demo'
+name='Demo'
+description='D'
+version='1.0.0'
+author='A'
+api_version='1'
+permissions=['root']
+"
+            )
+            .is_err()
+        );
     }
 
     #[test]

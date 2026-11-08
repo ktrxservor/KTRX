@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="icon.png" width="220" alt="Emblème de K~APOLLO — Hello Tool">
+</p>
+
+<p align="center"><sub><code>DOSSIER K~APOLLO</code> &nbsp;·&nbsp; <code>KTRX SYSTEMS ARCHIVE</code> &nbsp;·&nbsp; <code>ARCHIVE PUBLIQUE</code></sub></p>
+
 # K~APOLLO — Hello Tool
 > Apollon, dieu grec de la lumière : cet outil d’exemple accueille l’utilisateur et illustre le format minimal d’un plugin KTRX.
 

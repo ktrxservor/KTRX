@@ -19,6 +19,7 @@ Chaque outil, existant ou futur, suit cette présentation :
 - Nom visible dans le manifeste : `K~<NOM-MYTHOLOGIQUE>`.
 - Identifiant technique `id` : slug stable en minuscules ASCII avec lettres, chiffres et tirets, par exemple `port-scanner`. Ne mets pas `K~` dans cet identifiant : il doit respecter le parseur du moteur et rester stable pour éviter de casser les intégrations.
 - README : ajouter sous le titre une seule ligne de présentation mythologique, puis décrire clairement le fonctionnement réel. Exemple : `HORUS, « l’œil du faucon » dans la mythologie égyptienne : cet outil observe les ports TCP d’une cible pour révéler les services accessibles.`
+- Emblème : `icon.png` à la racine du dossier de l’outil (PNG carré 1:1, 1024 × 1024 px, sans texte), dans le style défini par [`docs/ICON_STYLE_GUIDE.md`](docs/ICON_STYLE_GUIDE.md). Le README commence par le bloc d’en-tête décrit dans cette charte, placé avant le titre.
 
 Choisis un nom distinct, mémorisable et lié à l’usage, sans prétendre que l’outil possède une capacité qu’il n’a pas. Conserve l’orthographe du nom choisi partout. Ne renomme pas `K~` et n’utilise pas deux fois le même nom dans le projet. Le SDK partagé `tools/ktrx-net-sdk/` n’est pas un outil `.tool` et garde son nom technique.
 
@@ -31,7 +32,7 @@ manifest.toml
 module.wasm
 ```
 
-Le module est un composant WebAssembly Component Model ciblant `wasm32-wasip2` et l’interface KTRX API 1. Limites moteur : archive 64 MiB, manifeste 256 KiB, composant 48 MiB. N’inclus pas les sources dans l’archive ; ils restent à côté dans le dossier de développement. Le dépôt contient le code source, son `Cargo.lock`, son README, son manifeste et l’archive compilée `K~<MYTHE>.tool`. N’ajoute pas `target/` ni `module.wasm` généré au dépôt.
+Le module est un composant WebAssembly Component Model ciblant `wasm32-wasip2` et l’interface KTRX API 1. Limites moteur : archive 64 MiB, manifeste 256 KiB, composant 48 MiB. N’inclus pas les sources dans l’archive ; ils restent à côté dans le dossier de développement. Le dépôt contient le code source, son `Cargo.lock`, son README, son emblème `icon.png` (absent de l’archive), son manifeste et l’archive compilée `K~<MYTHE>.tool`. N’ajoute pas `target/` ni `module.wasm` généré au dépôt.
 
 Arborescence de développement :
 
@@ -40,6 +41,7 @@ tools/HORUS ( Port-Scanner )/
 ├── Cargo.toml
 ├── Cargo.lock
 ├── README.md
+├── icon.png
 ├── manifest.toml
 ├── src/lib.rs
 └── K~HORUS.tool
@@ -82,7 +84,7 @@ Règles :
 - `id` : 1 à 80 caractères, minuscules ASCII, chiffres et tirets ; commence par une lettre et finit par une lettre ou un chiffre. Il doit être unique.
 - `name`, `description`, `version`, `author`, `api_version` sont obligatoires et non vides. `api_version` vaut actuellement `"1"`.
 - Versionne le plugin en SemVer (`1.0.0`, `1.0.1`, etc.).
-- `permissions` ne contient que `"network"` et/ou `"file-read"`, et seulement si nécessaires. N’ajoute jamais de liste d’hôtes, de destinations permises ou d’autorisation dans le manifeste.
+- `permissions` ne contient que `"network"`, `"file-read"`, `"file-write"` et/ou `"raw-net"`, sans doublon et seulement si nécessaires (`file-write` : écriture confinée au dossier choisi par l’utilisateur avec `--write-dir` ; `raw-net` : ICMP, ARP et sondes TCP brutes, qui peuvent exiger des droits élevés). N’ajoute jamais de liste d’hôtes, de destinations permises ou d’autorisation dans le manifeste.
 - `arguments` : nom en minuscules ASCII/chiffres/tirets, description utile, type parmi `string`, `integer`, `boolean`, `path`; préciser `required`, `positional` et si utile `default` du même type. Chaque nom est unique.
 - Une option booléenne se passe comme `--compact` ; les options non booléennes prennent une valeur après le nom (`--limit 100`). Les arguments positionnels suivent leur ordre dans le manifeste.
 - `execution_timeout_seconds` est optionnel. Absent ou `0` signifie sans durée maximale. Une durée explicite doit être entre 30 et 180 secondes. Ne définis pas de plafond global pour une exécution interactive qui doit progresser en direct.
@@ -159,8 +161,23 @@ Appelle toujours `ktrx::tool::host::request(operation, &json_payload.to_string()
 | `socket.read` | `socket`, `length` (1–65536), `timeout_ms` facultatif (50–10000 ms) | Réponse `bytes_base64`, `eof`, `timeout_ms`. Une lecture peut retourner moins d’octets que demandé. |
 | `socket.write` | `socket`, `bytes_base64` | Écrit au plus 65536 octets ; réponse `written`. Encoder exactement les octets du protocole en Base64. |
 | `socket.close` | `socket` | Ferme le flux ; réponse `closed`. Toujours fermer les sockets, y compris après erreur. |
+| `file.list` | `path`, `limit` facultatif (≤5000) | Permission `file-read`. Réponse `entries` (`name`, `type`, `size`, `modified`), `total`, `truncated`. |
+| `file.stat` | `path` | Permission `file-read`. Réponse `exists` (jamais une erreur si le chemin manque), `type`, `size`, `modified`, `readonly`, `symlink`. |
+| `file.create` | `path`, `overwrite` (défaut `false`), `bytes_base64` facultatif | Permission `file-write`. Crée un fichier sans jamais écraser sauf `overwrite`. Tout chemin est résolu dans le dossier approuvé : `..`, chemins absolus extérieurs, liens symboliques sortants et noms de périphériques Windows sont refusés. |
+| `file.write` | `path`, `offset`, `bytes_base64` (≤64 Kio) | Permission `file-write`. Écrit dans un fichier créé pendant l’exécution ; fichier ≤256 Mio, ≤1 Gio écrits par exécution, 8 fichiers ouverts. |
+| `file.append` | `path`, `bytes_base64`, `create` (défaut `true`) | Permission `file-write`. Ajoute à la fin (journaux, NDJSON). |
+| `file.mkdir` | `path`, `recursive` (défaut `true`) | Permission `file-write`. Crée un dossier dans le dossier approuvé. |
+| `file.close` | `path` | Ferme et synchronise le fichier ouvert. |
+| `dns.query` | `name`, `type` (défaut `A`), `server`, `port`, `timeout_ms`, `recurse`, `dnssec`, `tcp` facultatifs | Permission `network`. Réponse `rcode` (`NOERROR`, `NXDOMAIN`…), `flags`, `answers`/`authority`/`additional` décodés (A, AAAA, CNAME, NS, PTR, MX, TXT, SOA, SRV, CAA ; sinon `raw_base64`), `rtt_ms`. Résolveurs système par défaut ; repli TCP si tronqué. |
+| `udp.open` | `family` (`v4`/`v6`), `broadcast`, `ttl`, `bind_port` facultatifs | Permission `network`. Réponse `socket`, `local_port`. |
+| `udp.send` | `socket`, `host`, `port`, `bytes_base64` (≤65507 octets) | Réponse `sent`, `address`. |
+| `udp.recv` | `socket`, `length`, `timeout_ms` (50–10000 ms) | Réponse `bytes_base64`, `from`, `timeout`, `refused` (ICMP « port unreachable » reçu). Un délai dépassé n’est pas une erreur. |
+| `udp.close` | `socket` | Ferme le socket UDP. |
+| `icmp.ping` | `host` (IPv4), `ttl` (1–255, défaut 64), `size`, `timeout_ms` | Permission `raw-net`. Statut `reply`, `ttl_expired` (avec `from` = routeur : sert de traceroute), `unreachable`, `timeout`. |
+| `arp.resolve` | `ip` (IPv4 du réseau local) | Permission `raw-net` (Windows, Linux). Réponse `mac`. |
+| `tcp.syn_probe` | `host` (IPv4), `port`, `timeout_ms` | Permission `raw-net`. `open`/`closed`/`filtered` ; Linux avec root ou CAP_NET_RAW uniquement. |
 
-Le moteur limite à 128 connexions ouvertes ou en attente. La résolution et les opérations réseau sont permises par le manifeste et par l’approbation de l’utilisateur. TLS vérifié peut être demandé dans `socket.open`; parsing de certificats ou tests TLS relèvent de l’outil qui lit les données disponibles. Le moteur ne fournit pas d’opération HTTP, de scan, de détection de service, de recherche CVE, de proxy, ni de parsing de protocole.
+Le moteur limite à 128 connexions ouvertes ou en attente. La résolution et les opérations réseau sont permises par le manifeste et par l’approbation de l’utilisateur. `socket.open` accepte aussi `tls` (vérifié par défaut) avec `sni`, `alpn`, `tls_min`/`tls_max` (`1.0` à `1.3`), `ciphers`, `ciphersuites` et `verify` ; la réponse contient `tls_info` (version, chiffrement, ALPN, SNI, résultat et cause de la vérification, chaîne de certificats envoyée par le serveur avec sujet, émetteur, validité, SAN, clé, empreinte SHA-256 et DER). `verify: false` permet d’inspecter un certificat expiré ou auto-signé tout en rapportant le résultat de vérification ; demander TLS 1.0/1.1 abaisse le niveau de sécurité OpenSSL pour cette seule connexion. Le moteur ne décode que deux formats génériques (messages DNS et résumé X.509) et ne rend aucun verdict : il ne fournit pas d’opération HTTP, de scan, de détection de service, de recherche CVE ni de proxy. Un traceroute, un scan ou une note de certificat se construit dans l’outil avec ces primitives. L’écriture de fichiers est confinée au dossier que l’utilisateur désigne (`ktrx run --write-dir DIR`, dossier courant par défaut).
 
 Exemple d’appel host :
 
@@ -187,7 +204,7 @@ Ne contacte jamais de cible cachée ou codée en dur. Le nom de cible doit venir
 - Produire un schéma JSON documenté, stable et utile ; inclure statut, limites atteintes, métriques, résultats structurés et avertissements lorsque cela aide l’interprétation.
 - Un outil d’analyse donne des observations et leurs preuves. Ne présente pas une hypothèse comme une vulnérabilité confirmée.
 - Ajouter des tests unitaires déterministes des entrées valides, invalides, limites, erreurs de parsing, déduplication et cas limites. Les tests ne doivent pas contacter Internet ou une cible réelle ; injecter des réponses fictives.
-- README : une ligne mythologique obligatoire, objectif, capacités, options, exemples copiable-collable, formats de sortie, limitations et permissions sollicitées. Documenter explicitement toute absence de validation cryptographique ou toute détection heuristique.
+- README : bloc d’en-tête avec l’emblème `icon.png`, une ligne mythologique obligatoire, objectif, capacités, options, exemples copiable-collable, formats de sortie, limitations et permissions sollicitées. Documenter explicitement toute absence de validation cryptographique ou toute détection heuristique.
 
 ## 8. Progression en direct
 
@@ -233,6 +250,7 @@ Avant livraison, contrôler :
 4. Chaque entrée est validée ; les erreurs sont JSON ; les tailles, durées et boucles sont bornées.
 5. Tests ciblés passent ; `cargo fmt --check`, compilation Wasm, `ktrx validate` et `ktrx describe` passent.
 6. L’archive `.tool` est la version compilée de la source présente, et `module.wasm` / `target/` ne sont pas ajoutés par erreur.
+7. `icon.png` est présent et conforme à `docs/ICON_STYLE_GUIDE.md`, le README commence par le bloc d’en-tête, et l’outil figure dans la galerie du README racine.
 
 ## 10. Défauts fréquents à éviter
 
@@ -241,7 +259,7 @@ Avant livraison, contrôler :
 - Nommer un champ option différemment dans le manifeste et dans le JSON lu par `run`.
 - Oublier qu’un flag booléen CLI ne prend pas `true` en valeur séparée.
 - Sortir un JSON d’erreur incorrectement échappé, paniquer sur UTF-8, ou `unwrap()` sur une donnée utilisateur.
-- Demander `network` / `file-read` sans usage réel, ou oublier la permission nécessaire.
+- Demander `network` / `file-read` / `file-write` / `raw-net` sans usage réel, ou oublier la permission nécessaire.
 - Faire des requêtes HTTP/scan en ajoutant du code au moteur au lieu d’utiliser les sockets génériques.
 - Créer une progression purement décorative, publier trop d’événements ou ne pas fournir le résultat final.
 - Oublier de fermer les connexions, ignorer les erreurs de socket ou charger une réponse entière sans limite.

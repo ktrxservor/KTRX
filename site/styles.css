@@ -154,7 +154,7 @@ kbd { padding: 2px 5px; border: 1px solid #35434c; color: #76838b; font: 8px var
 .tool-card[data-category="analysis"] { --module-accent: #d3b6ff; }
 .tool-card[data-category="encoding"] { --module-accent: #91b9f4; }
 .tool-card[data-category="example"] { --module-accent: #ffb575; }
-.card-index, .card-title-row, .category-label, .tool-card > p, .card-bottom { position: relative; z-index: 1; }
+.card-index, .card-visual, .card-title-row, .category-label, .tool-card > p, .card-bottom { position: relative; z-index: 1; }
 .card-index { display: flex; align-items: center; justify-content: space-between; color: #718089; font-family: var(--mono); font-size: 7px; letter-spacing: .12em; }
 .index-sigil { color: var(--module-accent); font-size: 13px; }
 .card-title-row { margin-top: 17px; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
@@ -271,3 +271,11 @@ footer { width: min(1280px, calc(100% - 88px)); min-height: 73px; margin: 35px a
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* Emblème de module : relique d'archive, désaturée au repos, révélée au survol */
+.card-visual { margin-top: 13px; aspect-ratio: 16 / 9; overflow: hidden; border: 1px solid #26323b; background: #080c12; }
+.card-visual::after { position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: linear-gradient(180deg, transparent 55%, #0c1219cc 100%), linear-gradient(90deg, #080c1240, transparent 30%, transparent 70%, #080c1240); content: ""; pointer-events: none; }
+.card-visual img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; filter: saturate(.8) brightness(.92); transition: transform .5s ease, filter .3s ease; }
+.tool-card:hover .card-visual img { transform: scale(1.04); filter: saturate(1) brightness(1); }
+.card-visual + .card-title-row { margin-top: 14px; }
+@media (prefers-reduced-motion: reduce) { .card-visual img { transition: none; } .tool-card:hover .card-visual img { transform: none; } }
