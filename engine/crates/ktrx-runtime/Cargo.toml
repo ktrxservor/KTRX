@@ -16,6 +16,14 @@ sha2.workspace = true
 [target.'cfg(windows)'.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }
 schannel = "0.1"
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_NetworkManagement_IpHelper",
+    "Win32_Networking_WinSock",
+] }
 
 [target.'cfg(not(windows))'.dependencies]
 openssl = "0.10"
+
+[target.'cfg(unix)'.dependencies]
+socket2 = { version = "0.6", features = ["all"] }

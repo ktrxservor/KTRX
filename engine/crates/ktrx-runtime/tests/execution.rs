@@ -1,5 +1,5 @@
 use ktrx_core::{Manifest, ToolPackage};
-use ktrx_runtime::Runtime;
+use ktrx_runtime::{Approvals, Runtime};
 
 #[test]
 fn executes_a_wasi_component_through_the_ktrx_interface() {
@@ -21,7 +21,7 @@ fn executes_a_wasi_component_through_the_ktrx_interface() {
     };
     let runtime = Runtime::new().unwrap();
     let output = runtime
-        .run(&package, r#"{"name":"Ada"}"#, false, false)
+        .run(&package, r#"{"name":"Ada"}"#, Approvals::default())
         .unwrap();
     let value: serde_json::Value = serde_json::from_str(&output).unwrap();
     assert_eq!(value["message"], "Hello, Ada!");
@@ -53,10 +53,19 @@ fn file_hashing_uses_the_permissioned_chunked_host_api() {
     let runtime = Runtime::new().unwrap();
     let input = serde_json::json!({"file":path.to_string_lossy()}).to_string();
 
-    let denied = runtime.run(&package, &input, false, false).unwrap();
+    let denied = runtime.run(&package, &input, Approvals::default()).unwrap();
     assert!(denied.contains("file-read permission was not granted"));
 
-    let output = runtime.run(&package, &input, false, true).unwrap();
+    let output = runtime
+        .run(
+            &package,
+            &input,
+            Approvals {
+                file_read: true,
+                ..Approvals::default()
+            },
+        )
+        .unwrap();
     let value: serde_json::Value = serde_json::from_str(&output).unwrap();
     let expected = format!("{:x}", Sha256::digest(&bytes));
     assert_eq!(value["hex"], expected);

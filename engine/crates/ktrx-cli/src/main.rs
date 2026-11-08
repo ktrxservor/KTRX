@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use ktrx_core::{ToolPackage, validate_arguments, validate_manifest};
-use ktrx_runtime::Runtime;
+use ktrx_runtime::{Approvals, Runtime};
 use std::{
     fs::File,
     io::{self, IsTerminal, Write},
@@ -24,12 +24,18 @@ struct Cli {
 enum Command {
     /// Run a packaged WebAssembly tool.
     Run {
-        /// Approve requested network and file-read access for this run without
-        /// prompting. Pass before the tool path, e.g. `ktrx run -y <tool> ...`.
-        /// Equivalent to answering "y" at the interactive prompt; access is
-        /// still limited to permissions the manifest declares.
+        /// Approve every permission the manifest declares (network, file-read,
+        /// file-write, raw-net) without prompting. Pass before the tool path,
+        /// e.g. `ktrx run -y <tool> ...`. Equivalent to answering "y" at each
+        /// interactive prompt; access is still limited to what the manifest
+        /// declares, and file writes stay inside --write-dir.
         #[arg(short = 'y', long = "assume-yes")]
         assume_yes: bool,
+        /// Directory a tool with the file-write permission may write inside.
+        /// Defaults to the current directory. Created if it does not exist.
+        /// Pass before the tool path.
+        #[arg(long = "write-dir", value_name = "DIR")]
+        write_dir: Option<PathBuf>,
         tool: PathBuf,
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
@@ -82,6 +88,7 @@ fn execute(cli: Cli) -> Result<()> {
     match cli.command {
         Command::Run {
             assume_yes,
+            write_dir,
             tool,
             args,
             json,
@@ -90,24 +97,51 @@ fn execute(cli: Cli) -> Result<()> {
             let package =
                 ToolPackage::open(&tool).with_context(|| format!("opening {}", tool.display()))?;
             let values = validate_arguments(&package.manifest, &args)?;
-            let network_approved = approve(
+            let permissions = &package.manifest.permissions;
+            let declares = |wanted: ktrx_core::Permission| {
+                permissions.iter().any(|p| p.as_str() == wanted.as_str())
+            };
+            let network = approve(
                 &package.manifest.name,
-                &package.manifest.permissions,
+                permissions,
                 ktrx_core::Permission::Network,
                 assume_yes,
             )?;
-            let file_read_approved = approve(
+            let file_read = approve(
                 &package.manifest.name,
-                &package.manifest.permissions,
+                permissions,
                 ktrx_core::Permission::FileRead,
                 assume_yes,
             )?;
+            let raw_net = approve(
+                &package.manifest.name,
+                permissions,
+                ktrx_core::Permission::RawNet,
+                assume_yes,
+            )?;
+            let file_write = if declares(ktrx_core::Permission::FileWrite) {
+                let root = match write_dir {
+                    Some(dir) => {
+                        std::fs::create_dir_all(&dir)
+                            .with_context(|| format!("creating {}", dir.display()))?;
+                        dir
+                    }
+                    None => std::env::current_dir().context("reading the current directory")?,
+                };
+                approve_write(&package.manifest.name, &root, assume_yes)?.then_some(root)
+            } else {
+                None
+            };
             let runtime = std::sync::Arc::new(Runtime::new()?);
             let session = runtime.start_run(
                 package,
                 serde_json::to_string(&values)?,
-                network_approved,
-                file_read_approved,
+                Approvals {
+                    network,
+                    file_read,
+                    file_write,
+                    raw_net,
+                },
             );
             let (interrupt_tx, interrupt_rx) = std::sync::mpsc::channel();
             ctrlc::set_handler(move || {
@@ -163,11 +197,7 @@ fn execute(cli: Cli) -> Result<()> {
                     p.manifest
                         .permissions
                         .iter()
-                        .map(|x| match x {
-                            ktrx_core::Permission::Network => "network",
-                            ktrx_core::Permission::FileRead => "file-read",
-                        })
-                        .map(str::to_owned)
+                        .map(|x| x.as_str().to_owned())
                         .collect::<Vec<_>>()
                         .join(", ")
                 }
@@ -214,6 +244,10 @@ fn approve(
     let label = match permission {
         ktrx_core::Permission::Network => "network access",
         ktrx_core::Permission::FileRead => "file access",
+        ktrx_core::Permission::FileWrite => "file write access",
+        ktrx_core::Permission::RawNet => {
+            "privileged network access (ICMP, ARP, raw TCP probes; may need administrator rights)"
+        }
     };
     eprint!("{} requests {} for this run. Allow? [y/N] ", name, label);
     io::stderr().flush()?;
@@ -280,4 +314,27 @@ fn pack(directory: &Path, output: Option<&Path>) -> Result<()> {
     zip.finish()?;
     println!("Created {}", output.display());
     Ok(())
+}
+
+/// Ask before a tool may write files. The prompt names the one directory the
+/// writes are confined to.
+fn approve_write(name: &str, root: &Path, assume_yes: bool) -> Result<bool> {
+    if assume_yes {
+        return Ok(true);
+    }
+    if !io::stdin().is_terminal() {
+        return Ok(false);
+    }
+    eprint!(
+        "{} requests permission to create and write files inside {} for this run. Allow? [y/N] ",
+        name,
+        root.display()
+    );
+    io::stderr().flush()?;
+    let mut answer = String::new();
+    io::stdin().read_line(&mut answer)?;
+    Ok(matches!(
+        answer.trim().to_ascii_lowercase().as_str(),
+        "y" | "yes"
+    ))
 }

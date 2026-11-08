@@ -1,9 +1,14 @@
 use anyhow::Result;
 use ktrx_core::{Manifest, Permission, ToolPackage};
+mod dns;
+mod fs;
 mod network;
+mod rawnet;
+mod tls;
 use std::{
     collections::HashMap,
-    io::{IsTerminal, Read, Write},
+    io::{IsTerminal, Write},
+    path::PathBuf,
     sync::{
         Arc, Mutex,
         atomic::{AtomicBool, Ordering},
@@ -16,6 +21,31 @@ use wasmtime::{Config, Engine, Store, StoreLimits, StoreLimitsBuilder};
 use wasmtime_wasi::{WasiCtx, WasiCtxView, WasiView};
 
 wasmtime::component::bindgen!({ path: "../../wit", world: "ktrx-tool" });
+
+/// What the user approved for one run. A tool still needs the matching
+/// permission in its manifest; an approval alone grants nothing.
+#[derive(Clone, Debug, Default)]
+pub struct Approvals {
+    /// DNS, TCP, TLS, and UDP traffic.
+    pub network: bool,
+    /// Reading files and listing directories.
+    pub file_read: bool,
+    /// Writing files, confined to this directory tree. `None` denies writes.
+    pub file_write: Option<PathBuf>,
+    /// ICMP, ARP, and raw TCP probes.
+    pub raw_net: bool,
+}
+
+impl Approvals {
+    fn grants(&self, permission: &Permission) -> bool {
+        match permission {
+            Permission::Network => self.network,
+            Permission::FileRead => self.file_read,
+            Permission::FileWrite => self.file_write.is_some(),
+            Permission::RawNet => self.raw_net,
+        }
+    }
+}
 
 pub struct Runtime {
     engine: Engine,
@@ -63,9 +93,8 @@ struct HostState {
     wasi: WasiCtx,
     table: ResourceTable,
     manifest: Manifest,
-    network_approved: bool,
-    file_read_approved: bool,
-    open_files: HashMap<String, std::fs::File>,
+    approvals: Approvals,
+    files: fs::FileState,
     progress_active: bool,
     last_progress_at: Option<Instant>,
     network: network::NetworkState,
@@ -77,6 +106,27 @@ impl WasiView for HostState {
         WasiCtxView {
             ctx: &mut self.wasi,
             table: &mut self.table,
+        }
+    }
+}
+
+impl HostState {
+    /// A capability is available only when the manifest declares it and the
+    /// user approved it for this run.
+    fn require(&self, permission: Permission) -> std::result::Result<(), String> {
+        if self
+            .manifest
+            .permissions
+            .iter()
+            .any(|p| p.as_str() == permission.as_str())
+            && self.approvals.grants(&permission)
+        {
+            Ok(())
+        } else {
+            Err(format!(
+                "{} permission was not granted for this run",
+                permission.as_str()
+            ))
         }
     }
 }
@@ -156,72 +206,30 @@ impl ktrx::tool::host::Host for HostState {
             }
             return Ok(serde_json::json!({"accepted":true}).to_string());
         }
-        if operation == "file.read" {
-            if !self.file_read_approved
-                || !self
-                    .manifest
-                    .permissions
-                    .iter()
-                    .any(|p| matches!(p, Permission::FileRead))
-            {
-                return Err("file-read permission was not granted for this run".into());
-            }
-            let path = request
-                .get("path")
-                .and_then(|x| x.as_str())
-                .ok_or("request requires path")?;
-            let offset = request
-                .get("offset")
-                .and_then(|x| x.as_u64())
-                .ok_or("request requires offset")?;
-            let length = request
-                .get("length")
-                .and_then(|x| x.as_u64())
-                .ok_or("request requires length")?;
-            if length == 0 || length > 64 * 1024 {
-                return Err("file read chunks must be 1-65536 bytes".into());
-            }
-            if !self.open_files.contains_key(path) {
-                if self.open_files.len() >= 8 {
-                    return Err("a tool may open at most eight file paths".into());
-                }
-                let canonical =
-                    std::fs::canonicalize(path).map_err(|e| format!("cannot open file: {e}"))?;
-                let file = std::fs::File::open(&canonical)
-                    .map_err(|e| format!("cannot open file: {e}"))?;
-                let metadata = file.metadata().map_err(|e| e.to_string())?;
-                if !metadata.is_file() || metadata.len() > 64 * 1024 * 1024 {
-                    return Err("file must be regular and no larger than 64 MiB".into());
-                }
-                self.open_files.insert(path.to_owned(), file);
-            }
-            let file = self
-                .open_files
-                .get_mut(path)
-                .ok_or("file handle unavailable")?;
-            use std::io::{Seek, SeekFrom};
-            file.seek(SeekFrom::Start(offset))
-                .map_err(|e| e.to_string())?;
-            let mut bytes = Vec::with_capacity(length as usize);
-            file.take(length)
-                .read_to_end(&mut bytes)
-                .map_err(|e| e.to_string())?;
-            use base64::Engine as _;
-            return Ok(serde_json::json!({"path":path,"offset":offset,"bytes_base64":base64::engine::general_purpose::STANDARD.encode(bytes)}).to_string());
+        let operation = operation.as_str();
+        if fs::READ_OPERATIONS.contains(&operation) {
+            self.require(Permission::FileRead)?;
+            return self.files.request(operation, &request);
         }
-        if !self.network_approved
-            || !self
-                .manifest
-                .permissions
-                .iter()
-                .any(|p| matches!(p, Permission::Network))
-        {
-            return Err("network permission was not granted for this run".into());
+        if fs::WRITE_OPERATIONS.contains(&operation) {
+            self.require(Permission::FileWrite)?;
+            return self.files.request(operation, &request);
         }
-        if !network::ALLOWED_OPERATIONS.contains(&operation.as_str()) {
+        if operation == fs::CLOSE_OPERATION {
+            if self.require(Permission::FileRead).is_err() {
+                self.require(Permission::FileWrite)?;
+            }
+            return self.files.request(operation, &request);
+        }
+        if rawnet::OPERATIONS.contains(&operation) {
+            self.require(Permission::RawNet)?;
+            return rawnet::request(operation, &request);
+        }
+        self.require(Permission::Network)?;
+        if !network::ALLOWED_OPERATIONS.contains(&operation) {
             return Err(format!("unsupported host capability '{operation}'"));
         }
-        self.network.request(&operation, &request)
+        self.network.request(operation, &request)
     }
 }
 
@@ -251,14 +259,12 @@ impl Runtime {
         &self,
         package: &ToolPackage,
         input_json: &str,
-        network_approved: bool,
-        file_read_approved: bool,
+        approvals: Approvals,
     ) -> Result<String> {
         self.run_inner(
             package,
             input_json,
-            network_approved,
-            file_read_approved,
+            approvals,
             None,
             Arc::new(AtomicBool::new(false)),
         )
@@ -270,8 +276,7 @@ impl Runtime {
         self: &Arc<Self>,
         package: ToolPackage,
         input_json: String,
-        network_approved: bool,
-        file_read_approved: bool,
+        approvals: Approvals,
     ) -> RunSession {
         let (tx, rx) = mpsc::sync_channel(256);
         let cancelled = Arc::new(AtomicBool::new(false));
@@ -281,8 +286,7 @@ impl Runtime {
             let result = runtime.run_inner(
                 &package,
                 &input_json,
-                network_approved,
-                file_read_approved,
+                approvals,
                 Some(tx.clone()),
                 worker_cancelled,
             );
@@ -305,12 +309,13 @@ impl Runtime {
         &self,
         package: &ToolPackage,
         input_json: &str,
-        network_approved: bool,
-        file_read_approved: bool,
+        approvals: Approvals,
         events: Option<SyncSender<RunEvent>>,
         cancelled: Arc<AtomicBool>,
     ) -> Result<String> {
         let component = self.component(package)?;
+        let files =
+            fs::FileState::new(approvals.file_write.clone()).map_err(|e| anyhow::anyhow!("{e}"))?;
         let show_run_status = std::io::stderr().is_terminal();
         let run_label: String = package
             .manifest
@@ -326,9 +331,8 @@ impl Runtime {
                 wasi: WasiCtx::builder().build(),
                 table: ResourceTable::new(),
                 manifest: package.manifest.clone(),
-                network_approved,
-                file_read_approved,
-                open_files: HashMap::new(),
+                approvals,
+                files,
                 progress_active: show_run_status,
                 last_progress_at: None,
                 network: network::NetworkState::default(),
