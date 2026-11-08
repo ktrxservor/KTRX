@@ -16,11 +16,25 @@ L’emblème est affiché :
 | Format | PNG |
 | Ratio | **1:1** (carré) |
 | Taille recommandée | 1024 × 1024 px (minimum 512 × 512) |
-| Poids | idéalement sous 1,5 Mo |
+| Poids | idéalement sous 2 Mo |
 | Texte dans l’image | aucun : le nom et le cadre « dossier » sont ajoutés par le README et le catalogue |
 | Archive `.tool` | `icon.png` n’y est pas inclus : l’archive contient uniquement `manifest.toml` et `module.wasm` |
 
-Un outil sans `icon.png` reste valide : le catalogue affiche alors sa carte sans visuel. Le README, lui, affiche l’image manquante tant que le fichier n’est pas ajouté ; un nouvel outil doit donc livrer son emblème.
+## Emblème par défaut
+
+![Emblème par défaut KTRX](images/default-icon.png)
+
+Le monolithe scellé au sigle K, [`docs/images/default-icon.png`](images/default-icon.png), est l’emblème universel de KTRX. Il sert d’emblème provisoire à tout outil qui n’a pas encore le sien :
+
+- un nouvel outil commence par copier ce fichier en `icon.png` dans son dossier ; le README et la galerie s’affichent immédiatement ;
+- remplacer `icon.png` par l’emblème propre à l’outil suffit, sans toucher au README ;
+- le catalogue en ligne utilise automatiquement l’emblème par défaut quand `icon.png` est absent.
+
+### Prompt de l’emblème par défaut
+
+```text
+Monumental sealed stone monolith of an ancient classified archive, a tall slab of weathered grey stone and tarnished metal with a single carved geometric sigil in the center, an angular letter K formed by a vertical bar and two diagonal strokes, deep carved glyphs and runic marks running along the edges, a thin amber light glowing inside the carved sigil, cracked surface, iron bands and rivets binding the slab like a vault seal, low-key dramatic lighting, volumetric fog at the base, desaturated blue-grey palette with a single amber accent glow, heavy black shadows, centered symmetrical composition, cinematic, gritty realistic texture, ancient mythological artifact, classified secret-archive mood, no other text, no letters except the carved sigil, no watermark, no logo
+```
 
 ## Direction artistique
 
@@ -108,11 +122,11 @@ La galerie se trouve entre les marqueurs `<!-- KTRX:GALLERY:START -->` et `<!-- 
 
 ## Catalogue en ligne
 
-`scripts/build_tool_catalog.py` copie chaque `icon.png` vers `icons/<MYTHE>.png` dans le site et renseigne `iconUrl` dans `catalog.json`. Les cartes sans emblème s’affichent sans visuel.
+`scripts/build_tool_catalog.py` copie chaque `icon.png` vers `icons/<MYTHE>.png` dans le site et renseigne `iconUrl` dans `catalog.json`. Un outil sans `icon.png` reçoit l’emblème par défaut.
 
 ## Contrôle avant livraison
 
-1. `icon.png` est présent à la racine du dossier de l’outil, au format 1:1.
+1. `icon.png` est présent à la racine du dossier de l’outil, au format 1:1 (à défaut, une copie de l’emblème par défaut).
 2. Le style respecte la charte : pierre ou métal, lumière basse, gris-bleu désaturé, un seul accent ambre, aucun texte.
 3. Le README de l’outil commence par le bloc d’en-tête ci-dessus.
 4. L’outil figure dans la galerie du README racine.

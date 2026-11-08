@@ -13,6 +13,7 @@ REPOSITORY = "ktrxservor/KTRX"
 BRANCH = "main"
 ICON_FILENAME = "icon.png"
 ICONS_OUTPUT_DIR = "icons"
+DEFAULT_ICON = ROOT / "docs" / "images" / "default-icon.png"
 
 
 def repository_url(path: str, *, raw: bool = False) -> str:
@@ -87,6 +88,9 @@ def main() -> None:
     published_tools = []
     for tool in tools:
         icon_source = tool.pop("iconSource")
+        if icon_source is None and DEFAULT_ICON.is_file():
+            icon_source = DEFAULT_ICON
+            print(f"Note: {tool['name']} has no {ICON_FILENAME}; using the default emblem.")
         if icon_source is not None:
             icons_dir.mkdir(parents=True, exist_ok=True)
             icon_name = f"{str(tool['name']).removeprefix('K~')}.png"

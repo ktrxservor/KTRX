@@ -9,6 +9,7 @@ on:
       - "tools/**/manifest.toml"
       - "tools/**/*.tool"
       - "tools/**/icon.png"
+      - "docs/images/default-icon.png"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
