@@ -89,20 +89,6 @@ Découvrez les outils disponibles et téléchargez directement leurs archives `.
   </tr>
 </table>
 
-#### Exemple
-
-<table>
-  <tr>
-    <td align="center" width="20%">
-      <a href="tools/APOLLO%20(%20Hello-Tool%20)/"><img src="tools/APOLLO%20(%20Hello-Tool%20)/icon.png" width="140" alt="K~APOLLO"><br><b>K~APOLLO</b></a><br><sub>Hello Tool</sub>
-    </td>
-    <td width="20%"></td>
-    <td width="20%"></td>
-    <td width="20%"></td>
-    <td width="20%"></td>
-  </tr>
-</table>
-
 <!-- KTRX:GALLERY:END -->
 
 ## Build
@@ -157,9 +143,9 @@ ktrx run 'tools/PROMETHEUS ( Tech-Fingerprint )/K~PROMETHEUS.tool' https://examp
 ktrx run 'tools/HORUS ( Port-Scanner )/K~HORUS.tool' example.com --ports all --timeout-ms 200 --concurrency 128
 ktrx run 'tools/CERBERUS ( Subdomain-Sentinel )/K~CERBERUS.tool' example.com --max-subdomains 250
 ktrx run 'tools/ANUBIS ( Hash-Audit )/K~ANUBIS.tool' 900150983cd24fb0d6963f7d28e17f72 --algorithm md5 --file ./wordlist.txt
-ktrx info 'tools/APOLLO ( Hello-Tool )/K~APOLLO.tool'
-ktrx describe 'tools/APOLLO ( Hello-Tool )/K~APOLLO.tool' --json
-ktrx validate 'tools/APOLLO ( Hello-Tool )/K~APOLLO.tool'
+ktrx info 'tools/THOTH ( Base64 )/K~THOTH.tool'
+ktrx describe 'tools/THOTH ( Base64 )/K~THOTH.tool' --json
+ktrx validate 'tools/THOTH ( Base64 )/K~THOTH.tool'
 ```
 
 When a tool requests network, local-file, file-write, or privileged-network (`raw-net`) access, KTRX asks for approval on an interactive terminal. Non-interactive runs deny these permissions unless `-y` is passed before the tool path (`ktrx run -y <tool> ...`), which approves everything the manifest declares. Each approval applies to one run. A tool with `file-write` can only write inside one directory: `--write-dir DIR` (created if missing), or the current directory by default. `raw-net` (ICMP ping and TTL-limited traceroute, ARP, SYN probes) may need administrator rights, and SYN probes are only available on Linux. Tools use generic resolver and socket byte-stream capabilities; protocol handling, scan behavior, service identification, and response limits belong to each tool. The runtime does not implement scanning or HTTP/TLS workflows.
@@ -181,7 +167,6 @@ cargo test --manifest-path 'tools/HADES ( Hash )/Cargo.toml'
 cargo test --manifest-path 'tools/POSEIDON ( DNS-Inspector )/Cargo.toml'
 cargo test --manifest-path 'tools/HERMES ( HTTP-Inspector )/Cargo.toml'
 cargo test --manifest-path 'tools/ARGUS ( TLS-Inspector )/Cargo.toml'
-cargo test --manifest-path 'tools/APOLLO ( Hello-Tool )/Cargo.toml'
 cargo test --manifest-path 'tools/HORUS ( Port-Scanner )/Cargo.toml'
 cargo test --manifest-path 'tools/ANUBIS ( Hash-Audit )/Cargo.toml'
 ```

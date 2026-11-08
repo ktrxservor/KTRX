@@ -68,7 +68,6 @@ Le sujet évoque le mythe, et un détail renvoie à la fonction de l’outil.
 | Outil | Sujet |
 |---|---|
 | K~ANUBIS | masque de chacal en pierre, balance de la pesée du cœur |
-| K~APOLLO | lyre solaire gravée, disque rayonnant |
 | K~ARGUS | tête de géant couverte d’yeux sculptés, un seul éveillé en ambre |
 | K~ASCLEPIUS | bâton enroulé d’un serpent, gravures médicales antiques |
 | K~ATHENA | casque corinthien et chouette de pierre |

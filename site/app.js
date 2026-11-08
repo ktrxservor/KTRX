@@ -16,12 +16,10 @@ const categories = {
   investigation: { label: "Réseau", sigil: "⌖" },
   analysis: { label: "Analyse", sigil: "⟐" },
   encoding: { label: "Utilitaires", sigil: "⌁" },
-  example: { label: "Exemple", sigil: "⊹" },
 };
 
 const toolCategories = {
   ANUBIS: "analysis",
-  APOLLO: "example",
   ARGUS: "investigation",
   ASCLEPIUS: "investigation",
   ATHENA: "investigation",

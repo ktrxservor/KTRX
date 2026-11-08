@@ -2,7 +2,7 @@
 
 The `ktrx-core` crate includes unit tests for manifest IDs, typed arguments, required values, and invalid input. Each independent plugin has tests for its primary behavior or argument errors.
 
-End-to-end package validation requires the `wasm32-wasip2` Rust target and the engine build. Build `hello-tool`, package it with `ktrx pack 'tools/APOLLO ( Hello-Tool )' --output 'tools/APOLLO ( Hello-Tool )/K~APOLLO.tool'`, then run `ktrx validate 'tools/APOLLO ( Hello-Tool )/K~APOLLO.tool'` and `ktrx run 'tools/APOLLO ( Hello-Tool )/K~APOLLO.tool' --name Ada`.
+End-to-end package validation requires the `wasm32-wasip2` Rust target and the engine build. Build a plugin such as THOTH, package it with `ktrx pack 'tools/THOTH ( Base64 )' --output 'tools/THOTH ( Base64 )/K~THOTH.tool'`, then run `ktrx validate 'tools/THOTH ( Base64 )/K~THOTH.tool'` and `ktrx run 'tools/THOTH ( Base64 )/K~THOTH.tool' --encode 'Hello World'`.
 
 ## Host capability tests
 

@@ -153,7 +153,6 @@ kbd { padding: 2px 5px; border: 1px solid #35434c; color: #76838b; font: 8px var
 .tool-card[data-category="investigation"] { --module-accent: var(--cyan); }
 .tool-card[data-category="analysis"] { --module-accent: #d3b6ff; }
 .tool-card[data-category="encoding"] { --module-accent: #91b9f4; }
-.tool-card[data-category="example"] { --module-accent: #ffb575; }
 .card-index, .card-visual, .card-title-row, .category-label, .tool-card > p, .card-bottom { position: relative; z-index: 1; }
 .card-index { display: flex; align-items: center; justify-content: space-between; color: #718089; font-family: var(--mono); font-size: 7px; letter-spacing: .12em; }
 .index-sigil { color: var(--module-accent); font-size: 13px; }
