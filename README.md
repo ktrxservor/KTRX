@@ -6,6 +6,105 @@ KTRX is a Rust command-line host for portable WebAssembly Component Model tools.
 
 Découvrez les outils disponibles et téléchargez directement leurs archives `.tool` depuis le [catalogue officiel KTRX](https://ktrxservor.github.io/KTRX/). Le catalogue se met à jour automatiquement lorsque les outils sont ajoutés ou modifiés sur `main`.
 
+<!-- KTRX:GALLERY:START -->
+
+#### Réseau & reconnaissance
+
+<table>
+  <tr>
+    <td align="center" width="20%">
+      <a href="tools/ARGUS%20(%20TLS-Inspector%20)/"><img src="tools/ARGUS%20(%20TLS-Inspector%20)/icon.png" width="140" alt="K~ARGUS"><br><b>K~ARGUS</b></a><br><sub>TLS Inspector</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="tools/ASCLEPIUS%20(%20CVE-Radar%20)/"><img src="tools/ASCLEPIUS%20(%20CVE-Radar%20)/icon.png" width="140" alt="K~ASCLEPIUS"><br><b>K~ASCLEPIUS</b></a><br><sub>CVE Radar</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="tools/ATHENA%20(%20JS-Audit%20)/"><img src="tools/ATHENA%20(%20JS-Audit%20)/icon.png" width="140" alt="K~ATHENA"><br><b>K~ATHENA</b></a><br><sub>JS Audit</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="tools/CERBERUS%20(%20Subdomain-Sentinel%20)/"><img src="tools/CERBERUS%20(%20Subdomain-Sentinel%20)/icon.png" width="140" alt="K~CERBERUS"><br><b>K~CERBERUS</b></a><br><sub>Subdomain Sentinel</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="tools/HERMES%20(%20HTTP-Inspector%20)/"><img src="tools/HERMES%20(%20HTTP-Inspector%20)/icon.png" width="140" alt="K~HERMES"><br><b>K~HERMES</b></a><br><sub>HTTP Inspector</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="20%">
+      <a href="tools/HORUS%20(%20Port-Scanner%20)/"><img src="tools/HORUS%20(%20Port-Scanner%20)/icon.png" width="140" alt="K~HORUS"><br><b>K~HORUS</b></a><br><sub>Port Scanner</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="tools/ODYSSEUS%20(%20Web-Discovery%20)/"><img src="tools/ODYSSEUS%20(%20Web-Discovery%20)/icon.png" width="140" alt="K~ODYSSEUS"><br><b>K~ODYSSEUS</b></a><br><sub>Web Discovery</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="tools/POSEIDON%20(%20DNS-Inspector%20)/"><img src="tools/POSEIDON%20(%20DNS-Inspector%20)/icon.png" width="140" alt="K~POSEIDON"><br><b>K~POSEIDON</b></a><br><sub>DNS Inspector</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="tools/PROMETHEUS%20(%20Tech-Fingerprint%20)/"><img src="tools/PROMETHEUS%20(%20Tech-Fingerprint%20)/icon.png" width="140" alt="K~PROMETHEUS"><br><b>K~PROMETHEUS</b></a><br><sub>Tech Fingerprint</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="tools/THEMIS%20(%20Header-Audit%20)/"><img src="tools/THEMIS%20(%20Header-Audit%20)/icon.png" width="140" alt="K~THEMIS"><br><b>K~THEMIS</b></a><br><sub>Header Audit</sub>
+    </td>
+  </tr>
+</table>
+
+#### Analyse
+
+<table>
+  <tr>
+    <td align="center" width="20%">
+      <a href="tools/ANUBIS%20(%20Hash-Audit%20)/"><img src="tools/ANUBIS%20(%20Hash-Audit%20)/icon.png" width="140" alt="K~ANUBIS"><br><b>K~ANUBIS</b></a><br><sub>Hash Audit</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="tools/HADES%20(%20Hash%20)/"><img src="tools/HADES%20(%20Hash%20)/icon.png" width="140" alt="K~HADES"><br><b>K~HADES</b></a><br><sub>Hash</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="tools/JANUS%20(%20JWT-Inspector%20)/"><img src="tools/JANUS%20(%20JWT-Inspector%20)/icon.png" width="140" alt="K~JANUS"><br><b>K~JANUS</b></a><br><sub>JWT Inspector</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="tools/METIS%20(%20JSON-Inspector%20)/"><img src="tools/METIS%20(%20JSON-Inspector%20)/icon.png" width="140" alt="K~METIS"><br><b>K~METIS</b></a><br><sub>JSON Inspector</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="tools/SPHINX%20(%20Regex-Lab%20)/"><img src="tools/SPHINX%20(%20Regex-Lab%20)/icon.png" width="140" alt="K~SPHINX"><br><b>K~SPHINX</b></a><br><sub>Regex Lab</sub>
+    </td>
+  </tr>
+</table>
+
+#### Utilitaires
+
+<table>
+  <tr>
+    <td align="center" width="20%">
+      <a href="tools/HECATE%20(%20Hex-Codec%20)/"><img src="tools/HECATE%20(%20Hex-Codec%20)/icon.png" width="140" alt="K~HECATE"><br><b>K~HECATE</b></a><br><sub>Hex Codec</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="tools/HEPHAESTUS%20(%20HTML-Entities%20)/"><img src="tools/HEPHAESTUS%20(%20HTML-Entities%20)/icon.png" width="140" alt="K~HEPHAESTUS"><br><b>K~HEPHAESTUS</b></a><br><sub>HTML Entities</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="tools/IRIS%20(%20URL-Codec%20)/"><img src="tools/IRIS%20(%20URL-Codec%20)/icon.png" width="140" alt="K~IRIS"><br><b>K~IRIS</b></a><br><sub>URL Codec</sub>
+    </td>
+    <td align="center" width="20%">
+      <a href="tools/THOTH%20(%20Base64%20)/"><img src="tools/THOTH%20(%20Base64%20)/icon.png" width="140" alt="K~THOTH"><br><b>K~THOTH</b></a><br><sub>Base64</sub>
+    </td>
+    <td width="20%"></td>
+  </tr>
+</table>
+
+#### Exemple
+
+<table>
+  <tr>
+    <td align="center" width="20%">
+      <a href="tools/APOLLO%20(%20Hello-Tool%20)/"><img src="tools/APOLLO%20(%20Hello-Tool%20)/icon.png" width="140" alt="K~APOLLO"><br><b>K~APOLLO</b></a><br><sub>Hello Tool</sub>
+    </td>
+    <td width="20%"></td>
+    <td width="20%"></td>
+    <td width="20%"></td>
+    <td width="20%"></td>
+  </tr>
+</table>
+
+<!-- KTRX:GALLERY:END -->
+
 ## Build
 
 Install Rust and the WebAssembly component target:
@@ -63,7 +162,7 @@ ktrx describe 'tools/APOLLO ( Hello-Tool )/K~APOLLO.tool' --json
 ktrx validate 'tools/APOLLO ( Hello-Tool )/K~APOLLO.tool'
 ```
 
-When a tool requests network or local-file access, KTRX asks for approval on an interactive terminal. Non-interactive runs deny these permissions. Network and file access require an interactive approval for each run. Tools use generic resolver and socket byte-stream capabilities; protocol handling, scan behavior, service identification, and response limits belong to each tool. The runtime does not implement scanning or HTTP/TLS workflows.
+When a tool requests network, local-file, file-write, or privileged-network (`raw-net`) access, KTRX asks for approval on an interactive terminal. Non-interactive runs deny these permissions unless `-y` is passed before the tool path (`ktrx run -y <tool> ...`), which approves everything the manifest declares. Each approval applies to one run. A tool with `file-write` can only write inside one directory: `--write-dir DIR` (created if missing), or the current directory by default. `raw-net` (ICMP ping and TTL-limited traceroute, ARP, SYN probes) may need administrator rights, and SYN probes are only available on Linux. Tools use generic resolver and socket byte-stream capabilities; protocol handling, scan behavior, service identification, and response limits belong to each tool. The runtime does not implement scanning or HTTP/TLS workflows.
 
 Tools have no overall execution deadline by default. The runner streams progress events while a tool runs; use `ktrx run <tool.tool> --events` for newline-delimited JSON. Press `Ctrl+C` to request cancellation. Wasm execution stops at the next engine checkpoint; an in-flight network call may take up to its configured timeout to return. A manifest can set an explicit per-tool deadline.
 
@@ -106,3 +205,5 @@ Tech Fingerprint inspects HTTP headers, cookies, HTML, scripts, styles, same-ori
 ## Creating tools
 
 The complete standalone requirements for new plugins are in [KTRX_TOOL_AUTHORING_GUIDE.md](KTRX_TOOL_AUTHORING_GUIDE.md). It is the source of truth for architecture, packaging, quality checks, and the `K~MYTH` naming convention.
+
+Every tool ships an `icon.png` emblem next to its README. The visual direction (mythological relic, secret-archive mood), file specifications and ready-to-use image prompts are in [docs/ICON_STYLE_GUIDE.md](docs/ICON_STYLE_GUIDE.md).

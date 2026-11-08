@@ -11,6 +11,8 @@ TOOLS_DIR = ROOT / "tools"
 SITE_DIR = ROOT / "site"
 REPOSITORY = "ktrxservor/KTRX"
 BRANCH = "main"
+ICON_FILENAME = "icon.png"
+ICONS_OUTPUT_DIR = "icons"
 
 
 def repository_url(path: str, *, raw: bool = False) -> str:
@@ -43,7 +45,9 @@ def load_tools() -> list[dict[str, object]]:
 
         relative_package = package_path.relative_to(ROOT).as_posix()
         readme_path = manifest_path.parent / "README.md"
+        icon_path = manifest_path.parent / ICON_FILENAME
         tool = {
+            "iconSource": icon_path if icon_path.is_file() else None,
             "id": tool_id,
             "name": name,
             "description": description,
@@ -79,8 +83,22 @@ def main() -> None:
         else:
             shutil.copy2(source, destination)
 
+    icons_dir = output_dir / ICONS_OUTPUT_DIR
+    published_tools = []
+    for tool in tools:
+        icon_source = tool.pop("iconSource")
+        if icon_source is not None:
+            icons_dir.mkdir(parents=True, exist_ok=True)
+            icon_name = f"{str(tool['name']).removeprefix('K~')}.png"
+            shutil.copy2(icon_source, icons_dir / icon_name)
+            tool["iconUrl"] = f"{ICONS_OUTPUT_DIR}/{icon_name}"
+        else:
+            tool["iconUrl"] = None
+            print(f"Warning: {tool['name']} has no {ICON_FILENAME}; its card will have no visual.")
+        published_tools.append(tool)
+
     (output_dir / "catalog.json").write_text(
-        json.dumps({"tools": tools}, ensure_ascii=False, indent=2) + "\n",
+        json.dumps({"tools": published_tools}, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
     print(f"Generated catalog for {len(tools)} tools in {output_dir}")

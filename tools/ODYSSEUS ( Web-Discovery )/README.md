@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="icon.png" width="220" alt="Emblème de K~ODYSSEUS — Web Discovery">
+</p>
+
+<p align="center"><sub><code>DOSSIER K~ODYSSEUS</code> &nbsp;·&nbsp; <code>KTRX SYSTEMS ARCHIVE</code> &nbsp;·&nbsp; <code>ARCHIVE PUBLIQUE</code></sub></p>
+
 # K~ODYSSEUS — Web Discovery
 > Ulysse, voyageur de l’Odyssée : cet outil explore les chemins web accessibles selon les mots et limites fournis.
 

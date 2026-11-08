@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="icon.png" width="220" alt="Emblème de K~PROMETHEUS — Tech Fingerprint">
+</p>
+
+<p align="center"><sub><code>DOSSIER K~PROMETHEUS</code> &nbsp;·&nbsp; <code>KTRX SYSTEMS ARCHIVE</code> &nbsp;·&nbsp; <code>ARCHIVE PUBLIQUE</code></sub></p>
+
 # K~PROMETHEUS — Tech Fingerprint
 > Prométhée, titan grec associé au feu et à la connaissance : cet outil identifie les technologies web et les indices de version observables.
 

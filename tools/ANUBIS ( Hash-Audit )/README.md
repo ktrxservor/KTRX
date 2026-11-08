@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="icon.png" width="220" alt="Emblème de K~ANUBIS — Hash Audit">
+</p>
+
+<p align="center"><sub><code>DOSSIER K~ANUBIS</code> &nbsp;·&nbsp; <code>KTRX SYSTEMS ARCHIVE</code> &nbsp;·&nbsp; <code>ARCHIVE PUBLIQUE</code></sub></p>
+
 # K~ANUBIS — Hash Audit
 > Anubis, protecteur égyptien lié à la pesée du cœur : cet outil compare hors ligne des empreintes pour auditer la robustesse de mots de passe.
 

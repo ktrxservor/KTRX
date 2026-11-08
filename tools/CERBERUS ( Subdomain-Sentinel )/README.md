@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="icon.png" width="220" alt="Emblème de K~CERBERUS — Subdomain Sentinel">
+</p>
+
+<p align="center"><sub><code>DOSSIER K~CERBERUS</code> &nbsp;·&nbsp; <code>KTRX SYSTEMS ARCHIVE</code> &nbsp;·&nbsp; <code>ARCHIVE PUBLIQUE</code></sub></p>
+
 # K~CERBERUS — Subdomain Sentinel
 
 > Cerbère, le chien à trois têtes qui garde les portes des Enfers dans la mythologie grecque : cet outil veille sur les « portes » DNS d’un domaine et signale celles laissées sans garde.

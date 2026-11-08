@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="icon.png" width="220" alt="Emblème de K~THOTH — Base64">
+</p>
+
+<p align="center"><sub><code>DOSSIER K~THOTH</code> &nbsp;·&nbsp; <code>KTRX SYSTEMS ARCHIVE</code> &nbsp;·&nbsp; <code>ARCHIVE PUBLIQUE</code></sub></p>
+
 # K~THOTH — Base64
 > Thot, dieu égyptien de l’écriture et du savoir : cet outil encode et décode du texte en Base64 pour faciliter son transport.
 

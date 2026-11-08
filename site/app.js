@@ -25,6 +25,7 @@ const toolCategories = {
   ARGUS: "investigation",
   ASCLEPIUS: "investigation",
   ATHENA: "investigation",
+  CERBERUS: "investigation",
   HADES: "analysis",
   HECATE: "encoding",
   HEPHAESTUS: "encoding",
@@ -67,6 +68,19 @@ function createCard(tool) {
   sigil.setAttribute("aria-hidden", "true");
   sigil.textContent = category.sigil;
   index.append(number, sigil);
+
+  let visual = null;
+  if (tool.iconUrl) {
+    visual = document.createElement("div");
+    visual.className = "card-visual";
+    const icon = document.createElement("img");
+    icon.src = tool.iconUrl;
+    icon.alt = `Emblème de ${tool.name}`;
+    icon.loading = "lazy";
+    icon.decoding = "async";
+    icon.addEventListener("error", () => visual.remove(), { once: true });
+    visual.append(icon);
+  }
 
   const top = document.createElement("div");
   top.className = "card-title-row";
@@ -123,7 +137,7 @@ function createCard(tool) {
   actions.append(download);
   bottom.append(permissions, actions);
 
-  card.append(index, top, categoryLabel, description, bottom);
+  card.append(...[index, visual, top, categoryLabel, description, bottom].filter(Boolean));
   return card;
 }
 

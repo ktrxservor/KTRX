@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="icon.png" width="220" alt="Emblème de K~METIS — JSON Inspector">
+</p>
+
+<p align="center"><sub><code>DOSSIER K~METIS</code> &nbsp;·&nbsp; <code>KTRX SYSTEMS ARCHIVE</code> &nbsp;·&nbsp; <code>ARCHIVE PUBLIQUE</code></sub></p>
+
 # K~METIS — JSON Inspector
 > Métis, déesse grecque de l’intelligence : cet outil valide, met en forme et résume des documents JSON.
 

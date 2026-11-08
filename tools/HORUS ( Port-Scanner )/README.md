@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="icon.png" width="220" alt="Emblème de K~HORUS — Port Scanner">
+</p>
+
+<p align="center"><sub><code>DOSSIER K~HORUS</code> &nbsp;·&nbsp; <code>KTRX SYSTEMS ARCHIVE</code> &nbsp;·&nbsp; <code>ARCHIVE PUBLIQUE</code></sub></p>
+
 # K~HORUS — Port Scanner
 > Horus, dieu égyptien à tête de faucon associé à l’œil protecteur : cet outil repère les ports TCP accessibles et les services qu’ils révèlent.
 
