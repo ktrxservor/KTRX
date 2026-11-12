@@ -25,10 +25,11 @@ enum Command {
     /// Run a packaged WebAssembly tool.
     Run {
         /// Approve every permission the manifest declares (network, file-read,
-        /// file-write, raw-net) without prompting. Pass before the tool path,
-        /// e.g. `ktrx run -y <tool> ...`. Equivalent to answering "y" at each
-        /// interactive prompt; access is still limited to what the manifest
-        /// declares, and file writes stay inside --write-dir.
+        /// file-write, raw-net, process) without prompting. Pass before the
+        /// tool path, e.g. `ktrx run -y <tool> ...`. Equivalent to answering
+        /// "y" at each interactive prompt; access is still limited to what the
+        /// manifest declares, file writes stay inside --write-dir, and programs
+        /// stay within the manifest's list and any --allow-program choices.
         #[arg(short = 'y', long = "assume-yes")]
         assume_yes: bool,
         /// Directory a tool with the file-write permission may write inside.
@@ -36,6 +37,11 @@ enum Command {
         /// Pass before the tool path.
         #[arg(long = "write-dir", value_name = "DIR")]
         write_dir: Option<PathBuf>,
+        /// Restrict a tool with the process permission to this program
+        /// (repeatable). Combined with the manifest's own `programs` list,
+        /// only programs on both lists may run. Pass before the tool path.
+        #[arg(long = "allow-program", value_name = "NAME")]
+        allow_program: Vec<String>,
         tool: PathBuf,
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<String>,
@@ -55,6 +61,12 @@ enum Command {
     },
     /// Validate the archive, manifest, and WebAssembly component.
     Validate { tool: PathBuf },
+    /// List the host operations available to tools and the permission each needs.
+    Capabilities {
+        /// Print the list as JSON.
+        #[arg(long)]
+        json: bool,
+    },
     /// Package manifest.toml and module.wasm from a tool directory.
     Pack {
         directory: PathBuf,
@@ -94,6 +106,7 @@ fn execute(cli: Cli) -> Result<()> {
         Command::Run {
             assume_yes,
             write_dir,
+            allow_program,
             tool,
             mut args,
             mut json,
@@ -133,6 +146,29 @@ fn execute(cli: Cli) -> Result<()> {
                 ktrx_core::Permission::RawNet,
                 assume_yes,
             )?;
+            for name in &allow_program {
+                anyhow::ensure!(
+                    ktrx_core::is_valid_program_name(name),
+                    "--allow-program {name:?} must be a bare program name, not a path"
+                );
+            }
+            let process = if declares(ktrx_core::Permission::Process) {
+                let approval = ktrx_runtime::ProcessApproval {
+                    programs: allow_program,
+                };
+                let allowed = ktrx_runtime::effective_programs(&package.manifest, &approval);
+                if approve_process(&package.manifest.name, allowed.as_deref(), assume_yes)? {
+                    Some(approval)
+                } else {
+                    None
+                }
+            } else {
+                anyhow::ensure!(
+                    allow_program.is_empty(),
+                    "--allow-program applies only to tools that declare the process permission"
+                );
+                None
+            };
             let file_write = if declares(ktrx_core::Permission::FileWrite) {
                 let root = match write_dir {
                     Some(dir) => dir,
@@ -158,6 +194,7 @@ fn execute(cli: Cli) -> Result<()> {
                     file_read,
                     file_write,
                     raw_net,
+                    process,
                 },
             );
             let (interrupt_tx, interrupt_rx) = std::sync::mpsc::channel();
@@ -219,10 +256,48 @@ fn execute(cli: Cli) -> Result<()> {
                         .join(", ")
                 }
             );
+            if p.manifest.declares(ktrx_core::Permission::Process) {
+                println!(
+                    "Programs {}",
+                    if p.manifest.programs.is_empty() {
+                        "any (no list in the manifest)".to_owned()
+                    } else {
+                        p.manifest.programs.join(", ")
+                    }
+                );
+            }
+            if let Some(version) = &p.manifest.min_engine_version {
+                println!("Requires KTRX {version} or newer");
+            }
             if !p.manifest.examples.is_empty() {
                 println!("\nExamples");
                 for ex in p.manifest.examples {
                     println!("  {ex}");
+                }
+            }
+        }
+        Command::Capabilities { json } => {
+            let capabilities = ktrx_runtime::capabilities();
+            if json {
+                println!("{}", serde_json::to_string_pretty(&capabilities)?);
+            } else {
+                println!(
+                    "KTRX {} — host API {}\n",
+                    ktrx_core::ENGINE_VERSION,
+                    ktrx_core::API_VERSION
+                );
+                for capability in capabilities {
+                    let permissions = if capability.permissions.is_empty() {
+                        "none".to_owned()
+                    } else {
+                        capability
+                            .permissions
+                            .iter()
+                            .map(|p| p.as_str())
+                            .collect::<Vec<_>>()
+                            .join(" or ")
+                    };
+                    println!("  {:20} {}", capability.operation, permissions);
                 }
             }
         }
@@ -265,9 +340,41 @@ fn approve(
         ktrx_core::Permission::RawNet => {
             "privileged network access (ICMP, ARP, raw TCP probes; may need administrator rights)"
         }
+        ktrx_core::Permission::Process => "permission to run programs",
     };
     eprint!("{} requests {} for this run. Allow? [y/N] ", name, label);
     io::stderr().flush()?;
+    read_yes()
+}
+
+/// Ask before a tool may start programs. The prompt names the programs, or
+/// warns that any program may run when neither the manifest nor the user
+/// restricted them.
+fn approve_process(name: &str, allowed: Option<&[String]>, assume_yes: bool) -> Result<bool> {
+    if assume_yes {
+        return Ok(true);
+    }
+    if !io::stdin().is_terminal() {
+        return Ok(false);
+    }
+    let scope = match allowed {
+        None => "ANY program".to_owned(),
+        Some([]) => {
+            eprintln!(
+                "{name} may start no program: none of the programs it lists was allowed with --allow-program."
+            );
+            "no program".to_owned()
+        }
+        Some(list) => list.join(", "),
+    };
+    eprint!(
+        "{name} requests permission to run programs on this computer, outside the sandbox and with your rights ({scope}) for this run. Allow? [y/N] "
+    );
+    io::stderr().flush()?;
+    read_yes()
+}
+
+fn read_yes() -> Result<bool> {
     let mut answer = String::new();
     io::stdin().read_line(&mut answer)?;
     Ok(matches!(
@@ -381,10 +488,5 @@ fn approve_write(name: &str, root: &Path, assume_yes: bool) -> Result<bool> {
         root.display()
     );
     io::stderr().flush()?;
-    let mut answer = String::new();
-    io::stdin().read_line(&mut answer)?;
-    Ok(matches!(
-        answer.trim().to_ascii_lowercase().as_str(),
-        "y" | "yes"
-    ))
+    read_yes()
 }

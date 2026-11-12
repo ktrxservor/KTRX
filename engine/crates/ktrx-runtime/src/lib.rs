@@ -3,6 +3,7 @@ use ktrx_core::{Manifest, Permission, ToolPackage};
 mod dns;
 mod fs;
 mod network;
+mod process;
 mod rawnet;
 mod tls;
 use std::{
@@ -34,17 +35,96 @@ pub struct Approvals {
     pub file_write: Option<PathBuf>,
     /// ICMP, ARP, and raw TCP probes.
     pub raw_net: bool,
+    /// Starting programs on the host. `None` denies it.
+    pub process: Option<ProcessApproval>,
+}
+
+/// The user's approval to start programs during one run.
+#[derive(Clone, Debug, Default)]
+pub struct ProcessApproval {
+    /// Programs the user restricted this run to (`ktrx run --allow-program`),
+    /// as bare names. Empty adds no restriction beyond the manifest's own
+    /// `programs` list.
+    pub programs: Vec<String>,
 }
 
 impl Approvals {
-    fn grants(&self, permission: &Permission) -> bool {
+    fn grants(&self, permission: Permission) -> bool {
         match permission {
             Permission::Network => self.network,
             Permission::FileRead => self.file_read,
             Permission::FileWrite => self.file_write.is_some(),
             Permission::RawNet => self.raw_net,
+            Permission::Process => self.process.is_some(),
         }
     }
+}
+
+/// The programs a run may start: the manifest's list, narrowed by the
+/// user's `--allow-program` choices. `None` means any program.
+pub fn effective_programs(manifest: &Manifest, approval: &ProcessApproval) -> Option<Vec<String>> {
+    let matches = |a: &str, b: &str| {
+        if cfg!(windows) {
+            a.eq_ignore_ascii_case(b)
+        } else {
+            a == b
+        }
+    };
+    match (manifest.programs.is_empty(), approval.programs.is_empty()) {
+        (true, true) => None,
+        (false, true) => Some(manifest.programs.clone()),
+        (true, false) => Some(approval.programs.clone()),
+        (false, false) => Some(
+            manifest
+                .programs
+                .iter()
+                .filter(|p| approval.programs.iter().any(|q| matches(p, q)))
+                .cloned()
+                .collect(),
+        ),
+    }
+}
+
+/// One host operation and the permissions that unlock it.
+#[derive(Clone, Copy, Debug, serde::Serialize)]
+pub struct Capability {
+    pub operation: &'static str,
+    /// Any one of these permissions unlocks the operation; empty means the
+    /// operation needs no permission.
+    pub permissions: &'static [Permission],
+}
+
+/// Every operation the host bridge implements, in a stable order.
+pub fn capabilities() -> Vec<Capability> {
+    let mut list = vec![
+        Capability {
+            operation: "host.info",
+            permissions: &[],
+        },
+        Capability {
+            operation: "progress.update",
+            permissions: &[],
+        },
+    ];
+    let group = |operations: &[&'static str], permissions: &'static [Permission]| {
+        operations
+            .iter()
+            .map(|operation| Capability {
+                operation,
+                permissions,
+            })
+            .collect::<Vec<_>>()
+    };
+    list.extend(group(&fs::READ_OPERATIONS, &[Permission::FileRead]));
+    list.extend(group(&fs::WRITE_OPERATIONS, &[Permission::FileWrite]));
+    list.extend(group(
+        &[fs::CLOSE_OPERATION],
+        &[Permission::FileRead, Permission::FileWrite],
+    ));
+    list.extend(group(&network::ALLOWED_OPERATIONS, &[Permission::Network]));
+    list.extend(group(&rawnet::OPERATIONS, &[Permission::RawNet]));
+    list.extend(group(&process::OPERATIONS, &[Permission::Process]));
+    list
 }
 
 pub struct Runtime {
@@ -60,6 +140,14 @@ pub struct Runtime {
 pub enum RunEvent {
     Progress {
         data: serde_json::Value,
+    },
+    /// The tool started a program on the host (`process.exec` or
+    /// `process.spawn`). Published for every program, for the audit trail.
+    Process {
+        pid: u32,
+        program: String,
+        args: Vec<String>,
+        cwd: String,
     },
     Finished {
         success: bool,
@@ -101,6 +189,7 @@ struct HostState {
     progress_active: bool,
     last_progress_at: Option<Instant>,
     network: network::NetworkState,
+    processes: process::ProcessState,
     events: Option<SyncSender<RunEvent>>,
 }
 
@@ -117,13 +206,7 @@ impl HostState {
     /// A capability is available only when the manifest declares it and the
     /// user approved it for this run.
     fn require(&self, permission: Permission) -> std::result::Result<(), String> {
-        if self
-            .manifest
-            .permissions
-            .iter()
-            .any(|p| p.as_str() == permission.as_str())
-            && self.approvals.grants(&permission)
-        {
+        if self.granted(permission) {
             Ok(())
         } else {
             Err(format!(
@@ -132,12 +215,132 @@ impl HostState {
             ))
         }
     }
+
+    fn granted(&self, permission: Permission) -> bool {
+        self.manifest.declares(permission) && self.approvals.grants(permission)
+    }
+
+    /// Describe the engine and which operations this run may use, so a tool
+    /// can adapt to the host instead of probing operations one by one.
+    fn host_info(&self) -> String {
+        let operations: Vec<serde_json::Value> = capabilities()
+            .into_iter()
+            .map(|capability| {
+                let granted = capability.permissions.is_empty()
+                    || capability.permissions.iter().any(|p| self.granted(*p));
+                serde_json::json!({
+                    "operation": capability.operation,
+                    "permissions": capability
+                        .permissions
+                        .iter()
+                        .map(Permission::as_str)
+                        .collect::<Vec<_>>(),
+                    "granted": granted,
+                })
+            })
+            .collect();
+        let granted: Vec<&str> = Permission::ALL
+            .into_iter()
+            .filter(|p| self.granted(*p))
+            .map(|p| p.as_str())
+            .collect();
+        serde_json::json!({
+            "engine": "ktrx",
+            "engine_version": ktrx_core::ENGINE_VERSION,
+            "api_version": ktrx_core::API_VERSION,
+            "os": std::env::consts::OS,
+            "family": std::env::consts::FAMILY,
+            "arch": std::env::consts::ARCH,
+            "cpus": std::thread::available_parallelism().map_or(1, |n| n.get()),
+            "permissions": granted,
+            "programs": self.allowed_programs(),
+            "operations": operations,
+        })
+        .to_string()
+    }
+
+    /// Programs this run may start, when the process permission is granted.
+    fn allowed_programs(&self) -> serde_json::Value {
+        match &self.approvals.process {
+            Some(approval) if self.manifest.declares(Permission::Process) => {
+                match effective_programs(&self.manifest, approval) {
+                    Some(list) => serde_json::json!(list),
+                    None => serde_json::json!("any"),
+                }
+            }
+            _ => serde_json::Value::Null,
+        }
+    }
+
+    /// Publish and display the programs the tool just started.
+    fn announce_processes(&mut self) {
+        for started in self.processes.take_started() {
+            if std::io::stderr().is_terminal() {
+                if self.progress_active {
+                    eprintln!();
+                }
+                let label: String = self
+                    .manifest
+                    .name
+                    .chars()
+                    .filter(|c| !c.is_control())
+                    .take(48)
+                    .collect();
+                eprintln!(
+                    "{label} ▸ exécute : {}",
+                    command_line(&started.program, &started.args)
+                );
+                self.progress_active = false;
+            }
+            if let Some(events) = &self.events {
+                let _ = events.try_send(RunEvent::Process {
+                    pid: started.pid,
+                    program: started.program,
+                    args: started.args,
+                    cwd: started.cwd,
+                });
+            }
+        }
+    }
+}
+
+/// A one-line, control-character-free rendering of a command for display.
+fn command_line(program: &str, args: &[String]) -> String {
+    let quote = |part: &str| -> String {
+        let clean: String = part
+            .chars()
+            .map(|c| if c.is_control() { '·' } else { c })
+            .collect();
+        if clean.is_empty() || clean.contains([' ', '"', '\'']) {
+            format!("\"{}\"", clean.replace('"', "\\\""))
+        } else {
+            clean
+        }
+    };
+    let mut line = quote(program);
+    for arg in args {
+        line.push(' ');
+        line.push_str(&quote(arg));
+        if line.len() > 400 {
+            let mut end = 400;
+            while !line.is_char_boundary(end) {
+                end -= 1;
+            }
+            line.truncate(end);
+            line.push('…');
+            break;
+        }
+    }
+    line
 }
 
 impl ktrx::tool::host::Host for HostState {
     fn request(&mut self, operation: String, input: String) -> std::result::Result<String, String> {
         let request: serde_json::Value =
             serde_json::from_str(&input).map_err(|e| format!("invalid request JSON: {e}"))?;
+        if operation == "host.info" {
+            return Ok(self.host_info());
+        }
         if operation == "progress.update" {
             let current = request
                 .get("current")
@@ -227,6 +430,12 @@ impl ktrx::tool::host::Host for HostState {
         if rawnet::OPERATIONS.contains(&operation) {
             self.require(Permission::RawNet)?;
             return rawnet::request(operation, &request);
+        }
+        if process::OPERATIONS.contains(&operation) {
+            self.require(Permission::Process)?;
+            let result = self.processes.request(operation, &request);
+            self.announce_processes();
+            return result;
         }
         self.require(Permission::Network)?;
         if !network::ALLOWED_OPERATIONS.contains(&operation) {
@@ -320,6 +529,10 @@ impl Runtime {
         let component = self.component(package)?;
         let files =
             fs::FileState::new(approvals.file_write.clone()).map_err(|e| anyhow::anyhow!("{e}"))?;
+        let allowed_programs = approvals
+            .process
+            .as_ref()
+            .and_then(|approval| effective_programs(&package.manifest, approval));
         let show_run_status = std::io::stderr().is_terminal();
         let run_label: String = package
             .manifest
@@ -340,6 +553,7 @@ impl Runtime {
                 progress_active: show_run_status,
                 last_progress_at: None,
                 network: network::NetworkState::new(Arc::clone(&cancelled)),
+                processes: process::ProcessState::new(allowed_programs, Arc::clone(&cancelled)),
                 events,
             },
         );

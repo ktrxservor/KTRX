@@ -14,6 +14,7 @@ fn executes_a_wasi_component_through_the_ktrx_interface() {
         permissions: vec![],
         arguments: vec![],
         examples: vec![],
+        ..Manifest::default()
     };
     let package = ToolPackage {
         manifest,
@@ -47,6 +48,7 @@ fn file_hashing_uses_the_permissioned_chunked_host_api() {
             permissions: vec![Permission::FileRead],
             arguments: vec![],
             examples: vec![],
+            ..Manifest::default()
         },
         wasm: include_bytes!("../../../tests/fixtures/hash-tool.component.wasm").to_vec(),
     };

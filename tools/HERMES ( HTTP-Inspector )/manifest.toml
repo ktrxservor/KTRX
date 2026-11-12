@@ -1,13 +1,92 @@
 id = "http-inspector"
 name = "K~HERMES"
-description = "Inspect status and response headers for an allowed HTTP or HTTPS URL."
-version = "1.0.1"
+description = "Inspect an HTTP or HTTPS exchange over HTTP/1.1 or HTTP/2: status, headers, trailers, redirects, timing, content decoding, and TLS session."
+version = "2.0.0"
 author = "KTRX"
 api_version = "1"
 permissions = ["network"]
-examples = ["ktrx run 'tools/HERMES ( HTTP-Inspector )/K~HERMES.tool' https://example.com"]
+examples = [
+    "ktrx run 'tools/HERMES ( HTTP-Inspector )/K~HERMES.tool' https://example.com",
+    "ktrx run 'tools/HERMES ( HTTP-Inspector )/K~HERMES.tool' https://example.com --http-version 2 --body",
+    "ktrx run 'tools/HERMES ( HTTP-Inspector )/K~HERMES.tool' https://example.com --compare",
+    "ktrx run 'tools/HERMES ( HTTP-Inspector )/K~HERMES.tool' https://httpbin.org/post --data 'a=1' --header 'Content-Type: application/x-www-form-urlencoded'",
+]
+
 [[arguments]]
 name = "url"
 description = "HTTP or HTTPS URL to inspect after network approval."
 positional = true
 required = true
+
+[[arguments]]
+name = "method"
+description = "Request method (default GET, or POST when --data is given)."
+value_type = "string"
+
+[[arguments]]
+name = "header"
+description = "One request header, 'Name: value'."
+value_type = "string"
+
+[[arguments]]
+name = "headers"
+description = "Several request headers, one 'Name: value' per line."
+value_type = "string"
+
+[[arguments]]
+name = "data"
+description = "Request body sent as is."
+value_type = "string"
+
+[[arguments]]
+name = "http-version"
+description = "auto (HTTP/2 when the server offers it), 1.1, or 2 (required; h2c for http:// URLs)."
+value_type = "string"
+default = "auto"
+
+[[arguments]]
+name = "compare"
+description = "Send the request over HTTP/1.1 and over HTTP/2 and report the differences."
+value_type = "boolean"
+default = false
+
+[[arguments]]
+name = "follow"
+description = "Redirects to follow (0-20)."
+value_type = "integer"
+default = 0
+
+[[arguments]]
+name = "body"
+description = "Include a sample of the response body."
+value_type = "boolean"
+default = false
+
+[[arguments]]
+name = "body-limit"
+description = "Largest body sample shown, in bytes (1-1048576)."
+value_type = "integer"
+default = 4096
+
+[[arguments]]
+name = "no-decompress"
+description = "Do not request or decode gzip/deflate content."
+value_type = "boolean"
+default = false
+
+[[arguments]]
+name = "insecure"
+description = "Complete the TLS handshake even when the certificate does not verify (the result is still reported)."
+value_type = "boolean"
+default = false
+
+[[arguments]]
+name = "timeout-ms"
+description = "Read timeout in milliseconds (100-120000)."
+value_type = "integer"
+default = 10000
+
+[[arguments]]
+name = "proxy"
+description = "HTTP proxy host:port; HTTPS goes through CONNECT (requires KTRX 0.4 or newer)."
+value_type = "string"

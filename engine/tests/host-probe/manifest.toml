@@ -4,7 +4,7 @@ description = "Engine test fixture that forwards host operations to exercise per
 version = "1.0.0"
 author = "KTRX"
 api_version = "1"
-permissions = ["network", "file-read", "file-write", "raw-net"]
+permissions = ["network", "file-read", "file-write", "raw-net", "process"]
 examples = ["ktrx run -y host-probe.tool --op file.stat --input '{\"path\":\".\"}'"]
 
 [[arguments]]

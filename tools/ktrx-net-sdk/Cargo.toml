@@ -1,9 +1,11 @@
 [package]
 name = "ktrx-net-sdk"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
+description = "Guest-side networking for KTRX tools: socket helpers and an HTTP/1.1 + HTTP/2 client over the host's generic socket capabilities."
 
 [dependencies]
 base64 = "0.22"
+flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }
 serde_json = "1.0"
 url = "2.5"

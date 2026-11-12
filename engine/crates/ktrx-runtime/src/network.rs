@@ -22,7 +22,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-pub(crate) const ALLOWED_OPERATIONS: [&str; 13] = [
+pub(crate) const ALLOWED_OPERATIONS: [&str; 15] = [
     "network.resolve",
     "dns.query",
     "socket.open",
@@ -32,6 +32,8 @@ pub(crate) const ALLOWED_OPERATIONS: [&str; 13] = [
     "socket.read",
     "socket.write",
     "socket.close",
+    "socket.shutdown",
+    "socket.starttls",
     "udp.open",
     "udp.send",
     "udp.recv",
@@ -203,7 +205,17 @@ pub(crate) struct NetworkState {
     outcomes_tx: Sender<(u64, ConnectOutcome)>,
     outcomes_rx: Receiver<(u64, ConnectOutcome)>,
     connectors: HashMap<String, SslConnector>,
+    /// The host name each TCP socket was opened to (the TLS name used by
+    /// `socket.starttls` when the request names none).
+    hosts: HashMap<u64, String>,
+    /// Options of pending connections, applied when they are claimed.
+    connect_options: HashMap<u64, ConnectOptions>,
     cancelled: Arc<AtomicBool>,
+}
+
+struct ConnectOptions {
+    host: String,
+    nodelay: bool,
 }
 
 impl Default for NetworkState {
@@ -226,6 +238,8 @@ impl NetworkState {
             outcomes_tx,
             outcomes_rx,
             connectors: HashMap::new(),
+            hosts: HashMap::new(),
+            connect_options: HashMap::new(),
             cancelled,
         }
     }
@@ -245,6 +259,8 @@ impl NetworkState {
             "socket.read" => self.read(input),
             "socket.write" => self.write(input),
             "socket.close" => self.close(input),
+            "socket.shutdown" => self.shutdown(input),
+            "socket.starttls" => self.starttls(input),
             other => Err(format!("unsupported network capability '{other}'")),
         }
     }
@@ -351,7 +367,15 @@ impl NetworkState {
             .and_then(Value::as_u64)
             .unwrap_or(1_000)
             .clamp(50, 10_000);
+        let nodelay = flag(request, "nodelay")?;
         let id = self.allocate_id();
+        self.connect_options.insert(
+            id,
+            ConnectOptions {
+                host: host.clone(),
+                nodelay,
+            },
+        );
         let outcomes = self.outcomes_tx.clone();
         thread::spawn(move || {
             let outcome = match (host.as_str(), port).to_socket_addrs() {
@@ -421,12 +445,19 @@ impl NetworkState {
     fn claim(&mut self, id: u64) -> Option<Value> {
         let outcome = self.finished.remove(&id)?;
         self.pending.remove(&id);
+        let options = self.connect_options.remove(&id);
         Some(match outcome {
             Ok((stream, address)) => {
                 let _ = stream.set_read_timeout(Some(Duration::from_secs(1)));
                 let _ = stream.set_write_timeout(Some(Duration::from_secs(1)));
+                if options.as_ref().is_some_and(|o| o.nodelay) {
+                    let _ = stream.set_nodelay(true);
+                }
                 let socket = self.allocate_id();
                 self.sockets.insert(socket, Socket::Tcp(stream));
+                if let Some(options) = options {
+                    self.hosts.insert(socket, options.host);
+                }
                 serde_json::json!({
                     "connection": id,
                     "state": "connected",
@@ -604,6 +635,7 @@ impl NetworkState {
             .clamp(50, 10_000);
         let timeout = Duration::from_millis(timeout_ms);
         let secure = request.get("tls").and_then(Value::as_bool).unwrap_or(false);
+        let nodelay = flag(request, "nodelay")?;
         let connector = if secure {
             Some(self.connector(&tls_options)?)
         } else {
@@ -626,6 +658,11 @@ impl NetworkState {
                     stream
                         .set_write_timeout(Some(timeout))
                         .map_err(|e| e.to_string())?;
+                    if nodelay {
+                        stream
+                            .set_nodelay(true)
+                            .map_err(|e| tagged("cannot disable Nagle's algorithm", &e))?;
+                    }
                     let mut tls_info = Value::Null;
                     let socket = match &connector {
                         Some(connector) => {
@@ -637,6 +674,7 @@ impl NetworkState {
                     };
                     let id = self.allocate_id();
                     self.sockets.insert(id, socket);
+                    self.hosts.insert(id, host.clone());
                     let mut opened = serde_json::json!({
                         "socket": id,
                         "host": host,
@@ -710,7 +748,99 @@ impl NetworkState {
     fn close(&mut self, request: &Value) -> Result<String, String> {
         let id = socket_id(request)?;
         self.sockets.remove(&id).ok_or("unknown socket")?;
+        self.hosts.remove(&id);
         Ok(serde_json::json!({"socket":id,"closed":true}).to_string())
+    }
+
+    /// Half-close or fully shut down a TCP or TLS stream without releasing
+    /// its handle, so the tool can still read what the peer sends back.
+    /// Input: `socket`, `how` (`write`, the default; `read`; or `both`).
+    /// Shutting down the write side of a TLS stream first sends close_notify.
+    fn shutdown(&mut self, request: &Value) -> Result<String, String> {
+        let id = socket_id(request)?;
+        let (how, label) = match request
+            .get("how")
+            .and_then(Value::as_str)
+            .unwrap_or("write")
+        {
+            "write" => (std::net::Shutdown::Write, "write"),
+            "read" => (std::net::Shutdown::Read, "read"),
+            "both" => (std::net::Shutdown::Both, "both"),
+            _ => return Err("how must be write, read, or both".into()),
+        };
+        let socket = self.sockets.get_mut(&id).ok_or("unknown socket")?;
+        let result = match socket {
+            Socket::Tcp(stream) => stream.shutdown(how),
+            Socket::Tls(stream) => {
+                if how != std::net::Shutdown::Read {
+                    // Best effort: the peer may already have gone away.
+                    let _ = stream.shutdown();
+                }
+                stream.get_ref().shutdown(how)
+            }
+        };
+        match result {
+            Ok(()) => {}
+            // Shutting down a stream the peer already closed is not a failure.
+            Err(error) if error.kind() == io::ErrorKind::NotConnected => {}
+            Err(error) => return Err(tagged("socket shutdown failed", &error)),
+        }
+        Ok(serde_json::json!({"socket": id, "shutdown": label}).to_string())
+    }
+
+    /// Upgrade an open plaintext TCP socket to TLS in place (STARTTLS, or a
+    /// tunnel through an HTTP proxy after `CONNECT`). Accepts the same TLS
+    /// options as `socket.open`, plus `host` (the name to verify and send as
+    /// SNI; defaults to the host the socket was opened to) and `timeout_ms`.
+    /// The socket keeps its handle; a failed handshake closes it.
+    fn starttls(&mut self, request: &Value) -> Result<String, String> {
+        let id = socket_id(request)?;
+        let tls_options = tls::TlsOptions::from_request(request)?;
+        let timeout_ms = request
+            .get("timeout_ms")
+            .and_then(Value::as_u64)
+            .unwrap_or(5_000)
+            .clamp(50, 10_000);
+        let host = match request.get("host") {
+            None | Some(Value::Null) => self
+                .hosts
+                .get(&id)
+                .cloned()
+                .ok_or("request requires host")?,
+            Some(_) => string(request, "host")?,
+        };
+        match self.sockets.get(&id) {
+            None => return Err("unknown socket".into()),
+            Some(Socket::Tls(_)) => return Err("[tls] the socket already uses TLS".into()),
+            Some(Socket::Tcp(_)) => {}
+        }
+        let connector = self.connector(&tls_options)?;
+        let Some(Socket::Tcp(stream)) = self.sockets.remove(&id) else {
+            return Err("unknown socket".into());
+        };
+        let timeout = Duration::from_millis(timeout_ms);
+        let prepared = stream
+            .set_read_timeout(Some(timeout))
+            .and_then(|()| stream.set_write_timeout(Some(timeout)));
+        if let Err(error) = prepared {
+            self.hosts.remove(&id);
+            return Err(tagged("cannot prepare the socket for TLS", &error));
+        }
+        match tls_options.handshake_with(&connector, &host, stream) {
+            Ok(stream) => {
+                let tls_info = tls::describe(stream.ssl(), &tls_options, &host);
+                self.sockets.insert(id, Socket::Tls(stream));
+                self.hosts.insert(id, host);
+                Ok(
+                    serde_json::json!({"socket": id, "tls": true, "tls_info": tls_info})
+                        .to_string(),
+                )
+            }
+            Err(error) => {
+                self.hosts.remove(&id);
+                Err(format!("{error} (the socket was closed)"))
+            }
+        }
     }
 
     fn socket_count(&self) -> usize {
@@ -876,6 +1006,15 @@ fn string(request: &Value, key: &str) -> Result<String, String> {
         .ok_or_else(|| format!("request requires {key}"))
 }
 
+/// An optional boolean field, `false` when absent.
+fn flag(request: &Value, key: &str) -> Result<bool, String> {
+    match request.get(key) {
+        None | Some(Value::Null) => Ok(false),
+        Some(Value::Bool(value)) => Ok(*value),
+        Some(_) => Err(format!("{key} must be a boolean")),
+    }
+}
+
 fn socket_id(request: &Value) -> Result<u64, String> {
     request
         .get("socket")
@@ -901,6 +1040,8 @@ mod architecture_tests {
                 "socket.read",
                 "socket.write",
                 "socket.close",
+                "socket.shutdown",
+                "socket.starttls",
                 "udp.open",
                 "udp.send",
                 "udp.recv",

@@ -668,10 +668,10 @@ pub(crate) fn system_dns_servers() -> Vec<IpAddr> {
         let mut node: *const IP_ADDR_STRING = &(*info).DnsServerList;
         while !node.is_null() {
             let text = CStr::from_ptr((*node).IpAddress.String.as_ptr().cast());
-            if let Ok(address) = text.to_string_lossy().trim().parse::<IpAddr>() {
-                if !servers.contains(&address) {
-                    servers.push(address);
-                }
+            if let Ok(address) = text.to_string_lossy().trim().parse::<IpAddr>()
+                && !servers.contains(&address)
+            {
+                servers.push(address);
             }
             node = (*node).Next;
         }

@@ -8,7 +8,7 @@ Un outil est un composant WebAssembly autonome qui reçoit un objet JSON, effect
 
 Toute logique métier appartient à l’outil : protocoles, HTTP, TLS, DNS de haut niveau, stratégie de scan, détection, parsing, limites de requêtes, corrélation, résultats et recommandations. N’ajoute jamais au moteur une fonction propre à un outil, à un protocole ou à une famille d’outils. Le moteur expose seulement les primitives génériques déjà définies ci-dessous. Si une capacité manque, conçois l’outil autour des capacités existantes ; toute proposition de changement d’API doit rester générique, réutilisable et versionnée séparément.
 
-Les composants n’ont aucun accès implicite au système : pas de sockets WASI, de processus, de variables d’environnement, de terminal ni de système de fichiers. Les seules entrées/sorties autorisées sont l’argument JSON, le résultat JSON, les événements de progression, et les appels explicitement permis à l’hôte.
+Les composants n’ont aucun accès implicite au système : pas de sockets WASI, de processus, de variables d’environnement, de terminal ni de système de fichiers. Lancer un programme hôte n’est possible qu’avec la permission explicite `process` (moteur 0.4+), approuvée par l’utilisateur à chaque exécution. Les seules entrées/sorties autorisées sont l’argument JSON, le résultat JSON, les événements de progression, et les appels explicitement permis à l’hôte.
 
 ## 2. Nommage mythologique obligatoire
 
@@ -84,7 +84,9 @@ Règles :
 - `id` : 1 à 80 caractères, minuscules ASCII, chiffres et tirets ; commence par une lettre et finit par une lettre ou un chiffre. Il doit être unique.
 - `name`, `description`, `version`, `author`, `api_version` sont obligatoires et non vides. `api_version` vaut actuellement `"1"`.
 - Versionne le plugin en SemVer (`1.0.0`, `1.0.1`, etc.).
-- `permissions` ne contient que `"network"`, `"file-read"`, `"file-write"` et/ou `"raw-net"`, sans doublon et seulement si nécessaires (`file-write` : écriture confinée au dossier choisi par l’utilisateur avec `--write-dir` ; `raw-net` : ICMP, ARP et sondes TCP brutes, qui peuvent exiger des droits élevés). N’ajoute jamais de liste d’hôtes, de destinations permises ou d’autorisation dans le manifeste.
+- `permissions` ne contient que `"network"`, `"file-read"`, `"file-write"`, `"raw-net"` et/ou `"process"`, sans doublon et seulement si nécessaires (`file-write` : écriture confinée au dossier choisi par l’utilisateur avec `--write-dir` ; `raw-net` : ICMP, ARP et sondes TCP brutes, qui peuvent exiger des droits élevés ; `process` : lancer des programmes de la machine, hors du bac à sable, avec les droits de l’utilisateur). N’ajoute jamais de liste d’hôtes, de destinations permises ou d’autorisation réseau dans le manifeste.
+- `programs` (moteur 0.4+, facultatif mais fortement recommandé avec `process`) : noms nus des programmes que l’outil lance, cherchés dans le `PATH` (par exemple `programs = ["git", "nmap"]`, 32 noms au plus, lettres, chiffres, `.`, `_`, `-`, `+`). L’hôte refuse alors tout autre programme et tout chemin, et l’invite d’approbation les nomme. Sans liste, l’invite avertit que *n’importe quel* programme peut être lancé.
+- `min_engine_version` (facultatif) : version minimale du moteur, `MAJOR.MINOR.PATCH`. Mets `"0.4.0"` dès que l’outil dépend de `process.*`, `host.info`, `socket.starttls` ou `socket.shutdown` ; un moteur plus ancien affichera alors un message clair au lieu d’une erreur d’opération.
 - `arguments` : nom en minuscules ASCII/chiffres/tirets, description utile, type parmi `string`, `integer`, `boolean`, `path`; préciser `required`, `positional` et si utile `default` du même type. Chaque nom est unique.
 - Une option booléenne se passe comme `--compact` ; les options non booléennes prennent une valeur après le nom (`--limit 100`). Les arguments positionnels suivent leur ordre dans le manifeste.
 - `execution_timeout_seconds` est optionnel. Absent ou `0` signifie sans durée maximale. Une durée explicite doit être entre 30 et 180 secondes. Ne définis pas de plafond global pour une exécution interactive qui doit progresser en direct.
@@ -152,6 +154,7 @@ Appelle toujours `ktrx::tool::host::request(operation, &json_payload.to_string()
 
 | Opération | Requête JSON | Réponse / contraintes |
 |---|---|---|
+| `host.info` | `{}` | Aucune permission (moteur 0.4+). Réponse `engine_version`, `api_version`, `os`, `family`, `arch`, `cpus`, `permissions` accordées, `programs` autorisés (`"any"`, liste ou `null`), `operations` (chaque opération, ses permissions et `granted`). Sur un moteur plus ancien l’appel échoue : c’est la réponse. |
 | `progress.update` | `phase`, `current` requis ; `total`, `recovered`, `item_label`, `result_label`, `done` facultatifs | Renvoie `{"accepted":true}`. Émissions throttled à l’affichage ; l’événement final est préservé. |
 | `file.read` | `path`, `offset`, `length` | Réponse `path`, `offset`, `bytes_base64`. Permission `file-read`; fichiers réguliers ≤64 MiB, blocs de 1 à 65536 octets, max. 8 chemins ouverts. Décoder Base64 et lire par blocs. |
 | `network.resolve` | `host`, `port` optionnel (défaut 0) | Réponse `host`, `addresses`. Permission `network`. La résolution n’implémente pas le protocole DNS dans l’outil hôte. |
@@ -162,6 +165,14 @@ Appelle toujours `ktrx::tool::host::request(operation, &json_payload.to_string()
 | `socket.read` | `socket`, `length` (1–65536), `timeout_ms` facultatif (50–10000 ms) | Réponse `bytes_base64`, `eof`, `timeout_ms`. Une lecture peut retourner moins d’octets que demandé. |
 | `socket.write` | `socket`, `bytes_base64` | Écrit au plus 65536 octets ; réponse `written`. Encoder exactement les octets du protocole en Base64. |
 | `socket.close` | `socket` | Ferme le flux ; réponse `closed`. Toujours fermer les sockets, y compris après erreur. |
+| `socket.shutdown` | `socket`, `how` (`write` par défaut, `read`, `both`) | Moteur 0.4+. Demi-fermeture sans libérer l’identifiant (envoie `close_notify` en TLS) ; on peut encore lire la réponse du pair. |
+| `socket.starttls` | `socket`, `host` facultatif (défaut : hôte d’ouverture), `timeout_ms`, mêmes options TLS que `socket.open` | Moteur 0.4+. Passe un socket TCP en clair en TLS sur place (STARTTLS SMTP/IMAP/FTP, HTTPS via proxy après `CONNECT` : nommer alors la cible dans `host`). Réponse `tls_info`. Un échec ferme le socket. |
+| `process.exec` | `program`, `args` (tableau), `cwd`, `env` (objet ; `null` supprime), `clear_env`, `stdin_base64` (≤16 Mio), `timeout_ms` (0 = sans limite), `max_output` (défaut 1 Mio, ≤16 Mio), `output` (`base64` ou `text`) | Permission `process` (0.4+). Exécute jusqu’au bout, sans shell : arguments transmis tels quels. Réponse `pid`, `program` (chemin résolu), `exit_code`, `signal`, `success`, `timed_out`, `killed`, `duration_ms`, `stdout_base64`/`stdout`, `stderr_base64`/`stderr`, `*_bytes`, `*_truncated`. |
+| `process.spawn` | mêmes options de lancement, `stdin` (booléen) | Démarre et renvoie `process` (handle), `pid`, `program`. 16 processus vivants au plus. |
+| `process.read` | `process`, `stream` (`stdout`/`stderr`), `length` (≤65536), `timeout_ms` (0–10000) | Réponse `bytes_base64`, `eof`, `timeout` (pas encore de données : pas une erreur). Lire les deux flux d’un programme bavard. |
+| `process.write` | `process`, `bytes_base64` (≤64 Kio), `close`, `timeout_ms` | Écrit sur l’entrée standard ; `close: true` la ferme. `[closed]` si fermée, `[timeout]` si le programme ne lit pas. |
+| `process.wait` | `process`, `timeout_ms` (0–10000) | Réponse `running` puis `exit_code`, `signal`, `success`, `duration_ms`. |
+| `process.kill` / `process.close` | `process` | `kill` termine le programme **et tout ce qu’il a lancé** ; `close` libère le handle (en terminant si besoin). La fin de l’exécution, Ctrl+C et le délai d’`exec` terminent aussi tout l’arbre. |
 | `file.list` | `path`, `limit` facultatif (≤5000) | Permission `file-read`. Réponse `entries` (`name`, `type`, `size`, `modified`), `total`, `truncated`. |
 | `file.stat` | `path` | Permission `file-read`. Réponse `exists` (jamais une erreur si le chemin manque), `type`, `size`, `modified`, `readonly`, `symlink`. |
 | `file.create` | `path`, `overwrite` (défaut `false`), `bytes_base64` facultatif | Permission `file-write`. Crée un fichier sans jamais écraser sauf `overwrite`. Tout chemin est résolu dans le dossier approuvé : `..`, chemins absolus extérieurs, liens symboliques sortants et noms de périphériques Windows sont refusés. |
@@ -196,6 +207,37 @@ let socket = opened.get("socket").and_then(Value::as_u64)
 ```
 
 Ne contacte jamais de cible cachée ou codée en dur. Le nom de cible doit venir des arguments fournis par l’utilisateur. Ne suppose pas qu’une approbation prouve la propriété de la cible ; garde les scans raisonnablement bornés et documente leur portée.
+
+### 6.1 Lancer des programmes (`process`)
+
+Déclare `permissions = ["process"]` **et** `programs = [...]` : l’utilisateur voit ce qui sera lancé et l’hôte refuse le reste. Passe toujours les arguments sous forme de tableau ; ne construis jamais une ligne de commande pour `sh -c` ou `cmd /c` à partir d’une entrée utilisateur (injection). Valide les arguments venant de l’utilisateur (par exemple refuser une cible commençant par `-`, qui serait prise pour une option). Fixe un `timeout_ms` raisonnable sur `process.exec`, borne `max_output` et traite `stdout_truncated`. L’utilisateur peut restreindre encore avec `ktrx run --allow-program NOM`. Chaque lancement est affiché et publié comme événement `process` : n’en lance pas plus que nécessaire.
+
+```rust
+let raw = ktrx::tool::host::request("process.exec", &json!({
+    "program": "git",
+    "args": ["-C", repo, "log", "--oneline", "-n", "20"],
+    "timeout_ms": 30_000,
+    "output": "text",
+}).to_string())?;
+let done: Value = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+if done["success"] != true { /* exit_code, stderr */ }
+```
+
+### 6.2 Client HTTP du SDK (HTTP/1.1 et HTTP/2)
+
+Pour le web, n’écris plus ton propre client : `ktrx_net_sdk::http` (SDK 0.2) fournit un client complet sur les sockets génériques — HTTP/2 négocié par ALPN (ou h2c), multiplexage de requêtes vers une même origine (`Client::send_all`), HTTP/1.1 keep-alive, chunked et trailers, décompression gzip/deflate bornée, redirections (désactivées par défaut), proxy HTTP (HTTPS via `CONNECT` + `socket.starttls`, moteur 0.4+), délais et tailles bornés. Les erreurs portent un `ErrorKind` stable (`connect`, `tls`, `timeout`, `protocol`, `closed`, `too_large`, `cancelled`, `denied`…).
+
+```rust
+use ktrx_net_sdk::http::{Client, Config, Request, VersionPolicy};
+let host = |op: &str, input: &str| ktrx::tool::host::request(op, input);
+let mut client = Client::with_config(&host, Config { follow_redirects: 3, ..Config::default() });
+let response = client.send(Request::get(url).header("Accept", "text/html"))
+    .map_err(|e| e.to_string())?;
+// response.version (HTTP/1.1 ou HTTP/2), status, headers, body (décodé), tls, redirects…
+let pages = client.send_all(urls.iter().map(|u| Request::get(u.as_str())).collect());
+```
+
+Les anciennes fonctions (`http_get`, `open_socket`…) restent disponibles et inchangées. `K~HERMES` montre un usage complet.
 
 ## 7. Performance, sûreté et qualité produit
 
@@ -249,7 +291,7 @@ Avant livraison, contrôler :
 
 1. Le nommage mythologique du dossier, du manifeste visible, du README et de l’archive est cohérent.
 2. L’identifiant `id` reste un slug valide et distinct ; API version `1`.
-3. Aucun accès système natif, permission superflue, hôte en allowlist ou operation moteur spécifique.
+3. Aucun accès système natif hors de la permission `process` (avec liste `programs`), aucune permission superflue, hôte en allowlist ou operation moteur spécifique.
 4. Chaque entrée est validée ; les erreurs sont JSON ; les tailles, durées et boucles sont bornées.
 5. Tests ciblés passent ; `cargo fmt --check`, compilation Wasm, `ktrx validate` et `ktrx describe` passent.
 6. L’archive `.tool` est la version compilée de la source présente, et `module.wasm` / `target/` ne sont pas ajoutés par erreur.
@@ -264,6 +306,7 @@ Avant livraison, contrôler :
 - Sortir un JSON d’erreur incorrectement échappé, paniquer sur UTF-8, ou `unwrap()` sur une donnée utilisateur.
 - Demander `network` / `file-read` / `file-write` / `raw-net` sans usage réel, ou oublier la permission nécessaire.
 - Faire des requêtes HTTP/scan en ajoutant du code au moteur au lieu d’utiliser les sockets génériques.
+- Passer une entrée utilisateur à `sh -c` / `cmd /c` au lieu d’un tableau `args`, ou déclarer `process` sans liste `programs`.
 - Créer une progression purement décorative, publier trop d’événements ou ne pas fournir le résultat final.
 - Oublier de fermer les connexions, ignorer les erreurs de socket ou charger une réponse entière sans limite.
 - Mettre à jour la source sans reconstruire l’archive `.tool` correspondante.

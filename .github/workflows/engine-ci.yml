@@ -5,11 +5,13 @@ on:
     branches: [main]
     paths:
       - "engine/**"
+      - "tools/ktrx-net-sdk/**"
       - ".github/workflows/engine-ci.yml"
   pull_request:
     branches: [main]
     paths:
       - "engine/**"
+      - "tools/ktrx-net-sdk/**"
       - ".github/workflows/engine-ci.yml"
 
 jobs:
@@ -28,3 +30,20 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Test engine workspace
         run: cargo test --manifest-path engine/Cargo.toml --workspace --locked
+
+  sdk:
+    name: Guest SDK (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-wasip2
+      - name: Test ktrx-net-sdk (HTTP/1.1, HTTP/2, HPACK)
+        run: cargo test --manifest-path tools/ktrx-net-sdk/Cargo.toml --locked
+      - name: Build ktrx-net-sdk for wasm32-wasip2
+        run: cargo build --manifest-path tools/ktrx-net-sdk/Cargo.toml --locked --target wasm32-wasip2

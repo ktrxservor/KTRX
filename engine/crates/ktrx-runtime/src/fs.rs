@@ -190,7 +190,7 @@ impl FileState {
             "exists": true,
             "type": file_kind(target.file_type()),
             "symlink": link.file_type().is_symlink(),
-            "size": target.is_file().then(|| target.len()),
+            "size": target.is_file().then_some(target.len()),
             "modified": modified_seconds(&target),
             "readonly": target.permissions().readonly(),
         })
@@ -367,16 +367,15 @@ impl FileState {
     fn close(&mut self, request: &Value) -> Result<String, String> {
         let raw = string(request, "path")?;
         let mut closed = self.read_handles.remove(raw).is_some();
-        if self.write_root.is_some() {
-            if let Ok(path) = self.resolve_write_path(raw) {
-                if let Some(handle) = self.write_handles.remove(&path) {
-                    handle
-                        .file
-                        .sync_all()
-                        .map_err(|e| format!("cannot flush file: {e}"))?;
-                    closed = true;
-                }
-            }
+        if self.write_root.is_some()
+            && let Ok(path) = self.resolve_write_path(raw)
+            && let Some(handle) = self.write_handles.remove(&path)
+        {
+            handle
+                .file
+                .sync_all()
+                .map_err(|e| format!("cannot flush file: {e}"))?;
+            closed = true;
         }
         Ok(json!({"path": raw, "closed": closed}).to_string())
     }

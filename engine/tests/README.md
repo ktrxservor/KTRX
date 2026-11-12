@@ -6,7 +6,7 @@ End-to-end package validation requires the `wasm32-wasip2` Rust target and the e
 
 ## Host capability tests
 
-`engine/tests/host-probe/` is a tiny `wasm32-wasip2` fixture that forwards `host.request` operations, so `crates/ktrx-runtime/tests/capabilities.rs` can exercise the real runtime end to end: manifest declarations and per-run approvals, write confinement, UDP, DNS (against a local fake server), TLS (against a local self-signed server), and ICMP. It is not part of the engine workspace. To rebuild the committed fixture:
+`engine/tests/host-probe/` is a tiny `wasm32-wasip2` fixture that forwards `host.request` operations, so `crates/ktrx-runtime/tests/capabilities.rs` and `crates/ktrx-runtime/tests/process.rs` can exercise the real runtime end to end: manifest declarations and per-run approvals, write confinement, UDP, DNS (against a local fake server), TLS (against a local self-signed server), ICMP, and — since 0.4 — `process.*` (execution, stdin, timeouts, process-tree termination, program allow-lists, audit events), `host.info`, `socket.starttls`, and `socket.shutdown`. Because the probe forwards any operation name, new host operations need no fixture rebuild. It is not part of the engine workspace. To rebuild the committed fixture:
 
 ```sh
 cargo build --manifest-path engine/tests/host-probe/Cargo.toml --release --target wasm32-wasip2

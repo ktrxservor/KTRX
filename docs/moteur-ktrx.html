@@ -114,7 +114,7 @@ section { padding-block: 52px; border-bottom: 1px solid var(--line); display: gr
 .detail-head h3 { font-family: var(--font-mono); font-weight: 500; font-size: 17px; }
 .perm-chip { font-family: var(--font-mono); font-size: 11px; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line-bright); color: var(--muted); }
 .perm-chip.network { color: var(--cyan); border-color: #66d7cf55; }
-.perm-chip.raw-net { color: var(--red); border-color: #ef7a6c55; }
+.perm-chip.raw-net, .perm-chip.process { color: var(--red); border-color: #ef7a6c55; }
 .perm-chip.file-read, .perm-chip.file-write { color: var(--amber); border-color: #e9b55a55; }
 .perm-chip.none { color: var(--acid); border-color: #c4ee6155; }
 .detail .desc { color: var(--muted); font-size: 14px; }
@@ -215,8 +215,8 @@ footer { padding-top: 28px; color: var(--quiet); font-size: 13px; display: flex;
     <h1>Un lanceur d'outils<br><span>en bac à sable.</span></h1>
     <p class="lead">Le moteur KTRX ouvre un fichier <code>.tool</code>, exécute le WebAssembly qu'il contient dans une sandbox fermée, et ne lui donne accès au réseau ou aux fichiers que si le manifeste le déclare <em>et</em> que tu l'as approuvé pour cette exécution. Il ne connaît aucun protocole : il fournit des primitives, les outils font le métier.</p>
     <div class="facts">
-      <div class="fact"><b>4</b><span>permissions possibles</span></div>
-      <div class="fact"><b>25</b><span>opérations hôte</span></div>
+      <div class="fact"><b>5</b><span>permissions possibles</span></div>
+      <div class="fact"><b>35</b><span>opérations hôte</span></div>
       <div class="fact"><b>64 Mio</b><span>mémoire par exécution</span></div>
       <div class="fact"><b>20</b><span>outils au catalogue</span></div>
     </div>
@@ -398,11 +398,12 @@ footer { padding-top: 28px; color: var(--quiet); font-size: 13px; display: flex;
     <div class="intro">
       <div class="eyebrow">08 · Évolution</div>
       <h2>Où en est le moteur</h2>
-      <p>Le lot 1 vient d'être livré. Les suivants gardent la même règle : des mécanismes génériques côté hôte, le métier dans les outils.</p>
+      <p>La version 0.4.0 livre le lot 2. Les suivants gardent la même règle : des mécanismes génériques côté hôte, le métier dans les outils.</p>
     </div>
     <div class="road">
       <div class="lot done"><span class="state">Lot 1 · livré</span><h3>Fiabilité</h3><ul><li>Erreurs typées <code>error_kind</code>, indépendantes de la langue de l'OS</li><li><code>socket.wait</code> : attente groupée</li><li>Cache des connecteurs TLS</li><li>Lectures annulables</li><li>HORUS 1.2.0</li></ul></div>
-      <div class="lot next"><span class="state">Lot 2 · proposé</span><h3>TLS et sockets</h3><ul><li><code>socket.starttls</code> (SMTP, IMAP, LDAP…)</li><li>Diagnostic des poignées de main échouées</li><li><code>socket.info</code>, <code>shutdown</code>, options TCP</li><li>Multicast UDP, ping IPv6</li></ul></div>
+      <div class="lot done"><span class="state">Lot 2 · livré en 0.4.0</span><h3>Processus, TLS et web</h3><ul><li>Permission <code>process</code> : <code>process.exec</code>, <code>spawn</code>, <code>read</code>, <code>write</code>, <code>wait</code>, <code>kill</code>, <code>close</code></li><li>Liste <code>programs</code>, <code>--allow-program</code>, arbre de processus terminé</li><li><code>host.info</code>, <code>ktrx capabilities</code>, <code>min_engine_version</code></li><li><code>socket.starttls</code>, <code>socket.shutdown</code>, <code>nodelay</code></li><li>SDK : client HTTP/1.1 + HTTP/2, HERMES 2.0</li></ul></div>
+      <div class="lot next"><span class="state">Lot 2b · proposé</span><h3>Sockets</h3><ul><li>Diagnostic des poignées de main échouées</li><li><code>socket.info</code>, autres options TCP</li><li>Multicast UDP, ping IPv6</li></ul></div>
       <div class="lot later"><span class="state">Lot 3 · proposé</span><h3>Contrôle utilisateur</h3><ul><li><code>--scope</code> CIDR / domaines imposé par l'hôte</li><li><code>--rate</code>, quotas de connexions</li><li><code>--proxy</code> SOCKS5 / HTTP</li><li><code>--trace</code> : journal réseau</li></ul></div>
       <div class="lot later"><span class="state">Lot 4 · plus tard</span><h3>Extensions</h3><ul><li><code>socket.listen</code> sous permission dédiée</li><li>Canal binaire WIT 1.1, sans Base64</li></ul></div>
     </div>
@@ -410,13 +411,16 @@ footer { padding-top: 28px; color: var(--quiet); font-size: 13px; display: flex;
 
   <footer>
     <span>Sources : engine/crates/ktrx-runtime, ktrx-core, ktrx-cli, engine/wit/ktrx.wit</span>
-    <span class="mono">KTRX · API 1</span>
+    <span class="mono">KTRX 0.4.0 · API 1</span>
   </footer>
 </div>
 
 <script>
 const OPS = [
   { group: "Sans permission", items: [
+    { op: "host.info", perm: "none", isNew: true, desc: "Décrit le moteur et ce que l'exécution peut faire : versions, système, permissions accordées, programmes autorisés et, pour chaque opération, si elle est accessible.",
+      req: {},
+      res: { engine: "ktrx", engine_version: "0.4.0", api_version: "1", os: "linux", family: "unix", arch: "x86_64", cpus: 8, permissions: ["network", "process"], programs: ["nmap"], operations: [{ operation: "process.exec", permissions: ["process"], granted: true }, "…"] } },
     { op: "progress.update", perm: "none", desc: "Publie un instantané de progression. Affiché sur le terminal (rafraîchi toutes les 100 ms au plus) et envoyé en événement.",
       req: { phase: "TCP connect scan", current: 400, total: 1000, recovered: 3, item_label: "ports", result_label: "open" },
       res: { accepted: true } },
@@ -437,7 +441,7 @@ const OPS = [
     { op: "socket.poll", perm: "network", desc: "Interroge une connexion en attente (attente ≤ 1 000 ms). L'échec porte un error_kind stable : refused, timeout, unreachable…",
       req: { connection: 12, wait_ms: 1 },
       res: { connection: 12, state: "failed", error: "Aucune connexion n’a pu être établie car l’ordinateur cible l’a expressément refusée. (os error 10061)", error_kind: "refused" } },
-    { op: "socket.wait", perm: "network", isNew: true, desc: "Attend en un seul appel que des connexions se terminent ou que des sockets deviennent lisibles. Sans liste, surveille toutes les connexions en attente.",
+    { op: "socket.wait", perm: "network", desc: "Attend en un seul appel que des connexions se terminent ou que des sockets deviennent lisibles. Sans liste, surveille toutes les connexions en attente.",
       req: { sockets: [7], timeout_ms: 200 },
       res: { connections: [{ connection: 12, state: "connected", socket: 15, address: "93.184.215.14", port: 22 }, { connection: 13, state: "failed", error: "connection timed out", error_kind: "timeout" }], readable: [7], pending: 41 } },
     { op: "socket.read", perm: "network", desc: "Lit jusqu'à 64 Kio. Une erreur commence par son type, par exemple [timeout] ou [cancelled].",
@@ -448,6 +452,11 @@ const OPS = [
       res: { socket: 7, written: 20 } },
     { op: "socket.close", perm: "network", desc: "Ferme le flux et libère sa place dans la limite de 128.",
       req: { socket: 15 }, res: { socket: 15, closed: true } },
+    { op: "socket.shutdown", perm: "network", isNew: true, desc: "Demi-fermeture d'un flux TCP ou TLS (close_notify en TLS) sans libérer l'identifiant : on peut encore lire la réponse du pair.",
+      req: { socket: 7, how: "write" }, res: { socket: 7, shutdown: "write" } },
+    { op: "socket.starttls", perm: "network", isNew: true, desc: "Passe un socket en clair en TLS sur place : STARTTLS (SMTP, IMAP, FTP…) ou HTTPS à travers un proxy après CONNECT. Mêmes options et même tls_info que socket.open.",
+      req: { socket: 7, host: "mail.example.com", alpn: [], timeout_ms: 5000 },
+      res: { socket: 7, tls: true, tls_info: { version: "TLSv1.3", cipher: "TLS_AES_256_GCM_SHA384", sni: "mail.example.com", verified: true, peer_certificates: ["…"] } } },
     { op: "udp.open", perm: "network", desc: "Ouvre un socket UDP IPv4 ou IPv6, avec broadcast et TTL optionnels.",
       req: { family: "v4", broadcast: false }, res: { socket: 20, family: "v4", local_port: 53122 } },
     { op: "udp.send", perm: "network", desc: "Envoie un datagramme (≤ 65 507 octets).",
@@ -477,6 +486,23 @@ const OPS = [
       req: { ip: "192.168.1.1" }, res: { ip: "192.168.1.1", mac: "a4:2b:b0:12:34:56" } },
     { op: "tcp.syn_probe", perm: "raw-net", desc: "Envoie un SYN brut et classe open / closed / filtered. Linux avec root ou CAP_NET_RAW uniquement.",
       req: { host: "192.168.1.10", port: 445, timeout_ms: 500 }, res: { host: "192.168.1.10", address: "192.168.1.10", port: 445, state: "open", method: "syn", rtt_ms: 2 } },
+  ]},
+  { group: "process", items: [
+    { op: "process.exec", perm: "process", isNew: true, desc: "Lance un programme jusqu'au bout, sans shell : arguments transmis tels quels, cwd, env, stdin, délai, sortie bornée. Le programme et tout ce qu'il lance sont terminés au délai, à Ctrl+C et en fin d'exécution.",
+      req: { program: "nmap", args: ["-sV", "-p", "22,80", "scanme.example"], timeout_ms: 120000, output: "text" },
+      res: { pid: 4242, program: "/usr/bin/nmap", exit_code: 0, signal: null, success: true, timed_out: false, killed: false, duration_ms: 8123, stdout: "Starting Nmap…", stdout_bytes: 1532, stdout_truncated: false, stderr: "", stderr_bytes: 0, stderr_truncated: false } },
+    { op: "process.spawn", perm: "process", isNew: true, desc: "Démarre un programme et rend un handle pour le piloter. 16 processus vivants au plus.",
+      req: { program: "python3", args: ["-u", "worker.py"], stdin: true }, res: { process: 1, pid: 4243, program: "/usr/bin/python3", stdin: true } },
+    { op: "process.read", perm: "process", isNew: true, desc: "Lit stdout ou stderr (≤ 64 Kio). Pas encore de données : timeout vrai, pas une erreur.",
+      req: { process: 1, stream: "stdout", timeout_ms: 1000 }, res: { process: 1, stream: "stdout", bytes_base64: "cmVhZHkK", eof: false, timeout: false } },
+    { op: "process.write", perm: "process", isNew: true, desc: "Écrit sur l'entrée standard (≤ 64 Kio) ; close la ferme.",
+      req: { process: 1, bytes_base64: "cGluZwo=", close: false }, res: { process: 1, written: 5, stdin_open: true } },
+    { op: "process.wait", perm: "process", isNew: true, desc: "Attend la fin (≤ 10 s par appel) et donne le code de sortie.",
+      req: { process: 1, timeout_ms: 5000 }, res: { process: 1, pid: 4243, running: false, killed: false, duration_ms: 5210, exit_code: 0, signal: null, success: true } },
+    { op: "process.kill", perm: "process", isNew: true, desc: "Termine le programme et tout ce qu'il a lancé (job object Windows, groupe de processus Unix).",
+      req: { process: 1 }, res: { process: 1, pid: 4243, running: false, killed: true, was_running: true, exit_code: null, signal: 9, success: false, duration_ms: 812 } },
+    { op: "process.close", perm: "process", isNew: true, desc: "Libère le handle, en terminant le programme s'il tourne encore.",
+      req: { process: 1 }, res: { process: 1, pid: 4243, running: false, killed: false, closed: true, exit_code: 0, signal: null, success: true, duration_ms: 5210 } },
   ]},
 ];
 
@@ -523,7 +549,7 @@ function render() {
   } else {
     add(`Manifeste déclare « ${item.perm} »`, isDeclared ? "pass" : "fail");
     if (!isDeclared) ok = false;
-    add(`Utilisateur a approuvé « ${item.perm} »` + (item.perm === "file-write" ? " (dossier --write-dir)" : ""), !ok ? "skip" : isApproved ? "pass" : "fail");
+    add(`Utilisateur a approuvé « ${item.perm} »` + (item.perm === "file-write" ? " (dossier --write-dir)" : item.perm === "process" ? " (liste programs et --allow-program)" : ""), !ok ? "skip" : isApproved ? "pass" : "fail");
     if (ok && !isApproved) ok = false;
   }
   add("Primitive exécutée, limites appliquées", ok ? "pass" : "skip");
@@ -557,5 +583,5 @@ function select(item) {
 
 declared.addEventListener("change", render);
 approved.addEventListener("change", render);
-select(OPS[1].items.find((i) => i.op === "socket.wait"));
+select(OPS.find((g) => g.group === "process").items[0]);
 </script>

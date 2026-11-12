@@ -84,10 +84,10 @@ impl TlsOptions {
         };
         let min = text("tls_min")?.map(|v| parse_version(&v)).transpose()?;
         let max = text("tls_max")?.map(|v| parse_version(&v)).transpose()?;
-        if let (Some(low), Some(high)) = (min, max) {
-            if version_rank(low) > version_rank(high) {
-                return Err("tls_min must not be higher than tls_max".into());
-            }
+        if let (Some(low), Some(high)) = (min, max)
+            && version_rank(low) > version_rank(high)
+        {
+            return Err("tls_min must not be higher than tls_max".into());
         }
         Ok(Self {
             verify: request

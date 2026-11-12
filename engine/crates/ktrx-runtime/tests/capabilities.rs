@@ -4,7 +4,7 @@
 
 use base64::Engine as _;
 use ktrx_core::{Manifest, Permission, ToolPackage};
-use ktrx_runtime::{Approvals, Runtime};
+use ktrx_runtime::{Approvals, ProcessApproval, Runtime};
 use serde_json::{Value, json};
 use std::{
     net::{TcpListener, UdpSocket},
@@ -25,6 +25,7 @@ fn probe(permissions: Vec<Permission>) -> ToolPackage {
             permissions,
             arguments: vec![],
             examples: vec![],
+            ..Manifest::default()
         },
         wasm: include_bytes!("../../../tests/fixtures/host-probe.component.wasm").to_vec(),
     }
@@ -36,6 +37,7 @@ fn all_permissions() -> Vec<Permission> {
         Permission::FileRead,
         Permission::FileWrite,
         Permission::RawNet,
+        Permission::Process,
     ]
 }
 
@@ -144,6 +146,7 @@ fn every_capability_needs_both_a_manifest_declaration_and_an_approval() {
     let resolve = json!({"op": "network.resolve", "input": {"host": "localhost"}});
     let udp = json!({"op": "udp.open", "input": {}});
     let list = json!({"op": "file.list", "input": {"path": dir.to_string_lossy()}});
+    let exec = json!({"op": "process.exec", "input": {"program": "ktrx-never-started"}});
 
     // Declared but not approved.
     let nothing = Approvals::default();
@@ -153,6 +156,7 @@ fn every_capability_needs_both_a_manifest_declaration_and_an_approval() {
         (&resolve, "network"),
         (&udp, "network"),
         (&list, "file-read"),
+        (&exec, "process"),
     ] {
         let result = run(&probe(all_permissions()), request.clone(), nothing.clone());
         let error = result["error"].as_str().unwrap_or_default().to_owned();
@@ -168,12 +172,14 @@ fn every_capability_needs_both_a_manifest_declaration_and_an_approval() {
         file_read: true,
         file_write: Some(dir.clone()),
         raw_net: true,
+        process: Some(ProcessApproval::default()),
     };
     for (request, permission) in [
         (&write, "file-write"),
         (&ping, "raw-net"),
         (&resolve, "network"),
         (&list, "file-read"),
+        (&exec, "process"),
     ] {
         let result = run(&probe(vec![]), request.clone(), everything.clone());
         let error = result["error"].as_str().unwrap_or_default().to_owned();
@@ -194,7 +200,7 @@ fn unknown_operations_are_rejected() {
         raw_net: true,
         ..Approvals::default()
     };
-    for op in ["process.exec", "file.delete", "tcp.scan", "icmp.flood"] {
+    for op in ["process.shell", "file.delete", "tcp.scan", "icmp.flood"] {
         let result = run(
             &probe(all_permissions()),
             json!({"op": op, "input": {}}),
