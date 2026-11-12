@@ -439,10 +439,13 @@ pub(crate) fn confine_to_root(root: &Path, raw: &str) -> Result<PathBuf, String>
         }
     }
     // Resolve symlinks in the deepest ancestor that already exists, then
-    // re-attach the components that do not exist yet.
+    // re-attach the components that do not exist yet. `symlink_metadata` is
+    // used instead of `exists` so a dangling symlink counts as existing: it is
+    // then canonicalised (and refused) instead of being treated as a free name
+    // that `create`/`append` would follow to a target outside the root.
     let mut existing = normal.clone();
     let mut remainder: Vec<std::ffi::OsString> = Vec::new();
-    while !existing.exists() {
+    while std::fs::symlink_metadata(&existing).is_err() {
         match existing.file_name() {
             Some(name) => remainder.push(name.to_owned()),
             None => return Err("path has no existing ancestor".into()),
@@ -839,6 +842,31 @@ mod tests {
         .unwrap_err();
         assert!(error.contains("outside"), "{error}");
         assert!(!outside.join("stolen.txt").exists());
+        std::fs::remove_dir_all(dir).unwrap();
+        std::fs::remove_dir_all(outside).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn does_not_follow_a_dangling_symlink_out_of_the_write_root() {
+        let dir = scratch();
+        let outside = scratch();
+        let target = outside.join("planted.txt");
+        std::os::unix::fs::symlink(&target, dir.join("dangling")).unwrap();
+        let mut state = FileState::new(Some(dir.clone())).unwrap();
+        for (op, body) in [
+            (
+                "file.create",
+                json!({"path": "dangling", "overwrite": true, "bytes_base64": b64(b"x")}),
+            ),
+            (
+                "file.append",
+                json!({"path": "dangling", "bytes_base64": b64(b"x")}),
+            ),
+        ] {
+            assert!(call(&mut state, op, body).is_err(), "{op}");
+        }
+        assert!(!target.exists());
         std::fs::remove_dir_all(dir).unwrap();
         std::fs::remove_dir_all(outside).unwrap();
     }

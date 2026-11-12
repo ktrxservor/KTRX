@@ -1,7 +1,7 @@
 id = "port-scanner"
 name = "K~HORUS"
 description = "Concurrent TCP connect scanning with DNS discovery and lightweight service fingerprinting."
-version = "1.1.0"
+version = "1.2.0"
 author = "KTRX"
 api_version = "1"
 execution_timeout_seconds = 0

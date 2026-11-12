@@ -12,7 +12,7 @@ use openssl::{
     asn1::{Asn1Time, Asn1TimeRef},
     hash::MessageDigest,
     pkey::Id,
-    ssl::{SslConnector, SslMethod, SslRef, SslStream, SslVerifyMode, SslVersion},
+    ssl::{HandshakeError, SslConnector, SslMethod, SslRef, SslStream, SslVerifyMode, SslVersion},
     x509::{X509, X509NameRef, X509Ref, X509VerifyResult},
 };
 use serde_json::{Value, json};
@@ -126,9 +126,12 @@ impl TlsOptions {
         // OpenSSL 3 refuses TLS 1.0/1.1 and weak ciphers at its default
         // security level. A tool that asks for those versions is auditing a
         // legacy server, so relax the level for that request only.
-        let legacy = self
-            .min
-            .is_some_and(|version| version_rank(version) < version_rank(SslVersion::TLS1_2));
+        let below_tls12 = |version: Option<SslVersion>| {
+            version.is_some_and(|v| version_rank(v) < version_rank(SslVersion::TLS1_2))
+        };
+        // Either bound below TLS 1.2 (for example `tls_max: "1.1"` alone) means
+        // a legacy handshake was requested.
+        let legacy = below_tls12(self.min) || below_tls12(self.max);
         let list = match (&self.ciphers, legacy) {
             (Some(list), true) => Some(format!("{list}:@SECLEVEL=0")),
             (Some(list), false) => Some(list.clone()),
@@ -158,21 +161,52 @@ impl TlsOptions {
         Ok(builder.build())
     }
 
-    /// Run the TLS handshake over an established TCP stream.
-    pub(crate) fn handshake(
+    /// Identifies the connector settings, so a run can reuse one connector
+    /// (and its loaded trust store) for every socket with the same options.
+    /// SNI is applied per connection and is not part of the key.
+    pub(crate) fn connector_key(&self) -> String {
+        let rank = |v: Option<SslVersion>| v.map_or(9, version_rank);
+        format!(
+            "{}|{}|{}|{}|{}|{}",
+            self.verify,
+            rank(self.min),
+            rank(self.max),
+            self.alpn.join(","),
+            self.ciphers.as_deref().unwrap_or(""),
+            self.ciphersuites.as_deref().unwrap_or(""),
+        )
+    }
+
+    /// Run the TLS handshake over an established TCP stream with a connector
+    /// built from these options. Errors carry a `[kind]` tag (see
+    /// `network::tagged`): the I/O kind when the transport failed, `tls`
+    /// otherwise.
+    pub(crate) fn handshake_with(
         &self,
+        connector: &SslConnector,
         host: &str,
         stream: TcpStream,
     ) -> Result<SslStream<TcpStream>, String> {
-        let connector = self.connector()?;
         let mut configuration = connector
             .configure()
-            .map_err(|e| format!("TLS setup failed: {e}"))?;
-        configuration.set_verify_hostname(self.verify);
+            .map_err(|e| format!("[tls] TLS setup failed: {e}"))?;
+        // Always give OpenSSL the expected name. With `verify: false` the
+        // handshake still completes (the verify mode is NONE), but a hostname
+        // mismatch is then recorded in the reported verification result instead
+        // of being silently reported as verified.
+        configuration.set_verify_hostname(true);
         let name = self.sni.as_deref().unwrap_or(host);
-        configuration
-            .connect(name, stream)
-            .map_err(|e| format!("TLS handshake failed: {e}"))
+        configuration.connect(name, stream).map_err(|error| {
+            let kind = match &error {
+                HandshakeError::Failure(mid) | HandshakeError::WouldBlock(mid) => mid
+                    .error()
+                    .io_error()
+                    .map(crate::network::error_kind)
+                    .unwrap_or("tls"),
+                HandshakeError::SetupFailure(_) => "tls",
+            };
+            format!("[{kind}] TLS handshake failed: {error}")
+        })
     }
 }
 

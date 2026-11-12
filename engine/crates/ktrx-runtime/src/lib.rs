@@ -64,6 +64,9 @@ pub enum RunEvent {
     Finished {
         success: bool,
         output: Option<String>,
+        /// Why the run failed; absent on success.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        error: Option<String>,
     },
 }
 
@@ -293,6 +296,7 @@ impl Runtime {
             let event = RunEvent::Finished {
                 success: result.is_ok(),
                 output: result.as_ref().ok().cloned(),
+                error: result.as_ref().err().map(|e| format!("{e:#}")),
             };
             let _ = tx.send(event);
             result
@@ -335,7 +339,7 @@ impl Runtime {
                 files,
                 progress_active: show_run_status,
                 last_progress_at: None,
-                network: network::NetworkState::default(),
+                network: network::NetworkState::new(Arc::clone(&cancelled)),
                 events,
             },
         );

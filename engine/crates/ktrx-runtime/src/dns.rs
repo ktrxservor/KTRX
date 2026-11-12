@@ -655,7 +655,8 @@ pub(crate) fn system_dns_servers() -> Vec<IpAddr> {
     if length == 0 {
         return Vec::new();
     }
-    let mut buffer = vec![0u8; length as usize];
+    // A `u64` buffer keeps the structure (which holds pointers) correctly aligned.
+    let mut buffer = vec![0u64; (length as usize).div_ceil(8)];
     let info = buffer.as_mut_ptr().cast::<FIXED_INFO_W2KSP1>();
     // SAFETY: the buffer is at least `length` bytes, as Windows requested.
     if unsafe { GetNetworkParams(info, &mut length) } != 0 {

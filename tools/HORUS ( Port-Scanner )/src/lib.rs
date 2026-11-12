@@ -58,6 +58,8 @@ fn scan(input: &str) -> Result<serde_json::Value, String> {
     let mut pending: Vec<(u16, u64, Instant)> = Vec::new();
     let mut results = Vec::new();
     let mut completed = 0usize;
+    let mut legacy_poll = false;
+    let mut reported_bucket = 0usize;
     loop {
         while pending.len() < concurrency {
             let Some(port) = queue.next() else {
@@ -83,12 +85,41 @@ fn scan(input: &str) -> Result<serde_json::Value, String> {
         if pending.is_empty() {
             break;
         }
-        let mut i = 0;
         let mut made_progress = false;
-        while i < pending.len() {
-            let (port, handle, started) = pending[i];
-            match ktrx_net_sdk::poll_connect(handle, &bridge) {
-                Ok(ktrx_net_sdk::ConnectPoll::Pending) => i += 1,
+        // Ask the host which connections finished instead of polling each
+        // one; hosts without `socket.wait` fall back to per-connection polls.
+        let finished: Vec<(u64, Result<ktrx_net_sdk::ConnectPoll, String>)> = if legacy_poll {
+            pending
+                .iter()
+                .map(|&(_, handle, _)| (handle, ktrx_net_sdk::poll_connect(handle, &bridge)))
+                .collect()
+        } else {
+            match ktrx_net_sdk::wait(None, &[], 200, &bridge) {
+                Ok(waited) => waited
+                    .connections
+                    .into_iter()
+                    .map(|result| {
+                        let state = match result.outcome {
+                            Ok(socket) => ktrx_net_sdk::ConnectPoll::Connected(socket),
+                            Err(error) => ktrx_net_sdk::ConnectPoll::Failed(error),
+                        };
+                        (result.connection, Ok(state))
+                    })
+                    .collect(),
+                Err(error) if error.contains("unsupported host capability") => {
+                    legacy_poll = true;
+                    continue;
+                }
+                Err(error) => return Err(access_error("connection wait failed", &error)),
+            }
+        };
+        for (handle, state) in finished {
+            let Some(index) = pending.iter().position(|&(_, h, _)| h == handle) else {
+                continue;
+            };
+            let (port, _, started) = pending[index];
+            match state {
+                Ok(ktrx_net_sdk::ConnectPoll::Pending) => continue,
                 Ok(ktrx_net_sdk::ConnectPoll::Connected(socket)) => {
                     let latency = started.elapsed().as_millis() as u64;
                     let (service, product, banner) = if service_detection && fingerprinted < 1024 {
@@ -108,12 +139,11 @@ fn scan(input: &str) -> Result<serde_json::Value, String> {
                         banner,
                         None,
                     ));
-                    pending.swap_remove(i);
-                    completed += 1;
-                    made_progress = true;
                 }
                 Ok(ktrx_net_sdk::ConnectPoll::Failed(error)) => {
-                    let state = if error.to_ascii_lowercase().contains("refused") {
+                    // The host classifies the failure; the message itself may
+                    // be translated by the operating system.
+                    let state = if error.is_refused() {
                         "closed"
                     } else {
                         "filtered"
@@ -126,11 +156,8 @@ fn scan(input: &str) -> Result<serde_json::Value, String> {
                         None,
                         None,
                         None,
-                        Some(error),
+                        Some(format!("{}: {}", error.kind, error.message)),
                     ));
-                    pending.swap_remove(i);
-                    completed += 1;
-                    made_progress = true;
                 }
                 Err(error) => {
                     results.push(port_result(
@@ -143,13 +170,14 @@ fn scan(input: &str) -> Result<serde_json::Value, String> {
                         None,
                         Some(error),
                     ));
-                    pending.swap_remove(i);
-                    completed += 1;
-                    made_progress = true;
                 }
             }
+            pending.swap_remove(index);
+            completed += 1;
+            made_progress = true;
         }
-        if made_progress && (completed % 100 == 0 || completed == total_ports) {
+        if made_progress && (completed / 100 != reported_bucket || completed == total_ports) {
+            reported_bucket = completed / 100;
             let _ = bridge("progress.update", &serde_json::json!({"phase":"TCP connect scan","current":completed as u64,"total":total_ports as u64,"recovered":results.iter().filter(|r: &&serde_json::Value| r["state"] == "open").count() as u64,"item_label":"ports","result_label":"open","done":pending.is_empty() && queue.len() == 0}).to_string());
         }
     }

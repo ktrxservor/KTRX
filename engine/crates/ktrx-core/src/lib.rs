@@ -79,6 +79,8 @@ pub enum ToolError {
     Manifest(String),
     #[error("unsupported KTRX API version {0}")]
     ApiVersion(String),
+    #[error("invalid arguments: {0}")]
+    Argument(String),
 }
 
 pub struct ToolPackage {
@@ -218,20 +220,26 @@ pub fn validate_arguments(m: &Manifest, args: &[String]) -> Result<serde_json::V
     let mut pos = Vec::new();
     let mut i = 0;
     while i < args.len() {
-        if args[i].starts_with("--") {
-            let key = args[i].trim_start_matches("--");
+        if let Some(option) = args[i].strip_prefix("--") {
+            // Accept both `--name value` and `--name=value`.
+            let (key, inline) = match option.split_once('=') {
+                Some((key, value)) => (key, Some(value.to_string())),
+                None => (option, None),
+            };
             let arg = m
                 .arguments
                 .iter()
                 .find(|a| a.name == key)
-                .ok_or_else(|| ToolError::Manifest(format!("unknown option --{key}")))?;
-            let value = if arg.value_type == "boolean" {
-                "true".to_string()
-            } else {
-                i += 1;
-                args.get(i)
-                    .cloned()
-                    .ok_or_else(|| ToolError::Manifest(format!("--{key} requires a value")))?
+                .ok_or_else(|| ToolError::Argument(format!("unknown option --{key}")))?;
+            let value = match inline {
+                Some(value) => value,
+                None if arg.value_type == "boolean" => "true".to_string(),
+                None => {
+                    i += 1;
+                    args.get(i)
+                        .cloned()
+                        .ok_or_else(|| ToolError::Argument(format!("--{key} requires a value")))?
+                }
             };
             out.insert(key.into(), convert(arg, &value)?);
         } else {
@@ -245,14 +253,14 @@ pub fn validate_arguments(m: &Manifest, args: &[String]) -> Result<serde_json::V
         }
     }
     if pos.len() > positional.len() {
-        return Err(ToolError::Manifest("too many positional arguments".into()));
+        return Err(ToolError::Argument("too many positional arguments".into()));
     }
     for arg in &m.arguments {
         if !out.contains_key(&arg.name) {
             if let Some(v) = &arg.default {
                 out.insert(arg.name.clone(), toml_to_json(v.clone()));
             } else if arg.required {
-                return Err(ToolError::Manifest(format!(
+                return Err(ToolError::Argument(format!(
                     "missing required argument {}",
                     arg.name
                 )));
@@ -266,11 +274,11 @@ fn convert(arg: &Argument, value: &str) -> Result<serde_json::Value, ToolError> 
         "integer" => value
             .parse::<i64>()
             .map(serde_json::Value::from)
-            .map_err(|_| ToolError::Manifest(format!("{} must be an integer", arg.name))),
+            .map_err(|_| ToolError::Argument(format!("{} must be an integer", arg.name))),
         "boolean" => value
             .parse::<bool>()
             .map(serde_json::Value::from)
-            .map_err(|_| ToolError::Manifest(format!("{} must be true or false", arg.name))),
+            .map_err(|_| ToolError::Argument(format!("{} must be true or false", arg.name))),
         _ => Ok(serde_json::Value::String(value.to_string())),
     }
 }
@@ -389,6 +397,19 @@ permissions=['root']
             validate_arguments(&basic_manifest(), &["42".into(), "--verbose".into()]).unwrap();
         assert_eq!(values["count"], 42);
         assert_eq!(values["verbose"], true);
+    }
+
+    #[test]
+    fn accepts_inline_option_values() {
+        let values = validate_arguments(
+            &basic_manifest(),
+            &["--count=7".into(), "--verbose=false".into()],
+        )
+        .unwrap();
+        assert_eq!(values["count"], 7);
+        assert_eq!(values["verbose"], false);
+        let error = validate_arguments(&basic_manifest(), &["--nope=1".into()]).unwrap_err();
+        assert!(matches!(error, ToolError::Argument(_)), "{error}");
     }
 
     #[test]

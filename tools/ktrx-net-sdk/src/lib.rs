@@ -48,10 +48,80 @@ where
         .ok_or_else(|| "connect response has no handle".into())
 }
 
+/// Why a connection failed, as reported by the host. `kind` is
+/// locale-independent (`refused`, `timeout`, `reset`, `unreachable`, `dns`,
+/// `closed`, `denied`, `other`); `message` is the operating-system text, which
+/// may be translated and must not be parsed.
+#[derive(Clone, Debug)]
+pub struct ConnectError {
+    pub kind: String,
+    pub message: String,
+}
+
+impl ConnectError {
+    pub fn is_refused(&self) -> bool {
+        self.kind == "refused"
+    }
+}
+
 pub enum ConnectPoll {
     Pending,
     Connected(u64),
-    Failed(String),
+    Failed(ConnectError),
+}
+
+/// One finished connection reported by [`wait`].
+pub struct ConnectResult {
+    pub connection: u64,
+    pub outcome: Result<u64, ConnectError>,
+}
+
+/// What [`wait`] observed.
+pub struct WaitResult {
+    pub connections: Vec<ConnectResult>,
+    pub readable: Vec<u64>,
+    pub pending: usize,
+}
+
+/// The `[kind]` tag that host error strings start with, if any.
+pub fn error_kind(error: &str) -> Option<&str> {
+    let rest = error.strip_prefix('[')?;
+    let end = rest.find(']')?;
+    Some(&rest[..end])
+}
+
+fn connection_state(value: &Value) -> Result<ConnectPoll, String> {
+    match value.get("state").and_then(Value::as_str) {
+        Some("pending") => Ok(ConnectPoll::Pending),
+        Some("connected") => Ok(ConnectPoll::Connected(
+            value
+                .get("socket")
+                .and_then(Value::as_u64)
+                .ok_or("connected response has no socket")?,
+        )),
+        Some("failed") => {
+            let message = value
+                .get("error")
+                .and_then(Value::as_str)
+                .unwrap_or("connection failed")
+                .to_owned();
+            // Hosts older than `error_kind` only sent English or translated
+            // text; fall back to the best guess for them.
+            let kind = value
+                .get("error_kind")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+                .unwrap_or_else(|| {
+                    if message.to_ascii_lowercase().contains("refused") {
+                        "refused".into()
+                    } else {
+                        "other".into()
+                    }
+                });
+            Ok(ConnectPoll::Failed(ConnectError { kind, message }))
+        }
+        _ => Err("unknown connection state".into()),
+    }
 }
 
 pub fn poll_connect<F>(connection: u64, request: &F) -> Result<ConnectPoll, String>
@@ -64,23 +134,60 @@ where
     )?;
     let value: Value =
         serde_json::from_str(&raw).map_err(|e| format!("invalid poll response: {e}"))?;
-    match value.get("state").and_then(Value::as_str) {
-        Some("pending") => Ok(ConnectPoll::Pending),
-        Some("connected") => Ok(ConnectPoll::Connected(
-            value
-                .get("socket")
-                .and_then(Value::as_u64)
-                .ok_or("connected response has no socket")?,
-        )),
-        Some("failed") => Ok(ConnectPoll::Failed(
-            value
-                .get("error")
-                .and_then(Value::as_str)
-                .unwrap_or("connection failed")
-                .to_owned(),
-        )),
-        _ => Err("unknown connection state".into()),
+    connection_state(&value)
+}
+
+/// Block up to `timeout_ms` (at most 1000) until at least one of the pending
+/// `connections` finishes or one of `sockets` becomes readable. Pass `None`
+/// for `connections` to watch every pending connection of the run.
+pub fn wait<F>(
+    connections: Option<&[u64]>,
+    sockets: &[u64],
+    timeout_ms: u64,
+    request: &F,
+) -> Result<WaitResult, String>
+where
+    F: Fn(&str, &str) -> Result<String, String>,
+{
+    let mut body = json!({"sockets": sockets, "timeout_ms": timeout_ms});
+    if let Some(connections) = connections {
+        body["connections"] = json!(connections);
     }
+    let raw = request("socket.wait", &body.to_string())?;
+    let value: Value =
+        serde_json::from_str(&raw).map_err(|e| format!("invalid wait response: {e}"))?;
+    let connections = value
+        .get("connections")
+        .and_then(Value::as_array)
+        .ok_or("wait response has no connections")?
+        .iter()
+        .map(|item| {
+            let connection = item
+                .get("connection")
+                .and_then(Value::as_u64)
+                .ok_or("wait result has no connection")?;
+            let outcome = match connection_state(item)? {
+                ConnectPoll::Connected(socket) => Ok(socket),
+                ConnectPoll::Failed(error) => Err(error),
+                ConnectPoll::Pending => return Err("wait returned a pending connection".into()),
+            };
+            Ok(ConnectResult {
+                connection,
+                outcome,
+            })
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+    let readable = value
+        .get("readable")
+        .and_then(Value::as_array)
+        .map(|items| items.iter().filter_map(Value::as_u64).collect())
+        .unwrap_or_default();
+    let pending = value.get("pending").and_then(Value::as_u64).unwrap_or(0) as usize;
+    Ok(WaitResult {
+        connections,
+        readable,
+        pending,
+    })
 }
 
 pub fn open_socket<F>(
@@ -300,6 +407,55 @@ fn decode_chunked(bytes: &[u8]) -> Result<Vec<u8>, String> {
         cursor = end + 2;
     }
     Ok(output)
+}
+
+#[cfg(test)]
+mod connect_tests {
+    use super::{ConnectPoll, connection_state, error_kind, wait};
+    use serde_json::json;
+
+    #[test]
+    fn reads_the_structured_failure_kind() {
+        let failed = json!({"state":"failed","error":"Aucune connexion n'a pu être établie","error_kind":"refused"});
+        let ConnectPoll::Failed(error) = connection_state(&failed).unwrap() else {
+            panic!("expected a failure");
+        };
+        assert!(error.is_refused());
+        let legacy = json!({"state":"failed","error":"Connection refused (os error 111)"});
+        let ConnectPoll::Failed(error) = connection_state(&legacy).unwrap() else {
+            panic!("expected a failure");
+        };
+        assert!(error.is_refused());
+    }
+
+    #[test]
+    fn extracts_error_tags() {
+        assert_eq!(error_kind("[timeout] socket read failed: x"), Some("timeout"));
+        assert_eq!(error_kind("plain message"), None);
+    }
+
+    #[test]
+    fn decodes_a_wait_response() {
+        let bridge = |op: &str, body: &str| {
+            assert_eq!(op, "socket.wait");
+            let body: serde_json::Value = serde_json::from_str(body).unwrap();
+            assert_eq!(body["connections"], json!([4, 5]));
+            Ok(json!({
+                "connections": [
+                    {"connection":4,"state":"connected","socket":9,"address":"127.0.0.1","port":80},
+                    {"connection":5,"state":"failed","error":"x","error_kind":"timeout"}
+                ],
+                "readable": [9],
+                "pending": 1
+            })
+            .to_string())
+        };
+        let result = wait(Some(&[4, 5]), &[9], 100, &bridge).unwrap();
+        assert_eq!(result.connections[0].outcome.as_ref().unwrap(), &9);
+        assert_eq!(result.connections[1].outcome.as_ref().unwrap_err().kind, "timeout");
+        assert_eq!(result.readable, [9]);
+        assert_eq!(result.pending, 1);
+    }
 }
 
 #[cfg(test)]

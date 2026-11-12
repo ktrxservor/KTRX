@@ -93,7 +93,7 @@ Découvrez les outils disponibles et téléchargez directement leurs archives `.
 
 ## Build
 
-Install Rust and the WebAssembly component target:
+Install Rust 1.97 or newer (required by the locked Wasmtime 50 dependencies) and the WebAssembly component target:
 
 ```sh
 rustup target add wasm32-wasip2
@@ -150,11 +150,11 @@ ktrx validate 'tools/THOTH ( Base64 )/K~THOTH.tool'
 
 When a tool requests network, local-file, file-write, or privileged-network (`raw-net`) access, KTRX asks for approval on an interactive terminal. Non-interactive runs deny these permissions unless `-y` is passed before the tool path (`ktrx run -y <tool> ...`), which approves everything the manifest declares. Each approval applies to one run. A tool with `file-write` can only write inside one directory: `--write-dir DIR` (created if missing), or the current directory by default. `raw-net` (ICMP ping and TTL-limited traceroute, ARP, SYN probes) may need administrator rights, and SYN probes are only available on Linux. Tools use generic resolver and socket byte-stream capabilities; protocol handling, scan behavior, service identification, and response limits belong to each tool. The runtime does not implement scanning or HTTP/TLS workflows.
 
-Tools have no overall execution deadline by default. The runner streams progress events while a tool runs; use `ktrx run <tool.tool> --events` for newline-delimited JSON. Press `Ctrl+C` to request cancellation. Wasm execution stops at the next engine checkpoint; an in-flight network call may take up to its configured timeout to return. A manifest can set an explicit per-tool deadline.
+Tools have no overall execution deadline by default. The runner streams progress events while a tool runs; use `ktrx run <tool.tool> --events` for newline-delimited JSON. Press `Ctrl+C` to request cancellation. Wasm execution stops at the next engine checkpoint; socket reads and waits stop within about 100 ms, while other in-flight network calls (connection attempts, DNS queries) may take up to their configured timeout to return. A manifest can set an explicit per-tool deadline.
 
-Port Explorer is an independently built plugin. It scans TCP ports 1–1000 by default, supports all 65,535 ports, and reports state, latency, service guesses, and basic application banners. Choose the target hostname at launch; KTRX prompts for network approval.
+K~HORUS (Port Scanner) is an independently built plugin. It scans TCP ports 1–1000 by default, supports all 65,535 ports, and reports state, latency, service guesses, and basic application banners. Choose the target hostname at launch; KTRX prompts for network approval.
 
-Hash Audit is an offline plugin for auditing supplied raw MD5, SHA-1, SHA-2, and SHA-3 digests against a local wordlist or a generated candidate set. It reports progress as candidates are checked. Wordlist access requires approval for that file; see `tools/ANUBIS ( Hash-Audit )/README.md`.
+Hash Audit is an offline plugin for auditing supplied raw MD5, SHA-1, SHA-2, and SHA-3 digests against a local wordlist or a generated candidate set. It reports progress as candidates are checked. Reading the wordlist requires the run's `file-read` approval, which covers any file the tool asks for during that run, not only the wordlist; see `tools/ANUBIS ( Hash-Audit )/README.md`.
 
 Seven offline analysis helpers are also available: URL Codec, JWT Inspector, HTML Entity Codec, Hex Codec, HTTP Header Audit, JSON Inspector, and Regex Lab. JWT Inspector only decodes token contents and never verifies signatures; HTTP Header Audit reports context-dependent observations rather than vulnerability verdicts. See each tool's README for details.
 

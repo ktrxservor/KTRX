@@ -65,11 +65,16 @@ enum Command {
 
 fn main() {
     let raw_args: Vec<_> = std::env::args_os().collect();
-    if raw_args.len() == 4
+    // `ktrx run [runner options] <tool> --help` shows the tool's own help. The
+    // tool path is the argument just before `--help`; runner options such as
+    // `-y` or `--write-dir DIR` may precede it.
+    let count = raw_args.len();
+    if count >= 4
         && raw_args[1].to_str() == Some("run")
-        && raw_args[3].to_str() == Some("--help")
+        && raw_args[count - 1].to_str() == Some("--help")
+        && Path::new(&raw_args[count - 2]).is_file()
     {
-        let result = ToolPackage::open(&raw_args[2])
+        let result = ToolPackage::open(&raw_args[count - 2])
             .map_err(anyhow::Error::from)
             .and_then(|package| print_tool_help(&package.manifest));
         if let Err(err) = result {
@@ -90,12 +95,21 @@ fn execute(cli: Cli) -> Result<()> {
             assume_yes,
             write_dir,
             tool,
-            args,
-            json,
-            events,
+            mut args,
+            mut json,
+            mut events,
         } => {
             let package =
                 ToolPackage::open(&tool).with_context(|| format!("opening {}", tool.display()))?;
+            // Everything after the tool path is captured as tool arguments, so
+            // the runner's own `--json` and `--events` flags are picked out here
+            // unless the tool declares an argument with the same name.
+            json |= take_runner_flag(&package.manifest, &mut args, "json");
+            events |= take_runner_flag(&package.manifest, &mut args, "events");
+            anyhow::ensure!(
+                !(json && events),
+                "--json and --events cannot be used together"
+            );
             let values = validate_arguments(&package.manifest, &args)?;
             let permissions = &package.manifest.permissions;
             let declares = |wanted: ktrx_core::Permission| {
@@ -121,14 +135,17 @@ fn execute(cli: Cli) -> Result<()> {
             )?;
             let file_write = if declares(ktrx_core::Permission::FileWrite) {
                 let root = match write_dir {
-                    Some(dir) => {
-                        std::fs::create_dir_all(&dir)
-                            .with_context(|| format!("creating {}", dir.display()))?;
-                        dir
-                    }
+                    Some(dir) => dir,
                     None => std::env::current_dir().context("reading the current directory")?,
                 };
-                approve_write(&package.manifest.name, &root, assume_yes)?.then_some(root)
+                if approve_write(&package.manifest.name, &root, assume_yes)? {
+                    // Create the directory only once the user has approved writes.
+                    std::fs::create_dir_all(&root)
+                        .with_context(|| format!("creating {}", root.display()))?;
+                    Some(root)
+                } else {
+                    None
+                }
             } else {
                 None
             };
@@ -257,6 +274,39 @@ fn approve(
         answer.trim().to_ascii_lowercase().as_str(),
         "y" | "yes"
     ))
+}
+
+/// Remove every `--<flag>` from the tool arguments and report whether one was
+/// present, unless the tool itself declares an argument named `flag`.
+fn take_runner_flag(manifest: &ktrx_core::Manifest, args: &mut Vec<String>, flag: &str) -> bool {
+    if manifest.arguments.iter().any(|a| a.name == flag) {
+        return false;
+    }
+    let wanted = format!("--{flag}");
+    let takes_value = |arg: &str| {
+        arg.strip_prefix("--").is_some_and(|name| {
+            !name.contains('=')
+                && manifest
+                    .arguments
+                    .iter()
+                    .any(|a| a.name == name && a.value_type != "boolean")
+        })
+    };
+    let mut found = false;
+    let mut kept = Vec::with_capacity(args.len());
+    let mut previous_takes_value = false;
+    for arg in args.drain(..) {
+        // `--text --json` passes the literal text "--json" to the tool.
+        if arg == wanted && !previous_takes_value {
+            found = true;
+            previous_takes_value = false;
+            continue;
+        }
+        previous_takes_value = !previous_takes_value && takes_value(&arg);
+        kept.push(arg);
+    }
+    *args = kept;
+    found
 }
 
 fn print_tool_help(m: &ktrx_core::Manifest) -> Result<()> {

@@ -1,0 +1,561 @@
+<title>Moteur KTRX</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout : une colonne de lecture de 1080px, sections séparées par des filets, schéma en trois couloirs (CLI / hôte / outil). Reprend l'identité du catalogue KTRX : sombre, vert acide, labels mono. */
+:root {
+  color-scheme: dark;
+  --bg: #080c12;
+  --panel: #0d141c;
+  --panel-raised: #121b25;
+  --line: #1f2933;
+  --line-bright: #33404b;
+  --text: #e6ebee;
+  --muted: #8f9ba4;
+  --quiet: #66727b;
+  --acid: #c4ee61;
+  --cyan: #66d7cf;
+  --amber: #e9b55a;
+  --red: #ef7a6c;
+  --font-text: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-text);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-image: linear-gradient(#899cab09 1px, transparent 1px), linear-gradient(90deg, #899cab09 1px, transparent 1px);
+  background-size: 64px 64px;
+}
+.wrap {
+  max-width: 1080px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 64px;
+}
+a { color: var(--cyan); }
+code, .mono { font-family: var(--font-mono); font-size: .86em; }
+code { color: var(--acid); background: #c4ee610f; padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+h2 { font-size: 26px; font-weight: 600; letter-spacing: -.03em; line-height: 1.2; }
+h3 { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+p { margin: 0; max-width: 68ch; }
+.eyebrow {
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--quiet); display: flex; align-items: center; gap: 8px;
+}
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--acid); box-shadow: 0 0 10px #c4ee6170; flex: none; }
+
+/* En-tête */
+.top { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; padding-block: 22px; border-bottom: 1px solid var(--line); }
+.brand { font-weight: 700; letter-spacing: .16em; font-size: 14px; }
+.brand span { color: var(--acid); }
+.hero { padding-block: 56px 48px; display: grid; gap: 22px; border-bottom: 1px solid var(--line); }
+.hero h1 { font-size: clamp(40px, 7vw, 76px); font-weight: 600; line-height: .98; letter-spacing: -.06em; }
+.hero h1 span { color: var(--acid); }
+.hero .lead { font-size: 18px; color: #c9d1d6; max-width: 62ch; }
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); margin-top: 10px; }
+.fact { background: var(--bg); padding: 14px 16px; display: grid; gap: 2px; }
+.fact b { font-family: var(--font-mono); font-weight: 500; font-size: 20px; color: var(--text); font-variant-numeric: tabular-nums; }
+.fact span { color: var(--muted); font-size: 13px; }
+
+section { padding-block: 52px; border-bottom: 1px solid var(--line); display: grid; gap: 22px; }
+.intro { display: grid; gap: 10px; }
+.intro p { color: var(--muted); }
+
+/* À quoi il sert */
+.purpose { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.purpose div { display: grid; gap: 6px; align-content: start; border-top: 1px solid var(--line-bright); padding-top: 14px; }
+.purpose p { color: var(--muted); font-size: 14px; }
+.purpose .tag { font-family: var(--font-mono); font-size: 11px; color: var(--acid); letter-spacing: .1em; }
+
+/* Schéma en couloirs */
+.lanes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--line); background: var(--panel); }
+.lane { padding: 18px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.lane + .lane { border-left: 1px solid var(--line); }
+.lane-head { display: grid; gap: 2px; padding-bottom: 10px; border-bottom: 1px dashed var(--line-bright); }
+.lane-head .mono { color: var(--quiet); font-size: 11px; }
+.lane.cli .lane-head h3 { color: var(--cyan); }
+.lane.host .lane-head h3 { color: var(--acid); }
+.lane.tool .lane-head h3 { color: var(--amber); }
+.step { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; font-size: 13.5px; }
+.step .n { font-family: var(--font-mono); font-size: 11px; color: var(--bg); background: var(--muted); border-radius: 3px; height: 20px; display: grid; place-items: center; margin-top: 1px; }
+.cli .step .n { background: var(--cyan); }
+.host .step .n { background: var(--acid); }
+.tool .step .n { background: var(--amber); }
+.step p { color: #c4ccd1; }
+.step small { display: block; color: var(--quiet); font-size: 12px; }
+.lane.tool { background: repeating-linear-gradient(135deg, transparent 0 10px, #e9b55a06 10px 20px); }
+.sandbox-note { font-family: var(--font-mono); font-size: 11px; color: var(--amber); border: 1px solid #e9b55a40; padding: 6px 8px; border-radius: 3px; }
+
+/* Simulateur */
+.sim { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); border: 1px solid var(--line); background: var(--panel); }
+.ops { border-right: 1px solid var(--line); max-height: 520px; overflow-y: auto; }
+.op-group { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--quiet); padding: 12px 14px 6px; }
+.op {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%;
+  background: none; border: 0; border-left: 2px solid transparent; color: #c4ccd1; text-align: left;
+  padding: 7px 14px; font-family: var(--font-mono); font-size: 12.5px; cursor: pointer;
+}
+.op:hover { background: var(--panel-raised); }
+.op[aria-pressed="true"] { background: var(--panel-raised); border-left-color: var(--acid); color: var(--text); }
+.op .new { font-size: 9.5px; color: var(--bg); background: var(--acid); padding: 0 5px; border-radius: 2px; letter-spacing: .06em; }
+.op:focus-visible, .toggle input:focus-visible + span, .sim-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.detail { padding: 20px; display: grid; gap: 16px; align-content: start; min-width: 0; }
+.detail-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.detail-head h3 { font-family: var(--font-mono); font-weight: 500; font-size: 17px; }
+.perm-chip { font-family: var(--font-mono); font-size: 11px; padding: 2px 8px; border-radius: 99px; border: 1px solid var(--line-bright); color: var(--muted); }
+.perm-chip.network { color: var(--cyan); border-color: #66d7cf55; }
+.perm-chip.raw-net { color: var(--red); border-color: #ef7a6c55; }
+.perm-chip.file-read, .perm-chip.file-write { color: var(--amber); border-color: #e9b55a55; }
+.perm-chip.none { color: var(--acid); border-color: #c4ee6155; }
+.detail .desc { color: var(--muted); font-size: 14px; }
+.toggles { display: flex; gap: 18px; flex-wrap: wrap; }
+.toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #c4ccd1; cursor: pointer; }
+.toggle input { position: absolute; opacity: 0; }
+.toggle span.box { width: 30px; height: 17px; border-radius: 99px; background: var(--line-bright); position: relative; transition: background .15s; flex: none; }
+.toggle span.box::after { content: ""; position: absolute; top: 2px; left: 2px; width: 13px; height: 13px; border-radius: 50%; background: var(--text); transition: transform .15s; }
+.toggle input:checked + span.box { background: var(--acid); }
+.toggle input:checked + span.box::after { transform: translateX(13px); background: var(--bg); }
+.toggle input:disabled + span.box { opacity: .35; }
+.exchange { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.pane { display: grid; gap: 6px; min-width: 0; }
+.pane .label { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--quiet); display: flex; justify-content: space-between; }
+pre {
+  margin: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 12px;
+  font-family: var(--font-mono); font-size: 12px; line-height: 1.55; color: #cdd5da; overflow-x: auto; white-space: pre;
+}
+pre.err { border-color: #ef7a6c55; color: var(--red); white-space: pre-wrap; }
+pre.ok { border-color: #c4ee6140; }
+.verdict { font-family: var(--font-mono); font-size: 12px; display: flex; align-items: center; gap: 8px; }
+.verdict.ok { color: var(--acid); }
+.verdict.err { color: var(--red); }
+.path { font-size: 13px; color: var(--muted); display: grid; gap: 4px; }
+.path ol { margin: 0; padding-left: 20px; display: grid; gap: 2px; }
+.path li.pass { color: #c4ccd1; }
+.path li.fail { color: var(--red); }
+.path li.skip { color: var(--quiet); text-decoration: line-through; }
+
+/* Tableaux */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 620px; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-family: var(--font-mono); font-weight: 500; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--quiet); background: var(--panel); }
+td:first-child { white-space: nowrap; }
+td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text); white-space: nowrap; }
+td { color: #c4ccd1; }
+tr:last-child td { border-bottom: 0; }
+
+/* Ce qu'il refuse de faire */
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; }
+.list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.list li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; font-size: 14px; color: #c4ccd1; }
+.list li::before { font-family: var(--font-mono); }
+.list.yes li::before { content: "+"; color: var(--acid); }
+.list.no li::before { content: "×"; color: var(--red); }
+.box-title { font-family: var(--font-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--quiet); margin-bottom: 10px; }
+
+/* CLI */
+.cmds { display: grid; gap: 8px; }
+.cmd { display: grid; grid-template-columns: minmax(0, 330px) minmax(0, 1fr); gap: 16px; padding: 10px 0; border-bottom: 1px dashed var(--line); align-items: baseline; }
+.cmd code { background: none; padding: 0; color: var(--text); }
+.cmd p { color: var(--muted); font-size: 14px; }
+
+/* Catalogue */
+.cats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.cat h3 { font-size: 14px; margin-bottom: 10px; color: var(--muted); font-weight: 500; }
+.tools { display: flex; flex-wrap: wrap; gap: 6px; }
+.tools span { font-family: var(--font-mono); font-size: 12px; padding: 3px 8px; border: 1px solid var(--line-bright); border-radius: 3px; color: #c4ccd1; }
+.tools span i { font-style: normal; color: var(--quiet); }
+.tools span.net { border-color: #66d7cf40; }
+.tools span.raw { border-color: #ef7a6c50; }
+
+/* Feuille de route */
+.road { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.lot { background: var(--bg); padding: 16px; display: grid; gap: 10px; align-content: start; }
+.lot .state { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; }
+.lot.done .state { color: var(--acid); }
+.lot.next .state { color: var(--cyan); }
+.lot.later .state { color: var(--quiet); }
+.lot ul { margin: 0; padding-left: 16px; display: grid; gap: 4px; font-size: 13px; color: #c4ccd1; }
+.lot.done { box-shadow: inset 0 2px 0 var(--acid); }
+
+footer { padding-top: 28px; color: var(--quiet); font-size: 13px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+@media (max-width: 860px) {
+  .lanes, .purpose, .cats { grid-template-columns: minmax(0, 1fr); }
+  .lane + .lane { border-left: 0; border-top: 1px solid var(--line); }
+  .sim { grid-template-columns: minmax(0, 1fr); }
+  .ops { border-right: 0; border-bottom: 1px solid var(--line); max-height: 240px; }
+  .road { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .split, .exchange { grid-template-columns: minmax(0, 1fr); }
+  .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cmd { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
+@media (max-width: 480px) { .road { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">K<span>~</span>TRX <span class="mono" style="color:var(--quiet);letter-spacing:.1em;font-weight:400">/ ENGINE</span></div>
+    <div class="eyebrow"><span class="dot"></span>API 1 · ktrx:tool@1.0.0</div>
+  </header>
+
+  <div class="hero">
+    <div class="eyebrow">Ce que fait le moteur, de bout en bout</div>
+    <h1>Un lanceur d'outils<br><span>en bac à sable.</span></h1>
+    <p class="lead">Le moteur KTRX ouvre un fichier <code>.tool</code>, exécute le WebAssembly qu'il contient dans une sandbox fermée, et ne lui donne accès au réseau ou aux fichiers que si le manifeste le déclare <em>et</em> que tu l'as approuvé pour cette exécution. Il ne connaît aucun protocole : il fournit des primitives, les outils font le métier.</p>
+    <div class="facts">
+      <div class="fact"><b>4</b><span>permissions possibles</span></div>
+      <div class="fact"><b>25</b><span>opérations hôte</span></div>
+      <div class="fact"><b>64 Mio</b><span>mémoire par exécution</span></div>
+      <div class="fact"><b>20</b><span>outils au catalogue</span></div>
+    </div>
+  </div>
+
+  <section>
+    <div class="intro">
+      <div class="eyebrow">01 · Rôle</div>
+      <h2>À quoi il sert</h2>
+    </div>
+    <div class="purpose">
+      <div>
+        <span class="tag">PORTABILITÉ</span>
+        <h3>Un outil, trois systèmes</h3>
+        <p>Un <code>.tool</code> compilé une fois (cible <code>wasm32-wasip2</code>) tourne tel quel sous Windows, Linux et macOS. Le moteur absorbe les différences d'OS : sockets, résolveurs DNS, certificats racines Windows, ICMP.</p>
+      </div>
+      <div>
+        <span class="tag">CONFINEMENT</span>
+        <h3>Rien sans ton accord</h3>
+        <p>L'outil reçoit un contexte WASI vide : pas de socket, pas de disque, pas de variables d'environnement. Tout passe par un seul guichet, <code>host.request</code>, qui contrôle manifeste et approbation à chaque appel.</p>
+      </div>
+      <div>
+        <span class="tag">SÉPARATION</span>
+        <h3>Le moteur reste générique</h3>
+        <p>HTTP, scan de ports, empreintes, CVE : tout ça vit dans les outils. Un test d'architecture fait échouer le build si le runtime se met à contenir <code>http.get</code>, <code>tcp.scan</code> ou un client HTTP.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="intro">
+      <div class="eyebrow">02 · Fonctionnement</div>
+      <h2>Ce qui se passe quand tu tapes <code>ktrx run</code></h2>
+      <p>Trois couches, dans l'ordre réel d'exécution. Les numéros suivent le trajet d'une commande comme <code>ktrx run K~HORUS.tool example.com --ports 1-1000</code>.</p>
+    </div>
+    <div class="lanes">
+      <div class="lane cli">
+        <div class="lane-head"><h3>CLI</h3><span class="mono">ktrx-cli + ktrx-core</span></div>
+        <div class="step"><span class="n">1</span><p>Ouvre l'archive ZIP <code>.tool</code><small>manifest.toml ≤ 256 Kio, module.wasm ≤ 48 Mio, archive ≤ 64 Mio</small></p></div>
+        <div class="step"><span class="n">2</span><p>Valide le manifeste et les arguments<small>id, api_version = "1", types string / integer / boolean / path, positionnels</small></p></div>
+        <div class="step"><span class="n">3</span><p>Convertit les arguments en JSON<small><span class="mono">{"host":"example.com","ports":"1-1000"}</span></small></p></div>
+        <div class="step"><span class="n">4</span><p>Demande chaque permission déclarée<small>« Allow? [y/N] » ; refus automatique hors terminal, sauf <code>-y</code></small></p></div>
+        <div class="step"><span class="n">10</span><p>Affiche le JSON final ou le flux <code>--events</code><small>Ctrl+C déclenche l'annulation</small></p></div>
+      </div>
+      <div class="lane host">
+        <div class="lane-head"><h3>Hôte</h3><span class="mono">ktrx-runtime (Wasmtime)</span></div>
+        <div class="step"><span class="n">5</span><p>Compile le composant, mis en cache par SHA-256<small>un store neuf par exécution, limite 64 Mio, WASI vide</small></p></div>
+        <div class="step"><span class="n">6</span><p>Appelle <code>tool.run(json)</code> sur un thread dédié<small>minuteur d'epoch pour l'annulation et le délai (0 ou 30–180 s)</small></p></div>
+        <div class="step"><span class="n">8</span><p>Contrôle chaque <code>host.request</code><small>permission déclarée ET approuvée, sinon erreur ; puis exécute la primitive</small></p></div>
+        <div class="step"><span class="n">9</span><p>Relaie la progression et le résultat<small>file d'événements bornée à 256, l'événement final est garanti</small></p></div>
+      </div>
+      <div class="lane tool">
+        <div class="lane-head"><h3>Outil</h3><span class="mono">module.wasm, ton code</span></div>
+        <span class="sandbox-note">Sandbox : aucun accès direct à l'OS</span>
+        <div class="step"><span class="n">7</span><p>Exécute sa logique métier<small>parse les ports, planifie les connexions, interprète les bannières</small></p></div>
+        <div class="step"><span class="n">7′</span><p>Demande ce dont il a besoin<small><span class="mono">request("socket.connect", {...})</span>, autant de fois que nécessaire</small></p></div>
+        <div class="step"><span class="n">7″</span><p>Retourne une chaîne JSON<small>le moteur ne l'interprète pas, il l'affiche</small></p></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="intro">
+      <div class="eyebrow">03 · Le guichet host.request</div>
+      <h2>Simulateur d'appel</h2>
+      <p>Choisis une opération, puis joue avec les deux conditions que le moteur vérifie. Les champs des requêtes et réponses, et le message de refus, sont ceux du code ; les valeurs sont des exemples.</p>
+    </div>
+    <div class="sim">
+      <div class="ops" id="ops" role="list"></div>
+      <div class="detail">
+        <div class="detail-head">
+          <h3 id="op-name">socket.wait</h3>
+          <span class="perm-chip" id="op-perm">network</span>
+        </div>
+        <p class="desc" id="op-desc"></p>
+        <div class="toggles">
+          <label class="toggle"><input type="checkbox" id="declared" checked><span class="box"></span>Déclarée dans le manifeste</label>
+          <label class="toggle"><input type="checkbox" id="approved" checked><span class="box"></span>Approuvée pour cette exécution</label>
+        </div>
+        <div class="path"><span class="mono" style="font-size:11px;color:var(--quiet);letter-spacing:.12em">CONTRÔLES DU PONT</span><ol id="checks"></ol></div>
+        <div class="exchange">
+          <div class="pane"><div class="label"><span>Requête de l'outil</span></div><pre id="req"></pre></div>
+          <div class="pane"><div class="label"><span>Réponse de l'hôte</span><span class="verdict" id="verdict"></span></div><pre id="res"></pre></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="intro">
+      <div class="eyebrow">04 · Garde-fous</div>
+      <h2>Les limites qu'il impose</h2>
+      <p>Ces bornes sont appliquées par l'hôte, quel que soit l'outil. Un outil peut demander moins, jamais plus.</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Ressource</th><th>Limite</th><th>Détail</th></tr></thead>
+        <tbody>
+          <tr><td>Mémoire Wasm</td><td class="num">64 Mio</td><td>par store, 8 instances, 4 mémoires</td></tr>
+          <tr><td>Durée d'exécution</td><td class="num">illimitée · 30–180 s</td><td>le manifeste peut fixer <code>execution_timeout_seconds</code></td></tr>
+          <tr><td>Sockets ouverts</td><td class="num">128</td><td>TCP, TLS, UDP et connexions en attente confondus</td></tr>
+          <tr><td>Bloc d'E/S réseau</td><td class="num">64 Kio</td><td>par lecture ou écriture ; datagramme UDP ≤ 65 507 octets</td></tr>
+          <tr><td>Délais réseau</td><td class="num">50–10 000 ms</td><td>par appel ; <code>socket.wait</code> et <code>socket.poll</code> bloquent ≤ 1 000 ms</td></tr>
+          <tr><td>Annulation</td><td class="num">~100 ms</td><td>lectures et attentes vérifient Ctrl+C par tranches</td></tr>
+          <tr><td>Lecture de fichier</td><td class="num">64 Mio</td><td>fichiers réguliers, 8 chemins ouverts, listing ≤ 5 000 entrées</td></tr>
+          <tr><td>Écriture de fichier</td><td class="num">256 Mio · 1 Gio</td><td>par fichier · par exécution, confinée à <code>--write-dir</code></td></tr>
+          <tr><td>Événements</td><td class="num">256</td><td>les instantanés intermédiaires peuvent sauter, le final non</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="intro">
+      <div class="eyebrow">05 · Frontière</div>
+      <h2>Ce qu'il fait, et ce qu'il refuse de faire</h2>
+    </div>
+    <div class="split">
+      <div>
+        <div class="box-title">Le moteur fournit</div>
+        <ul class="list yes">
+          <li>Résolution DNS système et requêtes DNS brutes (A, AAAA, CNAME, MX, TXT, SOA, SRV, CAA…), repli TCP si tronqué</li>
+          <li>Flux TCP et TLS vérifiés, avec SNI, ALPN, versions, suites de chiffrement et rapport complet de la chaîne de certificats</li>
+          <li>Connexions asynchrones et attente groupée pour la concurrence</li>
+          <li>Sockets UDP (broadcast, TTL), ICMP echo, ARP, sondes SYN</li>
+          <li>Lecture de fichiers et écriture confinée à un dossier</li>
+          <li>Progression, événements NDJSON, annulation, délais</li>
+        </ul>
+      </div>
+      <div>
+        <div class="box-title">Le moteur ne fait jamais</div>
+        <ul class="list no">
+          <li>Requêtes HTTP : chaque outil écrit les octets du protocole lui-même (aidé par <code>ktrx-net-sdk</code>)</li>
+          <li>Boucles de scan, planification, choix des ports</li>
+          <li>Identification de services, empreintes, notation TLS</li>
+          <li>Interprétation des résultats ou verdicts de vulnérabilité</li>
+          <li>Liste blanche de destinations dans les manifestes</li>
+          <li>Proxy d'interception : c'est un programme séparé, <code>proxy-app/</code></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="intro">
+      <div class="eyebrow">06 · Ligne de commande</div>
+      <h2>Ce que tu peux lui demander</h2>
+    </div>
+    <div class="cmds">
+      <div class="cmd"><code>ktrx run &lt;outil.tool&gt; [args]</code><p>Exécute l'outil. Les options du moteur (<code>-y</code>, <code>--write-dir</code>, <code>--json</code>, <code>--events</code>) se placent avant le chemin de l'outil, sinon elles sont transmises à l'outil.</p></div>
+      <div class="cmd"><code>ktrx run &lt;outil.tool&gt; --help</code><p>Aide générée depuis le manifeste : arguments, obligatoires, exemples.</p></div>
+      <div class="cmd"><code>ktrx run --events &lt;outil.tool&gt; …</code><p>Flux NDJSON : <span class="mono">{"type":"progress",…}</span> puis <span class="mono">{"type":"finished",…}</span>, pour brancher une interface ou un script.</p></div>
+      <div class="cmd"><code>ktrx info / describe &lt;outil.tool&gt;</code><p>Métadonnées lisibles, ou le manifeste complet en JSON.</p></div>
+      <div class="cmd"><code>ktrx validate &lt;outil.tool&gt;</code><p>Vérifie l'archive, le manifeste et que le composant implémente bien l'interface KTRX.</p></div>
+      <div class="cmd"><code>ktrx pack &lt;dossier&gt; -o &lt;K~NOM.tool&gt;</code><p>Assemble <code>manifest.toml</code> et <code>module.wasm</code> en archive.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="intro">
+      <div class="eyebrow">07 · Ce qu'il fait tourner</div>
+      <h2>Les 20 outils construits dessus</h2>
+      <p>Chacun est un projet Rust indépendant. Le liseré indique la permission la plus forte demandée : <span style="color:var(--cyan)">réseau</span>, <span style="color:var(--red)">raw-net</span>, ou aucune.</p>
+    </div>
+    <div class="cats">
+      <div class="cat"><h3>Réseau et reconnaissance</h3><div class="tools">
+        <span class="net">HORUS <i>ports</i></span><span class="net">ARGUS <i>TLS</i></span><span class="net">HERMES <i>HTTP</i></span><span class="net">POSEIDON <i>DNS</i></span><span class="net">CERBERUS <i>sous-domaines</i></span><span class="net">ODYSSEUS <i>découverte web</i></span><span class="net">PROMETHEUS <i>technos</i></span><span class="net">ASCLEPIUS <i>CVE</i></span><span class="net">ATHENA <i>JS</i></span><span class="net">THEMIS <i>en-têtes</i></span>
+      </div></div>
+      <div class="cat"><h3>Analyse</h3><div class="tools">
+        <span>ANUBIS <i>audit de hash</i></span><span>HADES <i>hash</i></span><span>JANUS <i>JWT</i></span><span>METIS <i>JSON</i></span><span>SPHINX <i>regex</i></span><span>APATE <i>webshells</i></span>
+      </div></div>
+      <div class="cat"><h3>Utilitaires</h3><div class="tools">
+        <span>THOTH <i>Base64</i></span><span>IRIS <i>URL</i></span><span>HECATE <i>hex</i></span><span>HEPHAESTUS <i>entités HTML</i></span>
+      </div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="intro">
+      <div class="eyebrow">08 · Évolution</div>
+      <h2>Où en est le moteur</h2>
+      <p>Le lot 1 vient d'être livré. Les suivants gardent la même règle : des mécanismes génériques côté hôte, le métier dans les outils.</p>
+    </div>
+    <div class="road">
+      <div class="lot done"><span class="state">Lot 1 · livré</span><h3>Fiabilité</h3><ul><li>Erreurs typées <code>error_kind</code>, indépendantes de la langue de l'OS</li><li><code>socket.wait</code> : attente groupée</li><li>Cache des connecteurs TLS</li><li>Lectures annulables</li><li>HORUS 1.2.0</li></ul></div>
+      <div class="lot next"><span class="state">Lot 2 · proposé</span><h3>TLS et sockets</h3><ul><li><code>socket.starttls</code> (SMTP, IMAP, LDAP…)</li><li>Diagnostic des poignées de main échouées</li><li><code>socket.info</code>, <code>shutdown</code>, options TCP</li><li>Multicast UDP, ping IPv6</li></ul></div>
+      <div class="lot later"><span class="state">Lot 3 · proposé</span><h3>Contrôle utilisateur</h3><ul><li><code>--scope</code> CIDR / domaines imposé par l'hôte</li><li><code>--rate</code>, quotas de connexions</li><li><code>--proxy</code> SOCKS5 / HTTP</li><li><code>--trace</code> : journal réseau</li></ul></div>
+      <div class="lot later"><span class="state">Lot 4 · plus tard</span><h3>Extensions</h3><ul><li><code>socket.listen</code> sous permission dédiée</li><li>Canal binaire WIT 1.1, sans Base64</li></ul></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Sources : engine/crates/ktrx-runtime, ktrx-core, ktrx-cli, engine/wit/ktrx.wit</span>
+    <span class="mono">KTRX · API 1</span>
+  </footer>
+</div>
+
+<script>
+const OPS = [
+  { group: "Sans permission", items: [
+    { op: "progress.update", perm: "none", desc: "Publie un instantané de progression. Affiché sur le terminal (rafraîchi toutes les 100 ms au plus) et envoyé en événement.",
+      req: { phase: "TCP connect scan", current: 400, total: 1000, recovered: 3, item_label: "ports", result_label: "open" },
+      res: { accepted: true } },
+  ]},
+  { group: "network", items: [
+    { op: "network.resolve", perm: "network", desc: "Résolution par le résolveur du système. Avec records, interroge aussi ces types DNS et signale un échec sans planter.",
+      req: { host: "example.com", port: 0 },
+      res: { host: "example.com", addresses: ["93.184.215.14", "2606:2800:21f:cb07:6820:80da:af6b:8b2c"] } },
+    { op: "dns.query", perm: "network", desc: "Envoie une question DNS et rend la réponse structurée : rcode, flags, sections réponse / autorité / additionnelle.",
+      req: { name: "example.com", type: "MX", server: "1.1.1.1" },
+      res: { name: "example.com", type: "MX", server: "1.1.1.1", transport: "udp", rcode: "NOERROR", rcode_code: 0, flags: { authoritative: false, truncated: false, recursion_desired: true, recursion_available: true, authentic_data: false, checking_disabled: false }, answers: [{ name: "example.com", type: "MX", class: "IN", ttl: 86400, data: { preference: 10, exchange: "mail.example.com" } }], authority: [], additional: [], rtt_ms: 14, response_bytes: 73 } },
+    { op: "socket.open", perm: "network", desc: "Connexion TCP immédiate, éventuellement TLS. En TLS, tls_info décrit la version, la suite, l'ALPN, la vérification et chaque certificat.",
+      req: { host: "example.com", port: 443, tls: true, alpn: ["h2", "http/1.1"], timeout_ms: 5000 },
+      res: { socket: 7, host: "example.com", port: 443, address: "93.184.215.14", tls: true, timeout_ms: 5000, tls_info: { version: "TLSv1.3", cipher: "TLS_AES_256_GCM_SHA384", alpn: "h2", verified: true, peer_certificates: ["…"] } } },
+    { op: "socket.connect", perm: "network", desc: "Démarre une connexion TCP en arrière-plan et rend aussitôt un identifiant. C'est la base de la concurrence d'un scanner.",
+      req: { host: "93.184.215.14", port: 22, timeout_ms: 250 },
+      res: { connection: 12 } },
+    { op: "socket.poll", perm: "network", desc: "Interroge une connexion en attente (attente ≤ 1 000 ms). L'échec porte un error_kind stable : refused, timeout, unreachable…",
+      req: { connection: 12, wait_ms: 1 },
+      res: { connection: 12, state: "failed", error: "Aucune connexion n’a pu être établie car l’ordinateur cible l’a expressément refusée. (os error 10061)", error_kind: "refused" } },
+    { op: "socket.wait", perm: "network", isNew: true, desc: "Attend en un seul appel que des connexions se terminent ou que des sockets deviennent lisibles. Sans liste, surveille toutes les connexions en attente.",
+      req: { sockets: [7], timeout_ms: 200 },
+      res: { connections: [{ connection: 12, state: "connected", socket: 15, address: "93.184.215.14", port: 22 }, { connection: 13, state: "failed", error: "connection timed out", error_kind: "timeout" }], readable: [7], pending: 41 } },
+    { op: "socket.read", perm: "network", desc: "Lit jusqu'à 64 Kio. Une erreur commence par son type, par exemple [timeout] ou [cancelled].",
+      req: { socket: 15, length: 4096, timeout_ms: 250 },
+      res: { socket: 15, bytes_base64: "U1NILTIuMC1PcGVuU1NIXzkuNg0K", eof: false, timeout_ms: 250 } },
+    { op: "socket.write", perm: "network", desc: "Écrit les octets fournis en Base64 (≤ 64 Kio) et vide le tampon.",
+      req: { socket: 7, bytes_base64: "SEVBRCAvIEhUVFAvMS4wDQoNCg==" },
+      res: { socket: 7, written: 20 } },
+    { op: "socket.close", perm: "network", desc: "Ferme le flux et libère sa place dans la limite de 128.",
+      req: { socket: 15 }, res: { socket: 15, closed: true } },
+    { op: "udp.open", perm: "network", desc: "Ouvre un socket UDP IPv4 ou IPv6, avec broadcast et TTL optionnels.",
+      req: { family: "v4", broadcast: false }, res: { socket: 20, family: "v4", local_port: 53122 } },
+    { op: "udp.send", perm: "network", desc: "Envoie un datagramme (≤ 65 507 octets).",
+      req: { socket: 20, host: "192.168.1.1", port: 161, bytes_base64: "MCYCAQEEBnB1YmxpY6AZ…" }, res: { socket: 20, sent: 40, address: "192.168.1.1" } },
+    { op: "udp.recv", perm: "network", desc: "Reçoit un datagramme. Un délai dépassé ou un ICMP « port unreachable » sont rendus comme données, pas comme erreurs.",
+      req: { socket: 20, timeout_ms: 2000 }, res: { socket: 20, bytes_base64: "", timeout: false, refused: true } },
+    { op: "udp.close", perm: "network", desc: "Ferme le socket UDP.", req: { socket: 20 }, res: { socket: 20, closed: true } },
+  ]},
+  { group: "file-read", items: [
+    { op: "file.read", perm: "file-read", desc: "Lit un bloc d'un fichier régulier (≤ 64 Mio au total, blocs ≤ 64 Kio).",
+      req: { path: "./wordlist.txt", offset: 0, length: 65536 }, res: { path: "./wordlist.txt", offset: 0, bytes_base64: "cGFzc3dvcmQKMTIzNDU2Cg==" } },
+    { op: "file.list", perm: "file-read", desc: "Liste un dossier (≤ 5 000 entrées) et signale la troncature.",
+      req: { path: ".", limit: 100 }, res: { path: "C:\audit", entries: [{ name: "wordlist.txt", type: "file", size: 9512, modified: 1762934400 }], total: 1, truncated: false } },
+    { op: "file.stat", perm: "file-read", desc: "Décrit un chemin sans échouer s'il n'existe pas.",
+      req: { path: "./rapport.json" }, res: { path: "./rapport.json", exists: false } },
+  ]},
+  { group: "file-write", items: [
+    { op: "file.create", perm: "file-write", desc: "Crée un fichier dans le dossier approuvé, sans jamais écraser sauf overwrite. Les chemins qui sortent du dossier sont refusés.",
+      req: { path: "rapport.json", overwrite: false }, res: { path: "rapport.json", created: true, bytes_written: 0 } },
+    { op: "file.append", perm: "file-write", desc: "Ajoute en fin de fichier, pratique pour un journal NDJSON.",
+      req: { path: "scan.ndjson", bytes_base64: "eyJwb3J0Ijo4MH0K" }, res: { path: "scan.ndjson", appended: 12, size: 12 } },
+  ]},
+  { group: "raw-net", items: [
+    { op: "icmp.ping", perm: "raw-net", desc: "Un écho ICMP avec TTL réglable : reply, ttl_expired (adresse du routeur, de quoi faire un traceroute), unreachable ou timeout.",
+      req: { host: "8.8.8.8", ttl: 3, timeout_ms: 1000 }, res: { host: "8.8.8.8", address: "8.8.8.8", ttl_sent: 3, status: "ttl_expired", from: "10.20.0.1", rtt_ms: 9, reply_ttl: 253, bytes: 32, detail: null } },
+    { op: "arp.resolve", perm: "raw-net", desc: "Adresse MAC d'un hôte du réseau local (Windows, Linux).",
+      req: { ip: "192.168.1.1" }, res: { ip: "192.168.1.1", mac: "a4:2b:b0:12:34:56" } },
+    { op: "tcp.syn_probe", perm: "raw-net", desc: "Envoie un SYN brut et classe open / closed / filtered. Linux avec root ou CAP_NET_RAW uniquement.",
+      req: { host: "192.168.1.10", port: 445, timeout_ms: 500 }, res: { host: "192.168.1.10", address: "192.168.1.10", port: 445, state: "open", method: "syn", rtt_ms: 2 } },
+  ]},
+];
+
+const opsEl = document.getElementById("ops");
+const declared = document.getElementById("declared");
+const approved = document.getElementById("approved");
+let current = null;
+
+const all = [];
+for (const g of OPS) {
+  const head = document.createElement("div");
+  head.className = "op-group";
+  head.textContent = g.group;
+  opsEl.appendChild(head);
+  for (const item of g.items) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "op";
+    b.id = "op-" + item.op.replace(".", "-");
+    b.setAttribute("aria-pressed", "false");
+    b.innerHTML = `<span>${item.op}</span>` + (item.isNew ? `<span class="new">NOUVEAU</span>` : "");
+    b.addEventListener("click", () => select(item));
+    opsEl.appendChild(b);
+    all.push([item, b]);
+  }
+}
+
+const pretty = (v) => JSON.stringify(v, null, 2);
+
+function render() {
+  const item = current;
+  const needs = item.perm !== "none";
+  declared.disabled = !needs;
+  approved.disabled = !needs;
+  const isDeclared = !needs || declared.checked;
+  const isApproved = !needs || approved.checked;
+  const checks = document.getElementById("checks");
+  checks.innerHTML = "";
+  const add = (text, cls) => { const li = document.createElement("li"); li.textContent = text; li.className = cls; checks.appendChild(li); };
+  add("JSON de la requête valide", "pass");
+  let ok = true;
+  if (!needs) {
+    add("Aucune permission requise", "pass");
+  } else {
+    add(`Manifeste déclare « ${item.perm} »`, isDeclared ? "pass" : "fail");
+    if (!isDeclared) ok = false;
+    add(`Utilisateur a approuvé « ${item.perm} »` + (item.perm === "file-write" ? " (dossier --write-dir)" : ""), !ok ? "skip" : isApproved ? "pass" : "fail");
+    if (ok && !isApproved) ok = false;
+  }
+  add("Primitive exécutée, limites appliquées", ok ? "pass" : "skip");
+
+  document.getElementById("req").textContent = `request("${item.op}",\n${pretty(item.req)})`;
+  const res = document.getElementById("res");
+  const verdict = document.getElementById("verdict");
+  if (ok) {
+    res.textContent = `Ok(\n${pretty(item.res)})`;
+    res.className = "ok";
+    verdict.className = "verdict ok";
+    verdict.textContent = "● Ok";
+  } else {
+    res.textContent = `Err("${item.perm} permission was not granted for this run")`;
+    res.className = "err";
+    verdict.className = "verdict err";
+    verdict.textContent = "● Err";
+  }
+}
+
+function select(item) {
+  current = item;
+  for (const [it, b] of all) b.setAttribute("aria-pressed", String(it === item));
+  document.getElementById("op-name").textContent = item.op;
+  const chip = document.getElementById("op-perm");
+  chip.textContent = item.perm === "none" ? "aucune permission" : item.perm;
+  chip.className = "perm-chip " + item.perm;
+  document.getElementById("op-desc").textContent = item.desc;
+  render();
+}
+
+declared.addEventListener("change", render);
+approved.addEventListener("change", render);
+select(OPS[1].items.find((i) => i.op === "socket.wait"));
+</script>

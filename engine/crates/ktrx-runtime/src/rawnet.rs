@@ -518,7 +518,11 @@ mod platform {
             .set_ttl_v4(u32::from(ttl))
             .map_err(|e| format!("cannot set TTL: {e}"))?;
         let id = (std::process::id() & 0xffff) as u16;
-        let sequence = 1u16;
+        // A fresh sequence number per probe, so a late reply to an earlier
+        // probe (for example a previous traceroute hop) is not mistaken for
+        // the answer to this one.
+        static SEQUENCE: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(1);
+        let sequence = SEQUENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let request = build_echo_request(id, sequence, payload);
         let started = Instant::now();
         socket
