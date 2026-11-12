@@ -3,11 +3,17 @@ use std::{fs::File, io::Read, path::Path};
 use thiserror::Error;
 
 pub const API_VERSION: &str = "1";
+/// Version of this engine build, checked against a manifest's `min_engine_version`.
+pub const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const MAX_ARCHIVE_BYTES: u64 = 64 * 1024 * 1024;
 pub const MAX_MANIFEST_BYTES: u64 = 256 * 1024;
 pub const MAX_MODULE_BYTES: u64 = 48 * 1024 * 1024;
+/// Longest program name accepted in a manifest's `programs` list.
+pub const MAX_PROGRAM_NAME: usize = 64;
+/// Most programs a manifest may list.
+pub const MAX_PROGRAMS: usize = 32;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Manifest {
     pub id: String,
     pub name: String,
@@ -20,13 +26,29 @@ pub struct Manifest {
     pub execution_timeout_seconds: Option<u64>,
     #[serde(default)]
     pub permissions: Vec<Permission>,
+    /// Programs a tool with the `process` permission may start, as bare
+    /// program names looked up on `PATH` (for example `["git", "nmap"]`).
+    /// Empty means the tool may start any program, which the approval prompt
+    /// states explicitly.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub programs: Vec<String>,
+    /// Oldest engine release able to run this tool, as `MAJOR.MINOR.PATCH`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min_engine_version: Option<String>,
     #[serde(default)]
     pub arguments: Vec<Argument>,
     #[serde(default)]
     pub examples: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+impl Manifest {
+    /// Whether the manifest declares `permission`.
+    pub fn declares(&self, permission: Permission) -> bool {
+        self.permissions.contains(&permission)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Permission {
     /// DNS, TCP, TLS, and UDP communication with a destination chosen at run time.
@@ -39,9 +61,22 @@ pub enum Permission {
     /// Privileged network primitives: ICMP echo, ARP resolution, and raw TCP
     /// probes. These may need elevated rights on the host operating system.
     RawNet,
+    /// Start programs on the host, outside the sandbox, with the rights of the
+    /// user running KTRX. Limited to the manifest's `programs` when it lists
+    /// any, and further to the runner's `--allow-program` choices.
+    Process,
 }
 
 impl Permission {
+    /// Every permission, in the order the runner asks for approval.
+    pub const ALL: [Permission; 5] = [
+        Self::Network,
+        Self::FileRead,
+        Self::FileWrite,
+        Self::RawNet,
+        Self::Process,
+    ];
+
     /// The identifier used in manifests.
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -49,6 +84,7 @@ impl Permission {
             Self::FileRead => "file-read",
             Self::FileWrite => "file-write",
             Self::RawNet => "raw-net",
+            Self::Process => "process",
         }
     }
 }
@@ -79,6 +115,8 @@ pub enum ToolError {
     Manifest(String),
     #[error("unsupported KTRX API version {0}")]
     ApiVersion(String),
+    #[error("this tool requires KTRX {required} or newer; this engine is {current}")]
+    EngineVersion { required: String, current: String },
     #[error("invalid arguments: {0}")]
     Argument(String),
 }
@@ -160,12 +198,13 @@ pub fn validate_manifest(m: &Manifest) -> Result<(), ToolError> {
     if m.api_version != API_VERSION {
         return Err(ToolError::ApiVersion(m.api_version.clone()));
     }
-    if let Some(seconds) = m.execution_timeout_seconds {
-        if seconds != 0 && !(30..=180).contains(&seconds) {
-            return Err(ToolError::Manifest(
-                "execution_timeout_seconds must be 0 (unlimited) or between 30 and 180".into(),
-            ));
-        }
+    if let Some(seconds) = m.execution_timeout_seconds
+        && seconds != 0
+        && !(30..=180).contains(&seconds)
+    {
+        return Err(ToolError::Manifest(
+            "execution_timeout_seconds must be 0 (unlimited) or between 30 and 180".into(),
+        ));
     }
     let mut declared = std::collections::HashSet::new();
     for permission in &m.permissions {
@@ -174,6 +213,19 @@ pub fn validate_manifest(m: &Manifest) -> Result<(), ToolError> {
                 "permission {} is declared more than once",
                 permission.as_str()
             )));
+        }
+    }
+    validate_programs(m)?;
+    if let Some(required) = &m.min_engine_version {
+        let wanted = parse_version(required).ok_or_else(|| {
+            ToolError::Manifest("min_engine_version must be MAJOR.MINOR.PATCH".into())
+        })?;
+        let current = parse_version(ENGINE_VERSION).unwrap_or_default();
+        if wanted > current {
+            return Err(ToolError::EngineVersion {
+                required: required.clone(),
+                current: ENGINE_VERSION.into(),
+            });
         }
     }
     let mut seen = std::collections::HashSet::new();
@@ -212,6 +264,57 @@ pub fn validate_manifest(m: &Manifest) -> Result<(), ToolError> {
         }
     }
     Ok(())
+}
+
+/// Whether `name` is a bare program name: no directory part and only
+/// characters that are valid in file names on every supported system.
+/// Looking the name up on `PATH` is the runtime's job.
+pub fn is_valid_program_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= MAX_PROGRAM_NAME
+        && !name.starts_with(['.', '-'])
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-' | b'+'))
+}
+
+fn validate_programs(m: &Manifest) -> Result<(), ToolError> {
+    if m.programs.is_empty() {
+        return Ok(());
+    }
+    if !m.declares(Permission::Process) {
+        return Err(ToolError::Manifest(
+            "programs may only be listed by a tool that declares the process permission".into(),
+        ));
+    }
+    if m.programs.len() > MAX_PROGRAMS {
+        return Err(ToolError::Manifest(format!(
+            "programs may list at most {MAX_PROGRAMS} entries"
+        )));
+    }
+    let mut seen = std::collections::HashSet::new();
+    for program in &m.programs {
+        if !is_valid_program_name(program) {
+            return Err(ToolError::Manifest(format!(
+                "program {program:?} must be a bare name of at most {MAX_PROGRAM_NAME} letters, digits, '.', '_', '-' or '+'"
+            )));
+        }
+        if !seen.insert(program.to_ascii_lowercase()) {
+            return Err(ToolError::Manifest(format!(
+                "program {program} is listed more than once"
+            )));
+        }
+    }
+    Ok(())
+}
+
+/// Parse `MAJOR.MINOR.PATCH`; a pre-release or build suffix is ignored.
+pub fn parse_version(text: &str) -> Option<(u64, u64, u64)> {
+    let core = text.trim().split(['-', '+']).next()?;
+    let mut parts = core.split('.');
+    let mut next = || parts.next()?.parse::<u64>().ok();
+    let version = (next()?, next()?, next()?);
+    parts.next().is_none().then_some(version)
 }
 
 pub fn validate_arguments(m: &Manifest, args: &[String]) -> Result<serde_json::Value, ToolError> {
@@ -302,6 +405,7 @@ mod tests {
             permissions: vec![],
             arguments: vec![],
             examples: vec![],
+            ..Manifest::default()
         };
         assert!(validate_manifest(&m).is_err());
     }
@@ -315,7 +419,7 @@ description='D'
 version='1.0.0'
 author='A'
 api_version='1'
-permissions=['network','file-read','file-write','raw-net']
+permissions=['network','file-read','file-write','raw-net','process']
 ",
         )
         .unwrap();
@@ -324,7 +428,11 @@ permissions=['network','file-read','file-write','raw-net']
             .iter()
             .map(Permission::as_str)
             .collect();
-        assert_eq!(names, ["network", "file-read", "file-write", "raw-net"]);
+        assert_eq!(
+            names,
+            ["network", "file-read", "file-write", "raw-net", "process"]
+        );
+        assert_eq!(manifest.permissions, Permission::ALL);
         assert!(validate_manifest(&manifest).is_ok());
 
         let mut duplicated = manifest.clone();
@@ -344,6 +452,88 @@ permissions=['root']
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn validates_the_program_list() {
+        let mut manifest = basic_manifest();
+        manifest.programs = vec!["git".into()];
+        let error = validate_manifest(&manifest).unwrap_err().to_string();
+        assert!(error.contains("process permission"), "{error}");
+
+        manifest.permissions = vec![Permission::Process];
+        assert!(validate_manifest(&manifest).is_ok());
+        manifest.programs = vec!["nmap".into(), "g++".into(), "python3.12".into()];
+        assert!(validate_manifest(&manifest).is_ok());
+
+        for bad in [
+            "",
+            "../git",
+            "bin/git",
+            "C:\\git.exe",
+            ".hidden",
+            "-rf",
+            "git status",
+            "gît",
+        ] {
+            manifest.programs = vec![bad.into()];
+            assert!(validate_manifest(&manifest).is_err(), "{bad:?}");
+        }
+        manifest.programs = vec!["Git".into(), "git".into()];
+        assert!(validate_manifest(&manifest).is_err());
+        manifest.programs = (0..=MAX_PROGRAMS).map(|i| format!("p{i}")).collect();
+        assert!(validate_manifest(&manifest).is_err());
+    }
+
+    #[test]
+    fn checks_the_minimum_engine_version() {
+        assert_eq!(parse_version("0.4.0"), Some((0, 4, 0)));
+        assert_eq!(parse_version("1.2.3-beta.1+build"), Some((1, 2, 3)));
+        assert_eq!(parse_version("1.2"), None);
+        assert_eq!(parse_version("1.2.3.4"), None);
+        assert_eq!(parse_version("one.two.three"), None);
+
+        let mut manifest = basic_manifest();
+        manifest.min_engine_version = Some(ENGINE_VERSION.into());
+        assert!(validate_manifest(&manifest).is_ok());
+        manifest.min_engine_version = Some("0.1.0".into());
+        assert!(validate_manifest(&manifest).is_ok());
+        manifest.min_engine_version = Some("999.0.0".into());
+        assert!(matches!(
+            validate_manifest(&manifest),
+            Err(ToolError::EngineVersion { .. })
+        ));
+        manifest.min_engine_version = Some("latest".into());
+        assert!(matches!(
+            validate_manifest(&manifest),
+            Err(ToolError::Manifest(_))
+        ));
+    }
+
+    #[test]
+    fn new_manifest_fields_are_optional_and_round_trip() {
+        let manifest: Manifest = toml::from_str(
+            "id='runner'
+name='Runner'
+description='D'
+version='1.0.0'
+author='A'
+api_version='1'
+permissions=['process']
+programs=['git']
+min_engine_version='0.4.0'
+",
+        )
+        .unwrap();
+        assert_eq!(manifest.programs, ["git"]);
+        assert!(validate_manifest(&manifest).is_ok());
+        let json = serde_json::to_value(&manifest).unwrap();
+        assert_eq!(json["programs"], serde_json::json!(["git"]));
+        assert_eq!(json["min_engine_version"], "0.4.0");
+        // Older manifests serialise exactly as before.
+        let plain = serde_json::to_value(basic_manifest()).unwrap();
+        assert!(plain.get("programs").is_none());
+        assert!(plain.get("min_engine_version").is_none());
     }
 
     #[test]
@@ -388,6 +578,7 @@ permissions=['root']
                 },
             ],
             examples: vec![],
+            ..Manifest::default()
         }
     }
 

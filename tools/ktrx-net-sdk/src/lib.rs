@@ -1,5 +1,20 @@
 //! Guest-side HTTP and socket helpers. Protocol interpretation lives in the
 //! tools; the runner exposes only permission-gated socket byte streams.
+//!
+//! [`http`] is a complete HTTP client built on those streams: HTTP/1.1 with
+//! keep-alive and HTTP/2 (negotiated with ALPN, or prior knowledge for
+//! cleartext), multiplexed batches, gzip/deflate decoding, redirects, and
+//! HTTPS through an HTTP proxy. The original helpers below ([`http_get`],
+//! [`open_socket`], …) are kept unchanged for existing tools.
+
+pub mod hpack;
+pub mod http;
+
+mod conn;
+mod decode;
+mod h1;
+mod h2;
+mod huffman_table;
 
 use base64::Engine as _;
 use serde_json::{Value, json};
@@ -430,7 +445,10 @@ mod connect_tests {
 
     #[test]
     fn extracts_error_tags() {
-        assert_eq!(error_kind("[timeout] socket read failed: x"), Some("timeout"));
+        assert_eq!(
+            error_kind("[timeout] socket read failed: x"),
+            Some("timeout")
+        );
         assert_eq!(error_kind("plain message"), None);
     }
 
@@ -452,7 +470,10 @@ mod connect_tests {
         };
         let result = wait(Some(&[4, 5]), &[9], 100, &bridge).unwrap();
         assert_eq!(result.connections[0].outcome.as_ref().unwrap(), &9);
-        assert_eq!(result.connections[1].outcome.as_ref().unwrap_err().kind, "timeout");
+        assert_eq!(
+            result.connections[1].outcome.as_ref().unwrap_err().kind,
+            "timeout"
+        );
         assert_eq!(result.readable, [9]);
         assert_eq!(result.pending, 1);
     }

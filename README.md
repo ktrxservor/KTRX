@@ -146,9 +146,15 @@ ktrx run 'tools/ANUBIS ( Hash-Audit )/K~ANUBIS.tool' 900150983cd24fb0d6963f7d28e
 ktrx info 'tools/THOTH ( Base64 )/K~THOTH.tool'
 ktrx describe 'tools/THOTH ( Base64 )/K~THOTH.tool' --json
 ktrx validate 'tools/THOTH ( Base64 )/K~THOTH.tool'
+ktrx run 'tools/HERMES ( HTTP-Inspector )/K~HERMES.tool' https://example.com --compare
+ktrx capabilities
 ```
 
-When a tool requests network, local-file, file-write, or privileged-network (`raw-net`) access, KTRX asks for approval on an interactive terminal. Non-interactive runs deny these permissions unless `-y` is passed before the tool path (`ktrx run -y <tool> ...`), which approves everything the manifest declares. Each approval applies to one run. A tool with `file-write` can only write inside one directory: `--write-dir DIR` (created if missing), or the current directory by default. `raw-net` (ICMP ping and TTL-limited traceroute, ARP, SYN probes) may need administrator rights, and SYN probes are only available on Linux. Tools use generic resolver and socket byte-stream capabilities; protocol handling, scan behavior, service identification, and response limits belong to each tool. The runtime does not implement scanning or HTTP/TLS workflows.
+When a tool requests network, local-file, file-write, privileged-network (`raw-net`), or program-execution (`process`) access, KTRX asks for approval on an interactive terminal. Non-interactive runs deny these permissions unless `-y` is passed before the tool path (`ktrx run -y <tool> ...`), which approves everything the manifest declares. Each approval applies to one run. A tool with `file-write` can only write inside one directory: `--write-dir DIR` (created if missing), or the current directory by default. `raw-net` (ICMP ping and TTL-limited traceroute, ARP, SYN probes) may need administrator rights, and SYN probes are only available on Linux. Tools use generic resolver and socket byte-stream capabilities; protocol handling, scan behavior, service identification, and response limits belong to each tool. The runtime does not implement scanning or HTTP/TLS workflows.
+
+Since engine 0.4, a tool with the `process` permission can run programs on the machine, outside the sandbox and with your rights. The prompt names the programs the manifest lists (or warns that any program may run when it lists none); `--allow-program NAME` (repeatable, before the tool path) restricts a run further. Programs are started without a shell, every start is shown as `K~TOOL ▸ exécute : …` and published as a `process` event, and everything a tool started is terminated when it is killed, when you press `Ctrl+C`, and when the run ends. `ktrx capabilities` lists every host operation and the permission it needs; tools can ask the same question at run time with `host.info`.
+
+For the web, the shared SDK (`tools/ktrx-net-sdk`) provides an HTTP/1.1 and HTTP/2 client (ALPN, multiplexing, keep-alive, gzip/deflate, redirects, HTTP proxies) built on the generic socket capabilities; K~HERMES uses it. See [CHANGELOG.md](CHANGELOG.md) for everything new in 0.4.0.
 
 Tools have no overall execution deadline by default. The runner streams progress events while a tool runs; use `ktrx run <tool.tool> --events` for newline-delimited JSON. Press `Ctrl+C` to request cancellation. Wasm execution stops at the next engine checkpoint; socket reads and waits stop within about 100 ms, while other in-flight network calls (connection attempts, DNS queries) may take up to their configured timeout to return. A manifest can set an explicit per-tool deadline.
 
@@ -162,6 +168,7 @@ Seven offline analysis helpers are also available: URL Codec, JWT Inspector, HTM
 
 ```sh
 cargo test --manifest-path engine/Cargo.toml
+cargo test --manifest-path tools/ktrx-net-sdk/Cargo.toml
 cargo test --manifest-path 'tools/THOTH ( Base64 )/Cargo.toml'
 cargo test --manifest-path 'tools/HADES ( Hash )/Cargo.toml'
 cargo test --manifest-path 'tools/POSEIDON ( DNS-Inspector )/Cargo.toml'
