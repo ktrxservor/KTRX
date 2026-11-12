@@ -237,7 +237,7 @@ fn drives_an_interactive_process() {
         json!({"steps": [
             {"op": "process.spawn", "input": {"program": "sort", "stdin": true}},
             {"op": "process.write", "input": {"process": 1, "bytes_base64": b64(b"zeta\nalpha\n")}},
-            {"op": "process.write", "input": {"process": 1, "bytes_base64": b64(b"mu\n"), "close": true}},
+            {"op": "process.write", "input": {"process": 1, "bytes_base64": b64(b"omega\n"), "close": true}},
             {"op": "process.wait", "input": {"process": 1, "timeout_ms": 10000}},
             {"op": "process.read", "input": {"process": 1, "stream": "stdout", "timeout_ms": 5000}},
             {"op": "process.read", "input": {"process": 1, "stream": "stdout", "timeout_ms": 5000}},
@@ -260,7 +260,7 @@ fn drives_an_interactive_process() {
         stdout.extend(unb64(&steps[5]["ok"]["bytes_base64"]));
     }
     let stdout = String::from_utf8(stdout).unwrap().replace('\r', "");
-    assert_eq!(stdout, "alpha\nmu\nzeta\n", "{result}");
+    assert_eq!(stdout, "alpha\nomega\nzeta\n", "{result}");
     assert_eq!(steps[6]["ok"]["eof"], true, "{result}");
     assert!(steps[7]["error"].as_str().unwrap().starts_with("[closed]"));
     assert_eq!(steps[8]["ok"]["closed"], true);
@@ -346,7 +346,9 @@ fn the_manifest_program_list_is_enforced() {
         json!({"steps": [
             {"op": "process.exec", "input": {"program": shell_program, "args": args}},
             {"op": "process.exec", "input": {"program": "./sort"}},
-            {"op": "process.exec", "input": {"program": "sort", "stdin_base64": b64(b"b\na\n"), "output": "text"}},
+            // Odd length on purpose: Windows sort.exe guesses that short
+            // even-length input is UTF-16 (`b\na\n` comes back as `??`).
+            {"op": "process.exec", "input": {"program": "sort", "stdin_base64": b64(b"beta\nalpha\n"), "output": "text"}},
         ]}),
         allow_processes(),
     );
@@ -359,7 +361,7 @@ fn the_manifest_program_list_is_enforced() {
         steps[1]["error"].as_str().unwrap().contains("is a path"),
         "{result}"
     );
-    assert_eq!(text(&steps[2]["ok"]["stdout"]), "a\nb\n", "{result}");
+    assert_eq!(text(&steps[2]["ok"]["stdout"]), "alpha\nbeta\n", "{result}");
 }
 
 #[test]
