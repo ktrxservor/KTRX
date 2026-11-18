@@ -2,6 +2,8 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use ktrx_core::{ToolPackage, validate_arguments, validate_manifest};
 use ktrx_runtime::{Approvals, Runtime};
+mod registry;
+
 use std::{
     fs::File,
     io::{self, IsTerminal, Write},
@@ -50,6 +52,47 @@ enum Command {
         /// Stream progress and the final result as newline-delimited JSON events.
         #[arg(long, conflicts_with = "json")]
         events: bool,
+    },
+    /// Download a tool from the KTRX registry into the install directory.
+    /// Accepts `name`, `K~NAME` or `name@version`; the SHA-256 published by the
+    /// registry is verified before anything is written.
+    Install {
+        /// Tool to install, e.g. `anubis` or `anubis@1.1.0`.
+        spec: String,
+        /// Install directory (default: $KTRX_HOME/tools or ~/.ktrx/tools).
+        #[arg(long, value_name = "DIR")]
+        dir: Option<PathBuf>,
+        /// Registry base URL (default: $KTRX_REGISTRY or the official registry).
+        #[arg(long, value_name = "URL")]
+        registry: Option<String>,
+        /// Reinstall even if this version is already present.
+        #[arg(long)]
+        force: bool,
+    },
+    /// Update one installed tool, or all of them.
+    Update {
+        name: Option<String>,
+        #[arg(long, value_name = "DIR")]
+        dir: Option<PathBuf>,
+        #[arg(long, value_name = "URL")]
+        registry: Option<String>,
+    },
+    /// Remove an installed tool.
+    Uninstall {
+        name: String,
+        #[arg(long, value_name = "DIR")]
+        dir: Option<PathBuf>,
+    },
+    /// List installed tools.
+    List {
+        #[arg(long, value_name = "DIR")]
+        dir: Option<PathBuf>,
+    },
+    /// Search the registry (all tools when no query is given).
+    Search {
+        query: Option<String>,
+        #[arg(long, value_name = "URL")]
+        registry: Option<String>,
     },
     /// Show manifest details.
     Info { tool: PathBuf },
@@ -112,6 +155,7 @@ fn execute(cli: Cli) -> Result<()> {
             mut json,
             mut events,
         } => {
+            let tool = registry::locate(tool);
             let package =
                 ToolPackage::open(&tool).with_context(|| format!("opening {}", tool.display()))?;
             // Everything after the tool path is captured as tool arguments, so
@@ -236,8 +280,21 @@ fn execute(cli: Cli) -> Result<()> {
                 println!("{output}");
             }
         }
+        Command::Install { spec, dir, registry, force } => {
+            let dir = registry::install_dir(dir)?;
+            registry::Registry::new(registry)?.install(&spec, &dir, force)?;
+        }
+        Command::Update { name, dir, registry } => {
+            let dir = registry::install_dir(dir)?;
+            registry::Registry::new(registry)?.update(name.as_deref(), &dir)?;
+        }
+        Command::Uninstall { name, dir } => registry::uninstall(&name, &registry::install_dir(dir)?)?,
+        Command::List { dir } => registry::list(&registry::install_dir(dir)?)?,
+        Command::Search { query, registry } => {
+            registry::Registry::new(registry)?.search(query.as_deref())?;
+        }
         Command::Info { tool } => {
-            let p = ToolPackage::open(tool)?;
+            let p = ToolPackage::open(registry::locate(tool))?;
             println!("{}  {}", p.manifest.name, p.manifest.version);
             println!("{}", p.manifest.description);
             println!(
@@ -302,10 +359,11 @@ fn execute(cli: Cli) -> Result<()> {
             }
         }
         Command::Describe { tool, .. } => {
-            let p = ToolPackage::open(tool)?;
+            let p = ToolPackage::open(registry::locate(tool))?;
             println!("{}", serde_json::to_string_pretty(&p.manifest)?);
         }
         Command::Validate { tool } => {
+            let tool = registry::locate(tool);
             let p = ToolPackage::open(&tool)?;
             Runtime::new()?.validate(&p)?;
             println!("Valid: {} ({})", p.manifest.name, p.manifest.id);

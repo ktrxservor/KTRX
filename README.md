@@ -107,6 +107,20 @@ On Windows the native TLS dependency builds OpenSSL from source, which adds thre
 
 The executable is `engine/target/release/ktrx` (`ktrx.exe` on Windows, or under `%CARGO_TARGET_DIR%\release` when that is set). Ready-to-run `.tool` packages are included in each plugin directory.
 
+## Installing tools from the registry
+
+```sh
+ktrx search hash
+ktrx install anubis            # or K~ANUBIS, or the id hash-audit
+ktrx install anubis@1.1.0      # pin a version
+ktrx list
+ktrx update                    # or: ktrx update anubis
+ktrx uninstall anubis
+ktrx run anubis --help         # installed tools resolve by name
+```
+
+Tools go to `~/.ktrx/tools` (`$KTRX_HOME/tools`, or `--dir`). Every download is checked against the SHA-256 published by the registry and opened as a real `.tool` archive (manifest, engine version) before it is written; on any failure nothing is installed. The registry is `$KTRX_REGISTRY` or `--registry URL` and must use HTTPS.
+
 ## Engine CI and releases
 
 Changes to `engine/` are tested on Linux, Windows, and macOS by GitHub Actions. To build and publish platform binaries, push a version tag beginning with `v` (for example, `v0.1.0`). The resulting GitHub Release contains a `.tar.gz` archive for Linux, a `.zip` for Windows, and a `.tar.gz` archive for macOS.
