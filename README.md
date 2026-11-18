@@ -4,7 +4,7 @@ KTRX is a Rust command-line host for portable WebAssembly Component Model tools.
 
 ## Catalogue des outils
 
-Découvrez les outils disponibles et téléchargez directement leurs archives `.tool` depuis le [catalogue officiel KTRX](https://ktrxservor.github.io/KTRX/). Le catalogue se met à jour automatiquement lorsque les outils sont ajoutés ou modifiés sur `main`.
+Découvrez les outils et téléchargez le moteur `ktrx` (Windows, Linux, macOS) depuis le [site officiel KTRX](https://ktrx-site.tiagoantunes2009.workers.dev). Les outils s'installent aussi directement en ligne de commande avec `ktrx install <outil>` (voir plus bas).
 
 <!-- KTRX:GALLERY:START -->
 

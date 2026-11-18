@@ -6,7 +6,7 @@ L’emblème est affiché :
 
 - en tête du README de l’outil ;
 - dans la galerie du [README racine](../README.md) ;
-- sur la carte de l’outil dans le [catalogue en ligne](https://ktrxservor.github.io/KTRX/), générée par `scripts/build_tool_catalog.py`.
+- sur la carte de l’outil dans le [catalogue en ligne](https://ktrx-site.tiagoantunes2009.workers.dev), alimenté par le registre KTRX.
 
 ## Spécifications du fichier
 
@@ -121,7 +121,7 @@ La galerie se trouve entre les marqueurs `<!-- KTRX:GALLERY:START -->` et `<!-- 
 
 ## Catalogue en ligne
 
-`scripts/build_tool_catalog.py` copie chaque `icon.png` vers `icons/<MYTHE>.png` dans le site et renseigne `iconUrl` dans `catalog.json`. Un outil sans `icon.png` reçoit l’emblème par défaut.
+Le registre KTRX affiche l'`icon.png` de chaque outil (envoyée avec l'archive lors de la publication, redimensionnée pour le web). Un outil sans `icon.png` reçoit l’emblème par défaut.
 
 ## Contrôle avant livraison
 

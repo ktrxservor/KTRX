@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.5.0 — engine
+
+Host API stays `1`: every existing tool runs unmodified.
+
+### Tool registry in the CLI
+
+- `ktrx install <name>[@version]` downloads a tool from the KTRX registry into `~/.ktrx/tools` (`$KTRX_HOME/tools`, or `--dir`). The name can be `anubis`, `K~ANUBIS` or the technical id.
+- `ktrx update [name]`, `ktrx uninstall <name>`, `ktrx list` and `ktrx search [query]` complete the set.
+- Installed tools resolve by name: `ktrx run anubis --help`.
+- Every download is verified against the SHA-256 published by the registry and opened as a real `.tool` archive (manifest, engine version, matching id) before it is written; on any failure nothing is installed. The registry must use HTTPS (`$KTRX_REGISTRY` or `--registry URL` to change it).
+
+### Distribution
+
+- The catalog and the engine downloads now live on the KTRX registry site; the GitHub Pages catalog was removed.
+
 ## 0.4.0 — engine
 
 Host API stays `1` (WIT `ktrx:tool@1.0.0` unchanged): every 0.3 tool runs unmodified. New capabilities are additive.

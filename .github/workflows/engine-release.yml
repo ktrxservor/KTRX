@@ -62,3 +62,21 @@ jobs:
           generate_release_notes: true
           files: release-assets/*
           fail_on_unmatched_files: true
+      - name: Publish binaries to the KTRX registry
+        env:
+          KTRX_REGISTRY_KEY: ${{ secrets.KTRX_REGISTRY_KEY }}
+          KTRX_REGISTRY_URL: https://ktrx-site.tiagoantunes2009.workers.dev
+        run: |
+          if [ -z "$KTRX_REGISTRY_KEY" ]; then
+            echo "KTRX_REGISTRY_KEY is not set; skipping registry upload."
+            exit 0
+          fi
+          version="${GITHUB_REF_NAME#v}"
+          for file in release-assets/*; do
+            name="$(basename "$file")"
+            platform="${name#ktrx-}"; platform="${platform%%.*}"
+            curl --fail-with-body -sS -X POST \
+              "$KTRX_REGISTRY_URL/api/engine?version=$version&platform=$platform&filename=$name" \
+              -H "Authorization: Bearer $KTRX_REGISTRY_KEY" --data-binary @"$file"
+            echo
+          done
