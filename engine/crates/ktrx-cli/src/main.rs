@@ -1,3 +1,23 @@
+// Writing to a closed stdout (`ktrx … | head`, `| grep -q`) is not an error worth a panic: the
+// reader has what it wanted, so stop quietly like any Unix tool. This shadows std's `println!`
+// for the whole crate (it must stay above the `mod` declarations).
+macro_rules! println {
+    () => { $crate::print_line(format_args!("")) };
+    ($($arg:tt)*) => { $crate::print_line(format_args!($($arg)*)) };
+}
+
+fn print_line(args: std::fmt::Arguments) {
+    use std::io::Write;
+    let mut out = std::io::stdout().lock();
+    if let Err(error) = out.write_fmt(args).and_then(|()| out.write_all(b"\n")) {
+        if error.kind() == std::io::ErrorKind::BrokenPipe {
+            std::process::exit(0);
+        }
+        eprintln!("ktrx: cannot write to standard output: {error}");
+        std::process::exit(2);
+    }
+}
+
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use ktrx_core::{ToolPackage, validate_arguments, validate_manifest};

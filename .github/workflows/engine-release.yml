@@ -105,17 +105,21 @@ jobs:
         run: |
           set -e
           "$KTRX_BIN" --version
-          "$KTRX_BIN" capabilities | head -3
+          "$KTRX_BIN" capabilities > /dev/null
           tools="$RUNNER_TEMP/tools"
           "$KTRX_BIN" install thoth --dir "$tools"
           "$KTRX_BIN" install argus --dir "$tools"
-          "$KTRX_BIN" run "$tools/K~THOTH.tool" --encode ok | grep -q "b2s="
+          out="$("$KTRX_BIN" run "$tools/K~THOTH.tool" --encode ok)"
+          grep -q "b2s=" <<<"$out"
           out="$("$KTRX_BIN" run -y "$tools/K~ARGUS.tool" https://ktrx-site.tiagoantunes2009.workers.dev)"
-          echo "$out" | grep -q '"verified": true'
+          grep -q '"verified": true' <<<"$out"
           echo "TLS verification through a tool works."
+          # A closed pipe must not make the CLI panic (exit 101).
+          "$KTRX_BIN" capabilities | head -1 > /dev/null
           if [ "$RUNNER_OS" != "Windows" ]; then
             # Only the embedded Mozilla roots: proves the fallback verifies a real chain.
-            KTRX_EMBEDDED_CA=1 "$KTRX_BIN" run -y "$tools/K~ARGUS.tool" https://ktrx-site.tiagoantunes2009.workers.dev | grep -q '"verified": true'
+            out="$(KTRX_EMBEDDED_CA=1 "$KTRX_BIN" run -y "$tools/K~ARGUS.tool" https://ktrx-site.tiagoantunes2009.workers.dev)"
+            grep -q '"verified": true' <<<"$out"
             echo "TLS verification with the embedded roots works."
           fi
       - name: Smoke test on a machine with no CA certificates (Linux)
