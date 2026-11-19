@@ -1,11 +1,15 @@
 # Changelog
 
-## Unreleased — registry, site and documentation
+## 0.5.2 — engine
 
-- Tool catalog and engine downloads are served by the KTRX registry site; tools are published to it by `scripts/publish-tools.sh` (workflow `registry-publish.yml`). Documented in `docs/REGISTRY.md`.
-- The root README lists tools in a generated text table (`scripts/readme_tools.py`); READMEs no longer contain images or an HTML header.
-- Tool manifests may carry `category`, `tags`, `license` and argument `choices` (registry metadata, ignored by the engine). The tool page on the site renders the README and a usage reference built from the manifest.
-- `KTRX_TOOL_AUTHORING_GUIDE.md` rewritten for this workflow (README template, publication, versioning).
+Released binaries are now self-contained: they start on a clean machine with nothing installed. 0.5.0 and 0.5.1 were not (the macOS binaries needed Homebrew's OpenSSL, the Linux one needed `libssl.so.3` and glibc 2.39).
+
+- **OpenSSL is built in on every platform** (built from source, linked statically).
+- **Linux** is a fully static musl binary: no glibc, no OpenSSL, runs on any distribution and in minimal containers.
+- **Windows** links the C runtime statically (`.cargo/config.toml`): no Visual C++ Redistributable needed.
+- **macOS** only links system libraries; builds target macOS 11 (Apple Silicon) and 10.15 (Intel).
+- **TLS trust**: the machine's CA certificates are used when present (`SSL_CERT_FILE`/`SSL_CERT_DIR` first, then the usual system locations; the Windows certificate stores on Windows). A machine with no CA bundle at all falls back to Mozilla's root list embedded in the binary, for tools (`socket.open` with TLS) and for `ktrx install` alike. `KTRX_EMBEDDED_CA=1` forces the embedded roots (testing).
+- The release workflow now checks that each binary has no external dependency and smoke-tests it (including a run on a bare busybox container without CA certificates) before publishing; pushing a `release-test/*` branch runs the same checks without publishing.
 
 ## 0.5.1 — engine
 

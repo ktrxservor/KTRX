@@ -13,8 +13,19 @@ serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
 
-[target.'cfg(windows)'.dependencies]
+# OpenSSL is built from source and linked statically on every platform, so the released
+# binaries need no OpenSSL installed (macOS has none, Windows ships its own, and the Linux
+# build is a static musl binary).
 openssl = { version = "0.10", features = ["vendored"] }
+
+# A vendored OpenSSL has no CA bundle of its own. Outside Windows (which reads the machine's
+# certificate stores) the system bundle is located at run time, and Mozilla's root list is the
+# fallback on a machine that has none (minimal containers, bare installs).
+[target.'cfg(not(windows))'.dependencies]
+openssl-probe = "0.1"
+webpki-root-certs = "1"
+
+[target.'cfg(windows)'.dependencies]
 schannel = "0.1"
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
@@ -25,9 +36,6 @@ windows-sys = { version = "0.61", features = [
     "Win32_System_JobObjects",
     "Win32_System_Threading",
 ] }
-
-[target.'cfg(not(windows))'.dependencies]
-openssl = "0.10"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

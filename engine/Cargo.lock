@@ -895,7 +895,7 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "ktrx-cli"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "clap",
@@ -907,12 +907,13 @@ dependencies = [
  "sha2",
  "toml",
  "ureq",
+ "webpki-root-certs",
  "zip",
 ]
 
 [[package]]
 name = "ktrx-core"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -923,13 +924,14 @@ dependencies = [
 
 [[package]]
 name = "ktrx-runtime"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "anyhow",
  "base64",
  "ktrx-core",
  "libc",
  "openssl",
+ "openssl-probe 0.1.6",
  "schannel",
  "serde",
  "serde_json",
@@ -937,12 +939,13 @@ dependencies = [
  "socket2",
  "wasmtime",
  "wasmtime-wasi",
+ "webpki-root-certs",
  "windows-sys",
 ]
 
 [[package]]
 name = "ktrx-sdk"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "wit-bindgen",
 ]
@@ -1040,7 +1043,7 @@ dependencies = [
  "libc",
  "log",
  "openssl",
- "openssl-probe",
+ "openssl-probe 0.2.2",
  "openssl-sys",
  "schannel",
  "security-framework",
@@ -1123,6 +1126,12 @@ dependencies = [
  "quote",
  "syn 2.0.119",
 ]
+
+[[package]]
+name = "openssl-probe"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d05e27ee213611ffe7d6348b942e8f942b37114c00cc03cec254295a4a17852e"
 
 [[package]]
 name = "openssl-probe"
@@ -1314,6 +1323,12 @@ dependencies = [
  "once_cell",
  "rustix",
 ]
+
+[[package]]
+name = "rustls-pki-types"
+version = "1.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "102f35f7de7b06d8c61f1cff6592f5253e0dea431c74867aad5dfd70f44663fb"
 
 [[package]]
 name = "rustversion"
@@ -2064,6 +2079,15 @@ dependencies = [
  "futures",
  "tracing",
  "wasmtime",
+]
+
+[[package]]
+name = "webpki-root-certs"
+version = "1.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "293198dcebfb821155b5092ab94b5a82ff180eddd7241df3bd6e66a4ffd1a585"
+dependencies = [
+ "rustls-pki-types",
 ]
 
 [[package]]

@@ -40,7 +40,16 @@ impl Registry {
                 || base.starts_with("http://127.0.0.1"),
             "the registry must use https:// (got {base})"
         );
-        let tls = native_tls::TlsConnector::new().context("initialising TLS")?;
+        let mut tls = native_tls::TlsConnector::builder();
+        // A Linux machine without a CA bundle (minimal container, bare install) still trusts
+        // Mozilla's public roots, so `ktrx install` works everywhere.
+        #[cfg(target_os = "linux")]
+        for root in webpki_root_certs::TLS_SERVER_ROOT_CERTS {
+            if let Ok(certificate) = native_tls::Certificate::from_der(root.as_ref()) {
+                tls.add_root_certificate(certificate);
+            }
+        }
+        let tls = tls.build().context("initialising TLS")?;
         let agent = ureq::AgentBuilder::new()
             .tls_connector(Arc::new(tls))
             .timeout_connect(Duration::from_secs(10))

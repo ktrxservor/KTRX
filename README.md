@@ -42,10 +42,12 @@ rustup target add wasm32-wasip2
 cargo build --manifest-path engine/Cargo.toml --release -p ktrx-cli
 ```
 
-On Windows the native TLS dependency builds OpenSSL from source, which adds three requirements:
+OpenSSL is built from source on every platform, so a C compiler, `make` and Perl are needed (Xcode command line tools on macOS, `build-essential` and `perl` on Linux). On Windows this adds three requirements:
 
 - **The MSVC build tools and a native Perl must be on `PATH`.** Build from a "x64 Native Tools Command Prompt for VS" (or after running `vcvars64.bat`) so that `cl`, `nmake`, and `link` resolve to MSVC, and install a native Perl such as [Strawberry Perl](https://strawberryperl.com/) (which also provides the NASM assembler OpenSSL needs). A Cygwin, MSYS2, or Git-for-Windows Perl cannot configure OpenSSL for the MSVC target and will fail; likewise make sure their `link.exe` does not shadow the MSVC linker.
 - **The build path must be ASCII.** OpenSSL's build script cannot decode non-ASCII characters in its output directory, so a user name or checkout path containing non-ASCII characters (for example an accented letter or `µ`) breaks the build with a `FromUtf8Error`. Point the build at an ASCII directory, for example `set "CARGO_TARGET_DIR=C:\ktrx-build"`, before running `cargo build`.
+
+Released binaries need nothing installed on the target machine (OpenSSL is built in, Linux is a static musl build, Windows links its C runtime statically, TLS falls back to embedded root certificates when the system has none). A plain `cargo build` produces a binary for your own machine; the portable Linux build is made in the release workflow with `cargo zigbuild --target x86_64-unknown-linux-musl`.
 
 The executable is `engine/target/release/ktrx` (`ktrx.exe` on Windows, or under `%CARGO_TARGET_DIR%\release` when that is set). Ready-to-run `.tool` packages are included in each plugin directory.
 
@@ -65,11 +67,11 @@ Tools go to `~/.ktrx/tools` (`$KTRX_HOME/tools`, or `--dir`). Every download is 
 
 ## Engine CI and releases
 
-Changes to `engine/` are tested on Linux, Windows, and macOS by GitHub Actions. To build and publish platform binaries, bump the version in `engine/Cargo.toml` (and `engine/Cargo.lock`), add a `CHANGELOG.md` entry, then push a version tag beginning with `v` (for example, `v0.5.1`). The release workflow builds four archives: `ktrx-linux.tar.gz`, `ktrx-windows.zip`, `ktrx-macos.tar.gz` (Apple Silicon) and `ktrx-macos-intel.tar.gz`. They are attached to the GitHub Release and, when the `KTRX_REGISTRY_KEY` secret is set, uploaded to the registry, where the site offers them at `/dl/engine/<windows|linux|macos|macos-intel>`.
+Changes to `engine/` are tested on Linux, Windows, and macOS by GitHub Actions. To build and publish platform binaries, bump the version in `engine/Cargo.toml` (and `engine/Cargo.lock`), add a `CHANGELOG.md` entry, then push a version tag beginning with `v` (for example, `v0.5.2`). The release workflow builds four archives: `ktrx-linux.tar.gz`, `ktrx-windows.zip`, `ktrx-macos.tar.gz` (Apple Silicon) and `ktrx-macos-intel.tar.gz`. They are attached to the GitHub Release and, when the `KTRX_REGISTRY_KEY` secret is set, uploaded to the registry, where the site offers them at `/dl/engine/<windows|linux|macos|macos-intel>`.
 
 ```sh
-git tag -a v0.5.1 -m "KTRX 0.5.1"
-git push origin v0.5.1
+git tag -a v0.5.2 -m "KTRX 0.5.2"
+git push origin v0.5.2
 ```
 
 Pushing tools to `main` publishes them to the registry through `.github/workflows/registry-publish.yml` (same secret). See [docs/REGISTRY.md](docs/REGISTRY.md).

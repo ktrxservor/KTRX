@@ -12,7 +12,10 @@ use openssl::{
     asn1::{Asn1Time, Asn1TimeRef},
     hash::MessageDigest,
     pkey::Id,
-    ssl::{HandshakeError, SslConnector, SslMethod, SslRef, SslStream, SslVerifyMode, SslVersion},
+    ssl::{
+        HandshakeError, SslConnector, SslConnectorBuilder, SslMethod, SslRef, SslStream,
+        SslVerifyMode, SslVersion,
+    },
     x509::{X509, X509NameRef, X509Ref, X509VerifyResult},
 };
 use serde_json::{Value, json};
@@ -112,6 +115,8 @@ impl TlsOptions {
         for root in windows_roots()? {
             let _ = builder.cert_store_mut().add_cert(root.clone());
         }
+        #[cfg(not(windows))]
+        load_unix_roots(&mut builder)?;
         builder.set_verify(if self.verify {
             SslVerifyMode::PEER
         } else {
@@ -355,6 +360,48 @@ fn unix_seconds(time: &Asn1TimeRef) -> Option<i64> {
     Some(i64::from(diff.days) * 86_400 + i64::from(diff.secs))
 }
 
+/// Trust roots for a vendored OpenSSL on macOS and Linux.
+///
+/// The machine's own CA bundle is used when one can be found (`SSL_CERT_FILE` and
+/// `SSL_CERT_DIR` win, then the usual system locations), so corporate and private roots keep
+/// working. A machine without any bundle (a minimal container, a bare install) falls back to
+/// Mozilla's public root list embedded in the binary, so TLS verification works everywhere.
+#[cfg(not(windows))]
+fn load_unix_roots(builder: &mut SslConnectorBuilder) -> Result<(), String> {
+    // `KTRX_EMBEDDED_CA=1` skips the system bundle and trusts only the embedded list; it exists
+    // so the fallback can be tested on a machine that does have a bundle.
+    let embedded_only = std::env::var_os("KTRX_EMBEDDED_CA").is_some_and(|value| value == "1");
+    let (cert_file, cert_dir) = if embedded_only {
+        (None, None)
+    } else {
+        let found = openssl_probe::probe();
+        (found.cert_file, found.cert_dir)
+    };
+    if (cert_file.is_some() || cert_dir.is_some())
+        && builder
+            .load_verify_locations(cert_file.as_deref(), cert_dir.as_deref())
+            .is_ok()
+    {
+        return Ok(());
+    }
+    for root in embedded_roots() {
+        let _ = builder.cert_store_mut().add_cert(root.clone());
+    }
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn embedded_roots() -> &'static [X509] {
+    use std::sync::OnceLock;
+    static ROOTS: OnceLock<Vec<X509>> = OnceLock::new();
+    ROOTS.get_or_init(|| {
+        webpki_root_certs::TLS_SERVER_ROOT_CERTS
+            .iter()
+            .filter_map(|der| X509::from_der(der.as_ref()).ok())
+            .collect()
+    })
+}
+
 /// Root certificates installed on this Windows machine, loaded once.
 ///
 /// The vendored OpenSSL used on Windows starts with an empty trust store, so
@@ -519,5 +566,14 @@ mod tests {
             .decode(described["der_base64"].as_str().unwrap())
             .unwrap();
         assert_eq!(X509::from_der(&der).unwrap().to_der().unwrap(), der);
+    }
+}
+
+#[cfg(all(test, not(windows)))]
+mod embedded_root_tests {
+    #[test]
+    fn embeds_mozillas_root_list() {
+        // The fallback used on machines with no CA bundle must actually contain roots.
+        assert!(super::embedded_roots().len() > 100);
     }
 }
