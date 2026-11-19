@@ -1,0 +1,31 @@
+name: Publish tools to the registry
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/**/*.tool"
+      - "tools/**/README.md"
+      - "tools/**/icon.png"
+      - "scripts/publish-tools.sh"
+      - ".github/workflows/registry-publish.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: registry-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the README tools table
+        run: python3 scripts/readme_tools.py --check
+      - name: Publish
+        env:
+          KTRX_REGISTRY_KEY: ${{ secrets.KTRX_REGISTRY_KEY }}
+        run: scripts/publish-tools.sh

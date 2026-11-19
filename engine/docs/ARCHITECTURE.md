@@ -4,7 +4,7 @@
 
 - `ktrx-core` loads and validates manifests and archives and turns CLI arguments into JSON.
 - `ktrx-runtime` compiles and executes WebAssembly components. It owns Wasmtime, per-run stores, memory limits, execution deadlines, cancellation, and the generic host-call bridge. It has no knowledge of tool names, protocols, discovery, scanning, fingerprints, CVEs, or hash algorithms.
-- `ktrx-cli` handles run/inspect/validate/package/capabilities commands, asks the user to grant manifest-declared permissions (naming the programs a `process` tool may start), and displays results/events.
+- `ktrx-cli` handles run/inspect/validate/package/capabilities commands and the registry client (`install`, `update`, `uninstall`, `list`, `search`; see `crates/ktrx-cli/src/registry.rs`), asks the user to grant manifest-declared permissions (naming the programs a `process` tool may start), and displays results/events.
 - `tools/` contains the independent tool implementations and the guest SDK (`ktrx-net-sdk`, including the HTTP/1.1 + HTTP/2 client). HTTP parsing, DNS lookup policy, TLS interpretation, port selection, scan scheduling, service detection, and result interpretation belong here.
 - `proxy-app/` is a separate native program. It is not linked into the runner or runtime.
 
@@ -29,3 +29,7 @@ Each invocation has a bounded event queue. `progress.update` produces structured
 ## Architecture guard
 
 The runtime integration test scans its source and dependencies for protocol- and tool-specific APIs. It also checks that the primary CLI does not link the standalone proxy. When adding a host capability, keep it mechanism-level and reusable across unrelated tools; place parsing, policy, workflow, and interpretation in the guest tool or a separate application.
+
+## Registry client
+
+The registry (site, API, storage) is a separate service described in [docs/REGISTRY.md](../../docs/REGISTRY.md); the engine only consumes it. `ktrx install` resolves a name against the catalog, downloads the archive over HTTPS (capped at the 64 MiB archive limit), compares its SHA-256 with the one the registry publishes, opens it as a `.tool` (manifest, API version, `min_engine_version`, matching `id`) and only then moves it into the install directory. A failed check leaves nothing behind. The registry client lives in `ktrx-cli`: neither `ktrx-core` nor `ktrx-runtime` performs any HTTP request, and tools still have no ambient network access.

@@ -2,11 +2,7 @@
 
 Chaque outil KTRX possède un emblème, `icon.png`, placé à la racine de son dossier : `tools/<MYTHE> ( <Nom> )/icon.png`. Tous les emblèmes partagent la même énergie : une relique mythologique monumentale, filmée comme une pièce d’archive classée « secret défense ».
 
-L’emblème est affiché :
-
-- en tête du README de l’outil ;
-- dans la galerie du [README racine](../README.md) ;
-- sur la carte de l’outil dans le [catalogue en ligne](https://ktrx-site.tiagoantunes2009.workers.dev), alimenté par le registre KTRX.
+L’emblème est affiché sur le [site du registre KTRX](https://ktrx-site.tiagoantunes2009.workers.dev) : sur la carte de l’outil dans le catalogue et en tête de sa page. Il n’apparaît **pas** dans les README GitHub, qui restent sans image.
 
 ## Spécifications du fichier
 
@@ -17,7 +13,7 @@ L’emblème est affiché :
 | Ratio | **1:1** (carré) |
 | Taille recommandée | 1024 × 1024 px (minimum 512 × 512) |
 | Poids | idéalement sous 2 Mo |
-| Texte dans l’image | aucun : le nom et le cadre « dossier » sont ajoutés par le README et le catalogue |
+| Texte dans l’image | aucun : le nom est ajouté par le site |
 | Archive `.tool` | `icon.png` n’y est pas inclus : l’archive contient uniquement `manifest.toml` et `module.wasm` |
 
 ## Emblème par défaut
@@ -26,9 +22,9 @@ L’emblème est affiché :
 
 Le monolithe scellé au sigle K, [`docs/images/default-icon.png`](images/default-icon.png), est l’emblème universel de KTRX. Il sert d’emblème provisoire à tout outil qui n’a pas encore le sien :
 
-- un nouvel outil commence par copier ce fichier en `icon.png` dans son dossier ; le README et la galerie s’affichent immédiatement ;
+- un nouvel outil commence par copier ce fichier en `icon.png` dans son dossier ; sa carte sur le site s’affiche immédiatement ;
 - remplacer `icon.png` par l’emblème propre à l’outil suffit, sans toucher au README ;
-- le catalogue en ligne utilise automatiquement l’emblème par défaut quand `icon.png` est absent.
+- le site utilise une pastille à l’initiale de l’outil quand aucun emblème n’est publié.
 
 ### Prompt de l’emblème par défaut
 
@@ -101,31 +97,12 @@ Monumental carved stone helm of Hades, god of the underworld, a heavy ancient he
 Monumental carved stone head of Argus Panoptes, the hundred-eyed giant, a massive grey stone face covered in dozens of carved watchful eyes across the brow, cheeks and temples, most eyes closed in stone and a few glowing with a single amber light, deep carved glyphs and cracks in the stone, low-key dramatic lighting, volumetric fog, desaturated blue-grey palette with amber eye glow, heavy black shadows, centered symmetrical composition, cinematic, gritty realistic texture, ancient mythological artifact, classified secret-archive mood, no text, no letters, no watermark, no logo
 ```
 
-## Intégration dans les README
+## Publication de l’emblème
 
-### README d’un outil
-
-Placer ce bloc tout en haut du README, avant le titre `# K~<MYTHE> — <Nom>`. Le titre et la ligne mythologique qui le suit ne changent pas.
-
-```html
-<p align="center">
-  <img src="icon.png" width="220" alt="Emblème de K~<MYTHE> — <Nom>">
-</p>
-
-<p align="center"><sub><code>DOSSIER K~<MYTHE></code> &nbsp;·&nbsp; <code>KTRX SYSTEMS ARCHIVE</code> &nbsp;·&nbsp; <code>ARCHIVE PUBLIQUE</code></sub></p>
-```
-
-### README racine
-
-La galerie se trouve entre les marqueurs `<!-- KTRX:GALLERY:START -->` et `<!-- KTRX:GALLERY:END -->`. Les chemins contiennent des espaces et des parenthèses : dans les attributs HTML, les espaces s’écrivent `%20`, par exemple `tools/HADES%20(%20Hash%20)/icon.png`. Ajouter une cellule `<td>` dans la catégorie de l’outil, sur le modèle des cellules existantes.
-
-## Catalogue en ligne
-
-Le registre KTRX affiche l'`icon.png` de chaque outil (envoyée avec l'archive lors de la publication, redimensionnée pour le web). Un outil sans `icon.png` reçoit l’emblème par défaut.
+`scripts/publish-tools.sh` envoie `icon.png` au registre en même temps que l’archive de l’outil : l’image est réduite à 320 px pour le web, l’original reste dans le dépôt. Republier suffit à remplacer l’emblème d’un outil déjà en ligne (voir [`docs/REGISTRY.md`](REGISTRY.md)).
 
 ## Contrôle avant livraison
 
 1. `icon.png` est présent à la racine du dossier de l’outil, au format 1:1 (à défaut, une copie de l’emblème par défaut).
 2. Le style respecte la charte : pierre ou métal, lumière basse, gris-bleu désaturé, un seul accent ambre, aucun texte.
-3. Le README de l’outil commence par le bloc d’en-tête ci-dessus.
-4. L’outil figure dans la galerie du README racine.
+3. Le README de l’outil ne contient aucune image (le site affiche l’emblème lui-même).

@@ -1,9 +1,3 @@
-<p align="center">
-  <img src="icon.png" width="220" alt="Emblème de K~APATE — Webshell Forge">
-</p>
-
-<p align="center"><sub><code>DOSSIER K~APATE</code> &nbsp;·&nbsp; <code>KTRX SYSTEMS ARCHIVE</code> &nbsp;·&nbsp; <code>ARCHIVE PUBLIQUE</code></sub></p>
-
 # K~APATE
 
 APATE — « la déesse de la tromperie » chez les Grecs — forge des webshells pour

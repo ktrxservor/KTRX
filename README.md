@@ -4,92 +4,34 @@ KTRX is a Rust command-line host for portable WebAssembly Component Model tools.
 
 ## Catalogue des outils
 
-Découvrez les outils et téléchargez le moteur `ktrx` (Windows, Linux, macOS) depuis le [site officiel KTRX](https://ktrx-site.tiagoantunes2009.workers.dev). Les outils s'installent aussi directement en ligne de commande avec `ktrx install <outil>` (voir plus bas).
+Le [site officiel KTRX](https://ktrx-site.tiagoantunes2009.workers.dev) présente chaque outil (documentation, arguments, permissions, versions) et permet de télécharger le moteur `ktrx` pour Windows, Linux et macOS (Apple Silicon et Intel). Les outils s'installent aussi en ligne de commande avec `ktrx install <outil>` (voir « Installing tools from the registry »). Le tableau ci-dessous est généré par `scripts/readme_tools.py`.
 
-<!-- KTRX:GALLERY:START -->
+<!-- KTRX:TOOLS:START -->
 
-#### Réseau & reconnaissance
+| Outil | Description | Permissions | |
+|---|---|---|---|
+| [`K~ANUBIS`](https://ktrx-site.tiagoantunes2009.workers.dev/tool?id=hash-audit) | Offline hash audit with live progress, wordlists and configurable brute-force search. | lecture de fichiers | [source](tools/ANUBIS%20%28%20Hash-Audit%20%29/) |
+| [`K~APATE`](https://ktrx-site.tiagoantunes2009.workers.dev/tool?id=webshell-forge) | Forge de webshells furtifs PHP/JSP/ASPX : transports et chiffrements empilables, obfuscation par graine, linter de signatures et score d'exposition. | aucune | [source](tools/APATE%20%28%20Webshell-Forge%20%29/) |
+| [`K~ARGUS`](https://ktrx-site.tiagoantunes2009.workers.dev/tool?id=tls-inspector) | Verify TLS connectivity and inspect the HTTPS response for a user-selected target. | réseau | [source](tools/ARGUS%20%28%20TLS-Inspector%20%29/) |
+| [`K~ASCLEPIUS`](https://ktrx-site.tiagoantunes2009.workers.dev/tool?id=cve-radar) | Détection CVE par base JSON configurable, empreinte de version, preuves et recours NVD limité sans charge d’exploitation. | réseau, lecture de fichiers | [source](tools/ASCLEPIUS%20%28%20CVE-Radar%20%29/) |
+| [`K~ATHENA`](https://ktrx-site.tiagoantunes2009.workers.dev/tool?id=js-audit) | Audit statique approfondi du JavaScript front-end : secrets, fonctions dangereuses, logique exposée et source maps. | réseau | [source](tools/ATHENA%20%28%20JS-Audit%20%29/) |
+| [`K~CERBERUS`](https://ktrx-site.tiagoantunes2009.workers.dev/tool?id=subdomain-sentinel) | Énumère des sous-domaines à partir d’une liste intégrée ou fournie et repère les signes de prise de contrôle : échec de résolution DNS ou page d’erreur caractéristique d’un fournisseur cloud connu. | réseau, lecture de fichiers | [source](tools/CERBERUS%20%28%20Subdomain-Sentinel%20%29/) |
+| [`K~HADES`](https://ktrx-site.tiagoantunes2009.workers.dev/tool?id=hash) | Calculate SHA-256 digests for UTF-8 text. | lecture de fichiers | [source](tools/HADES%20%28%20Hash%20%29/) |
+| [`K~HECATE`](https://ktrx-site.tiagoantunes2009.workers.dev/tool?id=hex-codec) | Convert UTF-8 text to hexadecimal and hexadecimal bytes back to UTF-8. | aucune | [source](tools/HECATE%20%28%20Hex-Codec%20%29/) |
+| [`K~HEPHAESTUS`](https://ktrx-site.tiagoantunes2009.workers.dev/tool?id=html-entities) | Encode text as HTML entities or decode common named and numeric entities. | aucune | [source](tools/HEPHAESTUS%20%28%20HTML-Entities%20%29/) |
+| [`K~HERMES`](https://ktrx-site.tiagoantunes2009.workers.dev/tool?id=http-inspector) | Inspect an HTTP or HTTPS exchange over HTTP/1.1 or HTTP/2: status, headers, trailers, redirects, timing, content decoding, and TLS session. | réseau | [source](tools/HERMES%20%28%20HTTP-Inspector%20%29/) |
+| [`K~HORUS`](https://ktrx-site.tiagoantunes2009.workers.dev/tool?id=port-scanner) | Concurrent TCP connect scanning with DNS discovery and lightweight service fingerprinting. | réseau | [source](tools/HORUS%20%28%20Port-Scanner%20%29/) |
+| [`K~IRIS`](https://ktrx-site.tiagoantunes2009.workers.dev/tool?id=url-codec) | Percent-encode or decode URL components and form values. | aucune | [source](tools/IRIS%20%28%20URL-Codec%20%29/) |
+| [`K~JANUS`](https://ktrx-site.tiagoantunes2009.workers.dev/tool?id=jwt-inspector) | Decode JWT header and claims locally and report common time claims. Does not verify signatures. | aucune | [source](tools/JANUS%20%28%20JWT-Inspector%20%29/) |
+| [`K~METIS`](https://ktrx-site.tiagoantunes2009.workers.dev/tool?id=json-inspector) | Validate, pretty-print, or compact JSON and summarize its top-level structure. | aucune | [source](tools/METIS%20%28%20JSON-Inspector%20%29/) |
+| [`K~ODYSSEUS`](https://ktrx-site.tiagoantunes2009.workers.dev/tool?id=web-discovery) | Découverte prudente de chemins web à partir d’une liste de mots, inspirée de Gobuster. | réseau, lecture de fichiers | [source](tools/ODYSSEUS%20%28%20Web-Discovery%20%29/) |
+| [`K~POSEIDON`](https://ktrx-site.tiagoantunes2009.workers.dev/tool?id=dns-inspector) | Resolve a hostname through the permissioned KTRX host network API. | réseau | [source](tools/POSEIDON%20%28%20DNS-Inspector%20%29/) |
+| [`K~PROMETHEUS`](https://ktrx-site.tiagoantunes2009.workers.dev/tool?id=tech-fingerprint) | Fingerprint technologique web multicouche avec versions, ressources, DNS, TLS, cookies et navigation same-origin. | réseau | [source](tools/PROMETHEUS%20%28%20Tech-Fingerprint%20%29/) |
+| [`K~SPHINX`](https://ktrx-site.tiagoantunes2009.workers.dev/tool?id=regex-lab) | Search pasted text with a Rust regular expression and inspect matches and capture groups. | aucune | [source](tools/SPHINX%20%28%20Regex-Lab%20%29/) |
+| [`K~THEMIS`](https://ktrx-site.tiagoantunes2009.workers.dev/tool?id=header-audit) | Review pasted HTTP response headers for common security controls and cookie flags. | aucune | [source](tools/THEMIS%20%28%20Header-Audit%20%29/) |
+| [`K~THOTH`](https://ktrx-site.tiagoantunes2009.workers.dev/tool?id=base64) | Encode and decode UTF-8 text using standard Base64. | aucune | [source](tools/THOTH%20%28%20Base64%20%29/) |
 
-<table>
-  <tr>
-    <td align="center" width="20%">
-      <a href="tools/ARGUS%20(%20TLS-Inspector%20)/"><img src="tools/ARGUS%20(%20TLS-Inspector%20)/icon.png" width="140" alt="K~ARGUS"><br><b>K~ARGUS</b></a><br><sub>TLS Inspector</sub>
-    </td>
-    <td align="center" width="20%">
-      <a href="tools/ASCLEPIUS%20(%20CVE-Radar%20)/"><img src="tools/ASCLEPIUS%20(%20CVE-Radar%20)/icon.png" width="140" alt="K~ASCLEPIUS"><br><b>K~ASCLEPIUS</b></a><br><sub>CVE Radar</sub>
-    </td>
-    <td align="center" width="20%">
-      <a href="tools/ATHENA%20(%20JS-Audit%20)/"><img src="tools/ATHENA%20(%20JS-Audit%20)/icon.png" width="140" alt="K~ATHENA"><br><b>K~ATHENA</b></a><br><sub>JS Audit</sub>
-    </td>
-    <td align="center" width="20%">
-      <a href="tools/CERBERUS%20(%20Subdomain-Sentinel%20)/"><img src="tools/CERBERUS%20(%20Subdomain-Sentinel%20)/icon.png" width="140" alt="K~CERBERUS"><br><b>K~CERBERUS</b></a><br><sub>Subdomain Sentinel</sub>
-    </td>
-    <td align="center" width="20%">
-      <a href="tools/HERMES%20(%20HTTP-Inspector%20)/"><img src="tools/HERMES%20(%20HTTP-Inspector%20)/icon.png" width="140" alt="K~HERMES"><br><b>K~HERMES</b></a><br><sub>HTTP Inspector</sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" width="20%">
-      <a href="tools/HORUS%20(%20Port-Scanner%20)/"><img src="tools/HORUS%20(%20Port-Scanner%20)/icon.png" width="140" alt="K~HORUS"><br><b>K~HORUS</b></a><br><sub>Port Scanner</sub>
-    </td>
-    <td align="center" width="20%">
-      <a href="tools/ODYSSEUS%20(%20Web-Discovery%20)/"><img src="tools/ODYSSEUS%20(%20Web-Discovery%20)/icon.png" width="140" alt="K~ODYSSEUS"><br><b>K~ODYSSEUS</b></a><br><sub>Web Discovery</sub>
-    </td>
-    <td align="center" width="20%">
-      <a href="tools/POSEIDON%20(%20DNS-Inspector%20)/"><img src="tools/POSEIDON%20(%20DNS-Inspector%20)/icon.png" width="140" alt="K~POSEIDON"><br><b>K~POSEIDON</b></a><br><sub>DNS Inspector</sub>
-    </td>
-    <td align="center" width="20%">
-      <a href="tools/PROMETHEUS%20(%20Tech-Fingerprint%20)/"><img src="tools/PROMETHEUS%20(%20Tech-Fingerprint%20)/icon.png" width="140" alt="K~PROMETHEUS"><br><b>K~PROMETHEUS</b></a><br><sub>Tech Fingerprint</sub>
-    </td>
-    <td align="center" width="20%">
-      <a href="tools/THEMIS%20(%20Header-Audit%20)/"><img src="tools/THEMIS%20(%20Header-Audit%20)/icon.png" width="140" alt="K~THEMIS"><br><b>K~THEMIS</b></a><br><sub>Header Audit</sub>
-    </td>
-  </tr>
-</table>
-
-#### Analyse
-
-<table>
-  <tr>
-    <td align="center" width="20%">
-      <a href="tools/ANUBIS%20(%20Hash-Audit%20)/"><img src="tools/ANUBIS%20(%20Hash-Audit%20)/icon.png" width="140" alt="K~ANUBIS"><br><b>K~ANUBIS</b></a><br><sub>Hash Audit</sub>
-    </td>
-    <td align="center" width="20%">
-      <a href="tools/HADES%20(%20Hash%20)/"><img src="tools/HADES%20(%20Hash%20)/icon.png" width="140" alt="K~HADES"><br><b>K~HADES</b></a><br><sub>Hash</sub>
-    </td>
-    <td align="center" width="20%">
-      <a href="tools/JANUS%20(%20JWT-Inspector%20)/"><img src="tools/JANUS%20(%20JWT-Inspector%20)/icon.png" width="140" alt="K~JANUS"><br><b>K~JANUS</b></a><br><sub>JWT Inspector</sub>
-    </td>
-    <td align="center" width="20%">
-      <a href="tools/METIS%20(%20JSON-Inspector%20)/"><img src="tools/METIS%20(%20JSON-Inspector%20)/icon.png" width="140" alt="K~METIS"><br><b>K~METIS</b></a><br><sub>JSON Inspector</sub>
-    </td>
-    <td align="center" width="20%">
-      <a href="tools/SPHINX%20(%20Regex-Lab%20)/"><img src="tools/SPHINX%20(%20Regex-Lab%20)/icon.png" width="140" alt="K~SPHINX"><br><b>K~SPHINX</b></a><br><sub>Regex Lab</sub>
-    </td>
-  </tr>
-</table>
-
-#### Utilitaires
-
-<table>
-  <tr>
-    <td align="center" width="20%">
-      <a href="tools/HECATE%20(%20Hex-Codec%20)/"><img src="tools/HECATE%20(%20Hex-Codec%20)/icon.png" width="140" alt="K~HECATE"><br><b>K~HECATE</b></a><br><sub>Hex Codec</sub>
-    </td>
-    <td align="center" width="20%">
-      <a href="tools/HEPHAESTUS%20(%20HTML-Entities%20)/"><img src="tools/HEPHAESTUS%20(%20HTML-Entities%20)/icon.png" width="140" alt="K~HEPHAESTUS"><br><b>K~HEPHAESTUS</b></a><br><sub>HTML Entities</sub>
-    </td>
-    <td align="center" width="20%">
-      <a href="tools/IRIS%20(%20URL-Codec%20)/"><img src="tools/IRIS%20(%20URL-Codec%20)/icon.png" width="140" alt="K~IRIS"><br><b>K~IRIS</b></a><br><sub>URL Codec</sub>
-    </td>
-    <td align="center" width="20%">
-      <a href="tools/THOTH%20(%20Base64%20)/"><img src="tools/THOTH%20(%20Base64%20)/icon.png" width="140" alt="K~THOTH"><br><b>K~THOTH</b></a><br><sub>Base64</sub>
-    </td>
-    <td width="20%"></td>
-  </tr>
-</table>
-
-<!-- KTRX:GALLERY:END -->
+<!-- KTRX:TOOLS:END -->
 
 ## Build
 
@@ -123,12 +65,14 @@ Tools go to `~/.ktrx/tools` (`$KTRX_HOME/tools`, or `--dir`). Every download is 
 
 ## Engine CI and releases
 
-Changes to `engine/` are tested on Linux, Windows, and macOS by GitHub Actions. To build and publish platform binaries, push a version tag beginning with `v` (for example, `v0.1.0`). The resulting GitHub Release contains a `.tar.gz` archive for Linux, a `.zip` for Windows, and a `.tar.gz` archive for macOS.
+Changes to `engine/` are tested on Linux, Windows, and macOS by GitHub Actions. To build and publish platform binaries, bump the version in `engine/Cargo.toml` (and `engine/Cargo.lock`), add a `CHANGELOG.md` entry, then push a version tag beginning with `v` (for example, `v0.5.1`). The release workflow builds four archives: `ktrx-linux.tar.gz`, `ktrx-windows.zip`, `ktrx-macos.tar.gz` (Apple Silicon) and `ktrx-macos-intel.tar.gz`. They are attached to the GitHub Release and, when the `KTRX_REGISTRY_KEY` secret is set, uploaded to the registry, where the site offers them at `/dl/engine/<windows|linux|macos|macos-intel>`.
 
 ```sh
-git tag v0.1.0
-git push origin v0.1.0
+git tag -a v0.5.1 -m "KTRX 0.5.1"
+git push origin v0.5.1
 ```
+
+Pushing tools to `main` publishes them to the registry through `.github/workflows/registry-publish.yml` (same secret). See [docs/REGISTRY.md](docs/REGISTRY.md).
 
 Build an individual plugin, then package it:
 

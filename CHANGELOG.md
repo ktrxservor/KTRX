@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — registry, site and documentation
+
+- Tool catalog and engine downloads are served by the KTRX registry site; tools are published to it by `scripts/publish-tools.sh` (workflow `registry-publish.yml`). Documented in `docs/REGISTRY.md`.
+- The root README lists tools in a generated text table (`scripts/readme_tools.py`); READMEs no longer contain images or an HTML header.
+- Tool manifests may carry `category`, `tags`, `license` and argument `choices` (registry metadata, ignored by the engine). The tool page on the site renders the README and a usage reference built from the manifest.
+- `KTRX_TOOL_AUTHORING_GUIDE.md` rewritten for this workflow (README template, publication, versioning).
+
 ## 0.5.1 — engine
 
 - Release builds now include a macOS Intel (x86_64) binary next to the Apple Silicon one (`ktrx-macos-intel.tar.gz`). No engine change.

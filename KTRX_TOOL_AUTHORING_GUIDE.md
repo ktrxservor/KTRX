@@ -1,6 +1,8 @@
 # KTRX — Guide autonome de création d’outils
 
-Ce fichier est le cahier des charges de référence pour créer un nouvel outil KTRX, du plus petit encodeur à un scanner réseau avancé. Il décrit le format, l’architecture, les noms, les permissions, l’interface Wasm, les performances, la validation et la livraison. Une IA ou une personne doit pouvoir s’y conformer sans inventer d’API moteur.
+Ce fichier est le cahier des charges de référence pour créer un nouvel outil KTRX, du plus petit encodeur à un scanner réseau avancé. Il décrit le format, l’architecture, les noms, les permissions, l’interface Wasm, les performances, la documentation de l’outil, la validation, la publication sur le registre KTRX et la livraison. Une IA ou une personne doit pouvoir s’y conformer sans inventer d’API moteur.
+
+**Parcours d’un outil, en bref** : le code vit dans `tools/<MYTHE> ( <Nom> )/` → on compile et on empaquette `K~<MYTHE>.tool` (§10) → un push sur `main` le publie sur le registre (§11) → il apparaît sur le site avec sa page, et s’installe avec `ktrx install <mythe>`. Le site construit la page de l’outil à partir du **manifeste** (arguments, exemples, permissions) et du **README** (§9) : c’est donc là que se joue la qualité de la documentation.
 
 ## 1. Règle d’architecture
 
@@ -18,8 +20,8 @@ Chaque outil, existant ou futur, suit cette présentation :
 - Archive livrable : `K~<NOM-MYTHOLOGIQUE>.tool` — par exemple `K~HORUS.tool`.
 - Nom visible dans le manifeste : `K~<NOM-MYTHOLOGIQUE>`.
 - Identifiant technique `id` : slug stable en minuscules ASCII avec lettres, chiffres et tirets, par exemple `port-scanner`. Ne mets pas `K~` dans cet identifiant : il doit respecter le parseur du moteur et rester stable pour éviter de casser les intégrations.
-- README : ajouter sous le titre une seule ligne de présentation mythologique, puis décrire clairement le fonctionnement réel. Exemple : `HORUS, « l’œil du faucon » dans la mythologie égyptienne : cet outil observe les ports TCP d’une cible pour révéler les services accessibles.`
-- Emblème : `icon.png` à la racine du dossier de l’outil (PNG carré 1:1, 1024 × 1024 px, sans texte), dans le style défini par [`docs/ICON_STYLE_GUIDE.md`](docs/ICON_STYLE_GUIDE.md). Le README commence par le bloc d’en-tête décrit dans cette charte, placé avant le titre.
+- README : titre `# K~<MYTHE> — <Nom lisible>`, puis, juste dessous, une seule ligne de présentation mythologique en citation (`>`), puis le fonctionnement réel (modèle en §9). Exemple de ligne : `HORUS, « l’œil du faucon » dans la mythologie égyptienne : cet outil observe les ports TCP d’une cible pour révéler les services accessibles.`
+- Emblème : `icon.png` à la racine du dossier de l’outil (PNG carré 1:1, 1024 × 1024 px, sans texte), dans le style défini par [`docs/ICON_STYLE_GUIDE.md`](docs/ICON_STYLE_GUIDE.md). Il est affiché par le site du registre (carte et page de l’outil), jamais dans le README : **aucune image ni en-tête HTML dans les README**.
 
 Choisis un nom distinct, mémorisable et lié à l’usage, sans prétendre que l’outil possède une capacité qu’il n’a pas. Conserve l’orthographe du nom choisi partout. Ne renomme pas `K~` et n’utilise pas deux fois le même nom dans le projet. Le SDK partagé `tools/ktrx-net-sdk/` n’est pas un outil `.tool` et garde son nom technique.
 
@@ -32,7 +34,7 @@ manifest.toml
 module.wasm
 ```
 
-Le module est un composant WebAssembly Component Model ciblant `wasm32-wasip2` et l’interface KTRX API 1. Limites moteur : archive 64 MiB, manifeste 256 KiB, composant 48 MiB. N’inclus pas les sources dans l’archive ; ils restent à côté dans le dossier de développement. Le dépôt contient le code source, son `Cargo.lock`, son README, son emblème `icon.png` (absent de l’archive), son manifeste et l’archive compilée `K~<MYTHE>.tool`. N’ajoute pas `target/` ni `module.wasm` généré au dépôt.
+Le module est un composant WebAssembly Component Model ciblant `wasm32-wasip2` et l’interface KTRX API 1. Limites moteur : archive 64 MiB, manifeste 256 KiB, composant 48 MiB. N’inclus pas les sources dans l’archive ; ils restent à côté dans le dossier de développement. Le dépôt contient le code source, son `Cargo.lock`, son README, son emblème `icon.png` (absent de l’archive), son manifeste et l’archive compilée `K~<MYTHE>.tool`, que `scripts/publish-tools.sh` envoie au registre (§11). N’ajoute pas `target/` ni `module.wasm` généré au dépôt.
 
 Arborescence de développement :
 
@@ -61,7 +63,14 @@ version = "1.0.0"
 author = "KTRX"
 api_version = "1"
 permissions = []
-examples = ["ktrx run 'tools/NEITH ( Example-Tool )/K~NEITH.tool' --text 'hello'"]
+# Métadonnées du registre (facultatives, ignorées par le moteur) :
+category = "analysis"          # investigation | analysis | encoding | generation
+tags = ["json", "format"]
+license = "MIT"
+examples = [
+  "ktrx run neith '{\"a\":1}'",
+  "ktrx run neith '{\"a\":1}' --compact",
+]
 
 [[arguments]]
 name = "json"
@@ -77,20 +86,33 @@ value_type = "boolean"
 required = false
 positional = false
 default = false
+
+[[arguments]]
+name = "indent"
+description = "Largeur d’indentation de la sortie."
+value_type = "string"
+required = false
+positional = false
+default = "2"
+choices = ["2", "4", "tab"]
 ```
 
 Règles :
 
-- `id` : 1 à 80 caractères, minuscules ASCII, chiffres et tirets ; commence par une lettre et finit par une lettre ou un chiffre. Il doit être unique.
+- `id` : 1 à 80 caractères, minuscules ASCII, chiffres et tirets ; commence par une lettre et finit par une lettre ou un chiffre. Il doit être unique et ne change jamais : c’est la clé de l’outil dans le registre.
+- `name` : `K~` suivi du nom mythologique en **majuscules A–Z** (le registre refuse autre chose).
 - `name`, `description`, `version`, `author`, `api_version` sont obligatoires et non vides. `api_version` vaut actuellement `"1"`.
-- Versionne le plugin en SemVer (`1.0.0`, `1.0.1`, etc.).
+- Versionne le plugin en SemVer (`1.0.0`, `1.0.1`, etc.). Une version publiée sur le registre ne peut plus être remplacée : toute modification de l’archive demande une nouvelle version (§11).
+- `description` : une à deux phrases, qui expliquent ce que fait l’outil. Elle s’affiche sur la carte du catalogue et en tête de la page de l’outil.
 - `permissions` ne contient que `"network"`, `"file-read"`, `"file-write"`, `"raw-net"` et/ou `"process"`, sans doublon et seulement si nécessaires (`file-write` : écriture confinée au dossier choisi par l’utilisateur avec `--write-dir` ; `raw-net` : ICMP, ARP et sondes TCP brutes, qui peuvent exiger des droits élevés ; `process` : lancer des programmes de la machine, hors du bac à sable, avec les droits de l’utilisateur). N’ajoute jamais de liste d’hôtes, de destinations permises ou d’autorisation réseau dans le manifeste.
 - `programs` (moteur 0.4+, facultatif mais fortement recommandé avec `process`) : noms nus des programmes que l’outil lance, cherchés dans le `PATH` (par exemple `programs = ["git", "nmap"]`, 32 noms au plus, lettres, chiffres, `.`, `_`, `-`, `+`). L’hôte refuse alors tout autre programme et tout chemin, et l’invite d’approbation les nomme. Sans liste, l’invite avertit que *n’importe quel* programme peut être lancé.
-- `min_engine_version` (facultatif) : version minimale du moteur, `MAJOR.MINOR.PATCH`. Mets `"0.4.0"` dès que l’outil dépend de `process.*`, `host.info`, `socket.starttls` ou `socket.shutdown` ; un moteur plus ancien affichera alors un message clair au lieu d’une erreur d’opération.
-- `arguments` : nom en minuscules ASCII/chiffres/tirets, description utile, type parmi `string`, `integer`, `boolean`, `path`; préciser `required`, `positional` et si utile `default` du même type. Chaque nom est unique.
+- `min_engine_version` (facultatif) : version minimale du moteur, `MAJOR.MINOR.PATCH` (le moteur actuel est en 0.5.x ; la 0.5 n’ajoute aucune opération hôte à la 0.4). Mets `"0.4.0"` dès que l’outil dépend de `process.*`, `host.info`, `socket.starttls` ou `socket.shutdown` ; un moteur plus ancien affichera alors un message clair au lieu d’une erreur d’opération.
+- `arguments` : nom en minuscules ASCII/chiffres/tirets, description utile, type parmi `string`, `integer`, `boolean`, `path`; préciser `required`, `positional` et si utile `default` du même type. Chaque nom est unique. La description d’un argument est affichée telle quelle dans le tableau « Arguments » du site : écris-la pour l’utilisateur (que fait l’option, unité, plage de valeurs).
+- `choices` (argument, facultatif) : liste des valeurs admises, affichée sur le site. **Le moteur ne l’applique pas** : l’outil doit lui-même refuser une valeur hors liste avec une erreur JSON claire.
 - Une option booléenne se passe comme `--compact` ; les options non booléennes prennent une valeur après le nom (`--limit 100`). Les arguments positionnels suivent leur ordre dans le manifeste.
 - `execution_timeout_seconds` est optionnel. Absent ou `0` signifie sans durée maximale. Une durée explicite doit être entre 30 et 180 secondes. Ne définis pas de plafond global pour une exécution interactive qui doit progresser en direct.
-- `examples` doit montrer des commandes réellement valides et citer le chemin avec guillemets, car le dossier contient des espaces et parenthèses.
+- `examples` : commandes réellement valides, une par entrée, du plus simple au plus complet. Écris-les sous la forme `ktrx run <mythe-en-minuscules> …` (l’outil installé se lance par son nom). Les exemples de la forme `ktrx run 'tools/X ( Y )/K~X.tool' …` fonctionnent depuis la racine du dépôt et le site les réécrit automatiquement en `ktrx run x …`. Ils s’affichent avec un bouton « Copier » dans l’onglet « Utilisation ».
+- `category` (facultatif) : `investigation` (Réseau), `analysis` (Analyse), `encoding` (Utilitaires) ou `generation` (Génération). Lue par le registre à la première publication ; sans elle, l’outil est classé « Analyse ». `tags` (liste de mots-clés) et `license` sont informatifs. Le moteur ignore ces trois champs, comme tout champ inconnu.
 
 ## 5. Interface Wasm et gestion d’erreurs
 
@@ -249,7 +271,7 @@ Les anciennes fonctions (`http_get`, `open_socket`…) restent disponibles et in
 - Produire un schéma JSON documenté, stable et utile ; inclure statut, limites atteintes, métriques, résultats structurés et avertissements lorsque cela aide l’interprétation.
 - Un outil d’analyse donne des observations et leurs preuves. Ne présente pas une hypothèse comme une vulnérabilité confirmée.
 - Ajouter des tests unitaires déterministes des entrées valides, invalides, limites, erreurs de parsing, déduplication et cas limites. Les tests ne doivent pas contacter Internet ou une cible réelle ; injecter des réponses fictives.
-- README : bloc d’en-tête avec l’emblème `icon.png`, une ligne mythologique obligatoire, objectif, capacités, options, exemples copiable-collable, formats de sortie, limitations et permissions sollicitées. Documenter explicitement toute absence de validation cryptographique ou toute détection heuristique.
+- Documentation : un README et un manifeste complets, selon le §9. Documenter explicitement toute absence de validation cryptographique ou toute détection heuristique.
 
 ## 8. Progression en direct
 
@@ -268,7 +290,60 @@ let _ = ktrx::tool::host::request(
 
 Le terminal peut réduire la fréquence d’affichage ; `ktrx run '<fichier.tool>' --events` expose des événements JSON Lines. La file est bornée à 256 événements et peut abandonner des snapshots intermédiaires sous forte pression. `Ctrl+C` demande l’annulation ; un appel host déjà en cours peut aller jusqu’à son délai d’I/O.
 
-## 9. Compilation, paquetage et vérification
+## 9. Documenter l’outil
+
+La page d’un outil sur le site est assemblée à partir de trois sources. Chacune a son rôle : n’écris pas deux fois la même information.
+
+| Source | Ce qu’elle alimente sur le site | À y mettre |
+|---|---|---|
+| `manifest.toml` | Description (en tête et sur la carte), onglet **Utilisation** (tableau des arguments, valeurs admises, valeurs par défaut, exemples copiables), encadré **Permissions** et **Informations** (catégorie, licence, moteur requis) | Tout ce qui décrit l’interface : arguments, exemples, permissions, `programs`, `min_engine_version`, `category`. |
+| `README.md` | Onglet **Aperçu** | Les explications : à quoi sert l’outil, comment il raisonne, format de sortie, limites. **Ne recopie pas la liste des options** : elle est déjà générée depuis le manifeste. |
+| `icon.png` | Carte et en-tête de la page | L’emblème (§2). |
+
+Le site retire du README le titre `#` (il affiche le nom de l’outil lui-même) et affiche la ligne en citation qui suit comme présentation mythologique, sous la description. Le reste est rendu en Markdown (GFM : titres, listes, tableaux, blocs de code avec bouton « Copier »).
+
+### Modèle de README
+
+````markdown
+# K~NEITH — JSON Inspector
+> Neith, déesse tisserande de l’Égypte ancienne : cet outil démêle un document JSON pour en révéler la structure.
+
+## Présentation
+Deux ou trois phrases : le problème que l’outil résout, ce qu’il fait et ne fait pas.
+
+## Utilisation
+```sh
+ktrx install neith
+ktrx run neith '{"a":1}'
+```
+Un exemple par bloc, copiable tel quel. Les options sont détaillées dans l’onglet « Utilisation » : n’en refais pas le tableau ici.
+
+## Sortie
+Le schéma JSON renvoyé : champs, types, valeurs possibles, exemple réel.
+
+## Limites
+Ce que l’outil ne vérifie pas, bornes de taille, durée, concurrence, détections heuristiques.
+
+## Permissions
+Pourquoi chaque permission est demandée et ce que l’outil en fait (ou « Aucune permission »).
+
+## Développement
+Commandes de test et de compilation de cet outil (§10).
+````
+
+Règles :
+
+- **Aucune image, aucun HTML d’en-tête** dans les README (ni sur GitHub, ni sur le site). Un lien ou une image relatif (`icon.png`, `../autre/README.md`) ne fonctionne pas sur le site : utilise une URL absolue, ou rien.
+- Un titre `#` unique, au tout début ; les sections en `##`. Le site s’appuie sur cet ordre : titre, citation mythologique, puis le corps.
+- Les exemples de commande utilisent le nom installé (`ktrx run neith …`), pas le chemin du dépôt.
+- Même langue dans tout l’outil (README, descriptions des arguments, messages d’erreur) ; le français est la langue par défaut du projet.
+- Documente la sortie JSON avec un extrait réaliste et la signification des champs, pas seulement la liste de leurs noms.
+- Si l’outil est sensible (génération de contenu offensif, brute force, scan), dis clairement le cadre d’usage légitime : tests autorisés, périmètre, limites intégrées.
+- Mets à jour le README en même temps que le comportement : il est republié à chaque push sur `main`, même sans changement de version.
+
+Le tableau des outils du README racine est généré : après avoir ajouté ou modifié un outil, lance `python3 scripts/readme_tools.py` (la CI vérifie que le tableau est à jour avec `--check`).
+
+## 10. Compilation, paquetage et vérification
 
 Depuis la racine du dépôt, remplacer `<DOSSIER>` par le dossier complet contenant espaces/parenthèses et `<CRATE>` par le nom de la bibliothèque Cargo avec tirets changés en underscores :
 
@@ -285,7 +360,7 @@ engine/target/release/ktrx validate 'tools/<DOSSIER>/K~<MYTHE>.tool'
 engine/target/release/ktrx describe 'tools/<DOSSIER>/K~<MYTHE>.tool' --json
 ```
 
-À chaque changement de source ou de manifeste, reconstruire et repackager l’archive livrée. Valider le manifeste et le composant. Vérifier aussi une exécution fonctionnelle locale sans réseau quand possible. Pour les capacités réseau, tester avec fixtures ou services locaux si l’environnement l’autorise, sans faire d’accès externe implicite. Les commandes de test et d’exécution doivent pointer vers le fichier `K~NOM.tool`, pas l’ancien nom.
+À chaque changement de source ou de manifeste, reconstruire et repackager l’archive livrée. Pour tester comme un utilisateur, lance exactement les commandes de tes `examples` (en remplaçant le nom installé par `'<chemin>/K~NOM.tool'` tant que l’outil n’est pas publié). Valider le manifeste et le composant. Vérifier aussi une exécution fonctionnelle locale sans réseau quand possible. Pour les capacités réseau, tester avec fixtures ou services locaux si l’environnement l’autorise, sans faire d’accès externe implicite. Les commandes de test et d’exécution doivent pointer vers le fichier `K~NOM.tool`, pas l’ancien nom.
 
 Avant livraison, contrôler :
 
@@ -295,9 +370,34 @@ Avant livraison, contrôler :
 4. Chaque entrée est validée ; les erreurs sont JSON ; les tailles, durées et boucles sont bornées.
 5. Tests ciblés passent ; `cargo fmt --check`, compilation Wasm, `ktrx validate` et `ktrx describe` passent.
 6. L’archive `.tool` est la version compilée de la source présente, et `module.wasm` / `target/` ne sont pas ajoutés par erreur.
-7. `icon.png` est présent et conforme à `docs/ICON_STYLE_GUIDE.md`, le README commence par le bloc d’en-tête, et l’outil figure dans la galerie du README racine.
+7. `icon.png` est présent et conforme à `docs/ICON_STYLE_GUIDE.md` ; le README suit le modèle du §9 (sans image) ; `examples`, `choices`, `category` sont renseignés ; `python3 scripts/readme_tools.py` a été relancé.
+8. `version` du manifeste (et de `Cargo.toml`) a été incrémentée si l’archive a changé depuis la dernière publication.
 
-## 10. Défauts fréquents à éviter
+## 11. Publier sur le registre KTRX
+
+Le registre (voir [`docs/REGISTRY.md`](docs/REGISTRY.md)) est ce qui alimente le site, `ktrx install` et `ktrx update`.
+
+**Publier un nouvel outil ou une nouvelle version**
+
+1. Incrémente `version` dans `manifest.toml` et `Cargo.toml` (SemVer).
+2. Reconstruis l’archive (§10) et vérifie-la avec `ktrx validate`.
+3. Commit et push sur `main`. Le workflow `registry-publish.yml` exécute `scripts/publish-tools.sh` : il envoie l’archive (nouvelle version), l’emblème et le README. Sans le secret GitHub `KTRX_REGISTRY_KEY`, il ne publie rien ; le même script peut aussi être lancé à la main avec `KTRX_REGISTRY_KEY=… scripts/publish-tools.sh`.
+4. L’outil apparaît sur le site ; les utilisateurs récupèrent la nouvelle version avec `ktrx update <nom>`.
+
+**Ce que le registre vérifie.** À l’envoi, le serveur ouvre l’archive : ZIP valide, `manifest.toml` et `module.wasm` à la racine, tailles dans les limites du moteur, champs requis, `id` et `name` valides, `api_version` `"1"`, permissions connues. Il lit lui-même les métadonnées dans le manifeste : on ne les saisit nulle part ailleurs. Il calcule le SHA-256, que `ktrx install` revérifie avant d’écrire quoi que ce soit.
+
+**Règles de version.**
+
+- Une version publiée est immuable. Republier la même version est ignoré (réponse `409`, « already published ») : si tu as corrigé l’outil et oublié d’incrémenter `version`, ta correction n’est pas partie.
+- Le README et l’emblème, eux, sont remplacés à chaque publication, sans changement de version.
+- Une version défectueuse se retire du registre (`DELETE /api/tools/<id>/versions/<v>` avec une clé `delete`) ; elle répond alors « retirée » et n’est plus installable. On publie ensuite un correctif.
+- La catégorie n’est lue qu’à la première publication : pour changer celle d’un outil déjà en ligne, `PATCH /api/tools/<id>` avec `{"category": "…"}` (clé `upload`).
+
+**Intégrité.** Les archives sont protégées par HTTPS et par le SHA-256 publié par le registre. Elles ne sont pas encore signées cryptographiquement : ne présente pas `ktrx install` comme une garantie d’authenticité de l’auteur.
+
+**Le moteur.** Un tag `v*` déclenche `engine-release.yml` : quatre archives (Linux, Windows, macOS Apple Silicon, macOS Intel) sont jointes à la release GitHub et, avec le secret `KTRX_REGISTRY_KEY`, envoyées au registre, d’où le site les propose au téléchargement. Une release de moteur suppose la version incrémentée dans `engine/Cargo.toml`, `engine/Cargo.lock` et le `CHANGELOG.md`.
+
+## 12. Défauts fréquents à éviter
 
 - Une archive ZIP avec `manifest.toml` imbriqué dans un sous-dossier au lieu de la racine.
 - Compiler pour `x86_64`, `aarch64` ou `wasm32-unknown-unknown` plutôt que `wasm32-wasip2`.
@@ -311,5 +411,11 @@ Avant livraison, contrôler :
 - Oublier de fermer les connexions, ignorer les erreurs de socket ou charger une réponse entière sans limite.
 - Mettre à jour la source sans reconstruire l’archive `.tool` correspondante.
 - Oublier les guillemets autour des chemins de dossier contenant espaces et parenthèses.
+- Corriger un outil sans incrémenter `version` : le registre garde l’ancienne archive (409) et les utilisateurs ne reçoivent rien.
+- Croire que `choices` est vérifié par le moteur : c’est de la documentation, l’outil doit refuser lui-même une valeur hors liste.
+- Remettre une image ou un en-tête HTML dans un README, ou un lien relatif (`icon.png`) qui ne marchera pas sur le site.
+- Recopier la liste des options dans le README au lieu de bien remplir les `description` des `[[arguments]]` : les deux divergent vite.
+- Écrire des `examples` qui ne tournent pas tels quels, ou qui pointent vers un chemin local de ta machine.
+- Oublier `category` : l’outil est classé « Analyse » par défaut.
 
 En cas de doute, préserver l’interface publique du moteur et la compatibilité de l’outil ; documenter précisément toute limitation plutôt que de prétendre à une détection garantie.
