@@ -22,6 +22,8 @@ jobs:
             asset: windows
           - os: macos-latest
             asset: macos
+          - os: macos-15-intel
+            asset: macos-intel
     steps:
       - uses: actions/checkout@v4
       - name: Install Perl for Windows OpenSSL build
@@ -34,8 +36,8 @@ jobs:
         if: matrix.asset == 'linux'
         run: tar -C engine/target/release -czf ktrx-linux.tar.gz ktrx
       - name: Package macOS binary
-        if: matrix.asset == 'macos'
-        run: tar -C engine/target/release -czf ktrx-macos.tar.gz ktrx
+        if: matrix.asset == 'macos' || matrix.asset == 'macos-intel'
+        run: tar -C engine/target/release -czf ktrx-${{ matrix.asset }}.tar.gz ktrx
       - name: Package Windows binary
         if: matrix.asset == 'windows'
         shell: pwsh

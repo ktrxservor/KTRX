@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1 — engine
+
+- Release builds now include a macOS Intel (x86_64) binary next to the Apple Silicon one (`ktrx-macos-intel.tar.gz`). No engine change.
+
 ## 0.5.0 — engine
 
 Host API stays `1`: every existing tool runs unmodified.
