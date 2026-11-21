@@ -41,7 +41,28 @@ enum Cmd {
     /// Affiche la clé utilisée et ses droits.
     Whoami,
     /// Vérifie que la machine est prête : Rust, cible wasm32-wasip2, connexion, clé.
-    Doctor,
+    Doctor {
+        /// Installe ce qui peut l'être seul (cible wasm32-wasip2, rustfmt).
+        #[arg(long)]
+        fix: bool,
+    },
+    /// Affiche le guide développeur (le même que celui du dépôt, embarqué dans ce programme).
+    Guide {
+        /// Numéro de section à afficher (ex. 3) ; sans argument, tout le guide. `--list` liste les sections.
+        section: Option<String>,
+        #[arg(long)]
+        list: bool,
+    },
+    /// Crée AGENTS.md et CLAUDE.md dans le dossier courant : les consignes d'un dossier de travail pour une IA.
+    Init,
+    /// Récupère les sources d'un outil publié (sur n'importe quelle machine) pour le modifier.
+    Get {
+        /// Nom (neith), K~NEITH ou id.
+        tool: String,
+        /// Dossier parent (par défaut : le dossier courant).
+        #[arg(long)]
+        dir: Option<PathBuf>,
+    },
     /// Crée un nouvel outil complet qui compile déjà (code, manifeste, tests, README, emblème).
     New {
         /// Nom mythologique, ex. NEITH.
@@ -162,7 +183,10 @@ fn run(cli: Cli) -> Result<()> {
             println!("{} ({}) sur {}", me["label"].as_str().unwrap_or("?"), scopes(&me["scopes"]), api.base);
             Ok(())
         }
-        Cmd::Doctor => doctor(&api, &config),
+        Cmd::Doctor { fix } => doctor(&api, &config, fix),
+        Cmd::Guide { section, list } => guide(section.as_deref(), list),
+        Cmd::Init => init(),
+        Cmd::Get { tool, dir } => get(&api, &tool, dir),
         Cmd::New { myth, readable, category, dir } => {
             let dir = tool::create(&api, tool::NewTool { myth: &myth, readable: &readable, category: &category, dir })?;
             let name = myth.trim_start_matches("K~").to_ascii_lowercase();
@@ -268,7 +292,16 @@ fn login(registry: String) -> Result<()> {
     Ok(())
 }
 
-fn doctor(api: &Api, config: &Config) -> Result<()> {
+fn doctor(api: &Api, config: &Config, fix: bool) -> Result<()> {
+    if fix {
+        for args in [["target", "add", "wasm32-wasip2"], ["component", "add", "rustfmt"]] {
+            let ok = std::process::Command::new("rustup").args(args).status().is_ok_and(|s| s.success());
+            if !ok {
+                println!("  (rustup indisponible : `rustup {}` n'a pas pu être lancé)", args.join(" "));
+            }
+        }
+        println!();
+    }
     let mut problems = 0;
     let mut line = |ok: bool, what: &str, fix: &str| {
         println!("  {} {what}", if ok { "✓" } else { "✗" });
@@ -283,10 +316,9 @@ fn doctor(api: &Api, config: &Config) -> Result<()> {
         .args(["target", "list", "--installed"])
         .output()
         .is_ok_and(|o| String::from_utf8_lossy(&o.stdout).contains("wasm32-wasip2"));
-    line(wasm, "cible wasm32-wasip2", "rustup target add wasm32-wasip2");
+    line(wasm, "cible wasm32-wasip2", "rustup target add wasm32-wasip2   (ou : ktrx-dev doctor --fix)");
     let rustfmt = std::process::Command::new("cargo").args(["fmt", "--version"]).output().is_ok_and(|o| o.status.success());
     line(rustfmt, "rustfmt", "rustup component add rustfmt");
-    line(tool::repo_root().is_some(), "dépôt KTRX (dossier courant)", "cloner le dépôt : git clone https://github.com/ktrxservor/KTRX && cd KTRX");
     let online = api.get_public("/api/engine").is_ok();
     line(online, &format!("registre joignable ({})", api.base), "vérifier la connexion Internet (HTTPS_PROXY derrière un proxy)");
     let logged = config.key.is_some() && api.admin_json("GET", "/whoami", None).is_ok();
@@ -328,6 +360,9 @@ fn publish(api: &Api, spec: &str, changelog: Option<String>, docs_only: bool) ->
     let icon = tool::web_icon(&checked.dir.join("icon.png"))?;
     api.admin_bytes("PUT", &format!("/tools/{}/icon", manifest.id), "image/png", &icon)?;
     println!("  ✓ emblème");
+    let source = tool::source_zip(&checked.dir)?;
+    api.admin_bytes("PUT", &format!("/tools/{}/source?version={}", manifest.id, manifest.version), "application/zip", &source)?;
+    println!("  ✓ sources ({} Ko) : récupérables sur toute machine avec `ktrx-dev get {name}`", source.len() / 1024);
     println!("\nEn ligne : {}", api.site_url(&format!("/outils/{name}")));
     println!("Installation : ktrx install {name}");
     Ok(())
@@ -358,11 +393,16 @@ fn confirm(question: &str) -> Result<bool> {
     Ok(matches!(answer.trim().to_lowercase().as_str(), "o" | "oui" | "y" | "yes"))
 }
 
-const ENGINE_FILES: [(&str, &str); 4] = [
+/// Release archives and the registry platform each one is stored under (ktrx-dev as `dev-<platform>`).
+const ENGINE_FILES: [(&str, &str); 8] = [
     ("ktrx-windows.zip", "windows"),
     ("ktrx-linux.tar.gz", "linux"),
     ("ktrx-linux-arm64.tar.gz", "linux-arm64"),
     ("ktrx-macos.tar.gz", "macos"),
+    ("ktrx-dev-windows.zip", "dev-windows"),
+    ("ktrx-dev-linux.tar.gz", "dev-linux"),
+    ("ktrx-dev-linux-arm64.tar.gz", "dev-linux-arm64"),
+    ("ktrx-dev-macos.tar.gz", "dev-macos"),
 ];
 
 fn engine_publish(api: &Api, version: &str) -> Result<()> {
@@ -390,8 +430,8 @@ fn engine_publish(api: &Api, version: &str) -> Result<()> {
         }
         let path = format!("/engine?version={version}&platform={platform}&filename={file}");
         match api.admin_bytes("POST", &path, "application/octet-stream", &bytes) {
-            Ok(_) => println!("  ✓ {platform:<12} {file} ({:.1} Mo)", bytes.len() as f64 / 1_048_576.0),
-            Err(e) if e.to_string().contains("déjà publié") => println!("  • {platform:<12} déjà publié"),
+            Ok(_) => println!("  ✓ {platform:<16} {file} ({:.1} Mo)", bytes.len() as f64 / 1_048_576.0),
+            Err(e) if e.to_string().contains("déjà publié") => println!("  • {platform:<16} déjà publié"),
             Err(e) => return Err(e),
         }
     }
@@ -430,5 +470,84 @@ fn keys(api: &Api, action: KeysCmd) -> Result<()> {
             println!("Clé {id} révoquée.");
         }
     }
+    Ok(())
+}
+
+/// The developer guide, embedded at build time so it always matches this ktrx-dev.
+const GUIDE: &str = include_str!("../../../../DEVELOPING.md");
+
+fn guide(section: Option<&str>, list: bool) -> Result<()> {
+    // Titles of the guide, ignoring lines inside code blocks (the README template has its own).
+    let mut headings: Vec<(usize, &str)> = Vec::new();
+    let mut fence: Option<usize> = None;
+    for (index, line) in GUIDE.lines().enumerate() {
+        let ticks = line.chars().take_while(|c| *c == '`').count();
+        if ticks >= 3 {
+            match fence {
+                None => fence = Some(ticks),
+                Some(open) if ticks >= open => fence = None,
+                _ => {}
+            }
+        } else if fence.is_none() && line.starts_with("## ") {
+            headings.push((index, line.trim_start_matches("## ")));
+        }
+    }
+    if list {
+        for (_, title) in &headings {
+            println!("{title}");
+        }
+        return Ok(());
+    }
+    let Some(section) = section else {
+        print!("{GUIDE}");
+        return Ok(());
+    };
+    let wanted = section.trim_end_matches('.');
+    let lines: Vec<&str> = GUIDE.lines().collect();
+    let found = headings.iter().position(|(_, t)| t.split('.').next() == Some(wanted));
+    let Some(position) = found else {
+        bail!("section « {section} » introuvable : `ktrx-dev guide --list` donne la liste");
+    };
+    let start = headings[position].0;
+    let end = headings.get(position + 1).map(|(i, _)| *i).unwrap_or(lines.len());
+    println!("{}", lines[start..end].join("\n"));
+    Ok(())
+}
+
+const AGENT_NOTES: &str = "# Dossier de travail KTRX
+
+Ce dossier sert à créer des outils pour KTRX avec `ktrx-dev` (installé, clé enregistrée par `ktrx-dev login`).
+
+- Lis le guide complet : `ktrx-dev guide` (ou une section : `ktrx-dev guide 3`, liste : `ktrx-dev guide --list`).
+- Créer un outil : `ktrx-dev new NOM Nom-Lisible --category <investigation|analysis|encoding|generation>`, remplir les « À COMPLÉTER » et « À REMPLACER », puis `ktrx-dev check NOM` jusqu'à « Tout est bon », puis `ktrx-dev publish NOM`.
+- Modifier un outil existant : `ktrx-dev get NOM` récupère ses sources, puis incrémenter `version` (manifest.toml ET Cargo.toml), `check`, `publish`.
+- Une version publiée ne change jamais. Ne mets jamais de clé d'API dans un fichier. Ne contourne aucun contrôle de `check`.
+- Un outil = un projet Rust indépendant (cible wasm32-wasip2), sans aucun accès implicite : tout accès réseau, fichier ou programme passe par le moteur (guide, section 9).
+";
+
+fn init() -> Result<()> {
+    for name in ["AGENTS.md", "CLAUDE.md"] {
+        let path = std::path::Path::new(name);
+        if path.exists() {
+            println!("  • {name} existe déjà : conservé");
+        } else {
+            std::fs::write(path, AGENT_NOTES)?;
+            println!("  ✓ {name} créé");
+        }
+    }
+    println!("\nLe dossier est prêt. Une IA lancée ici sait par où commencer : `ktrx-dev guide`.");
+    Ok(())
+}
+
+fn get(api: &Api, spec: &str, dir: Option<PathBuf>) -> Result<()> {
+    let key = tool::short_name(spec);
+    let bytes = api.admin_get_bytes(&format!("/tools/{key}/source"))?;
+    let parent = match dir {
+        Some(d) => d,
+        None => std::env::current_dir()?,
+    };
+    let folder = tool::extract_source(&bytes, &parent)?;
+    println!("Sources de {spec} récupérées dans {}", folder.display());
+    println!("Pour publier une modification : incrémenter `version` (manifest.toml ET Cargo.toml), puis `ktrx-dev publish {key}`.");
     Ok(())
 }

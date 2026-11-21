@@ -35,3 +35,5 @@ export const CATEGORIES = new Set(["investigation", "analysis", "encoding", "gen
 
 /** Engine platforms. macos is universal since 0.5.3; macos-intel only exists for 0.5.2. */
 export const PLATFORMS = new Set(["windows", "linux", "linux-arm64", "macos", "macos-intel"]);
+/** ktrx-dev (the team tool) is stored beside the engine, as platform "dev-<platform>". */
+export const DEV_PLATFORMS = new Set(["windows", "linux", "linux-arm64", "macos"].map((p) => `dev-${p}`));

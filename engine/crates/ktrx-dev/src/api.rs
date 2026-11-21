@@ -139,6 +139,15 @@ impl Api {
             .context("réponse de l'API illisible")
     }
 
+    /// Authenticated GET of a binary answer (`None` on 404, with the API's message).
+    pub fn admin_get_bytes(&self, path: &str) -> Result<Vec<u8>> {
+        let response = self.admin("GET", path)?.call().map_err(|e| describe(e, path))?;
+        let mut bytes = Vec::new();
+        use std::io::Read;
+        response.into_reader().take(64 * 1024 * 1024).read_to_end(&mut bytes)?;
+        Ok(bytes)
+    }
+
     pub fn download(&self, url: &str) -> Result<Vec<u8>> {
         let response = self.agent.get(url).call().map_err(|e| describe(e, url))?;
         let mut bytes = Vec::new();

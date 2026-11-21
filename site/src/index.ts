@@ -2,7 +2,7 @@
 import type { Env } from "./types";
 import { error } from "./lib/http";
 import { handleAdmin } from "./admin";
-import { listTools, getTool, downloadTool, getIcon, engineInfo, downloadEngine, findTool, toolToJson } from "./public";
+import { listTools, getTool, downloadTool, getIcon, engineInfo, downloadEngine, downloadDev, findTool, toolToJson } from "./public";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -19,6 +19,8 @@ export default {
       let m = /^\/api\/tools\/([A-Za-z0-9~-]+)$/.exec(path);
       if (m) return await getTool(env, m[1]);
       if (path === "/api/engine") return await engineInfo(env);
+      m = /^\/dl\/dev\/([a-z0-9-]+)$/.exec(path);
+      if (m) return await downloadDev(env, request, m[1]);
       m = /^\/dl\/engine\/([a-z0-9-]+)$/.exec(path);
       if (m) return await downloadEngine(env, request, m[1]);
       m = /^\/dl\/([A-Za-z0-9~-]+)$/.exec(path);
@@ -27,7 +29,7 @@ export default {
       if (m) return await getIcon(env, m[1]);
 
       // Installers: UTF-8 text, so `curl … | sh` and `irm … | iex` (PowerShell 5.1) read them right.
-      if (path === "/install.sh" || path === "/install.ps1") {
+      if (path === "/install.sh" || path === "/install.ps1" || path === "/install-dev.sh" || path === "/install-dev.ps1") {
         const asset = await env.ASSETS.fetch(request);
         if (!asset.ok) return asset;
         return new Response(asset.body, {

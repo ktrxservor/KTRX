@@ -2,7 +2,7 @@
 // Used by ktrx-dev; never linked from the public site.
 import type { Env } from "./types";
 import { authenticate, allows, audit, sha256Text, type AuthContext, type Scope } from "./lib/auth";
-import { json, error, compareVersions, CATEGORIES, PLATFORMS } from "./lib/http";
+import { json, error, compareVersions, CATEGORIES, PLATFORMS, DEV_PLATFORMS } from "./lib/http";
 import { parseToolArchive, usageDoc, sha256Hex, ManifestError } from "./lib/manifest";
 import { toolToJson, type ToolRow } from "./public";
 
@@ -23,6 +23,8 @@ const routes: Route[] = [
   { method: "POST", pattern: /^\/api\/admin\/tools$/, scope: "publish", handler: publishVersion },
   { method: "PUT", pattern: /^\/api\/admin\/tools\/([a-z0-9-]+)\/icon$/, scope: "publish", handler: putIcon },
   { method: "PUT", pattern: /^\/api\/admin\/tools\/([a-z0-9-]+)\/readme$/, scope: "publish", handler: putReadme },
+  { method: "PUT", pattern: /^\/api\/admin\/tools\/([a-z0-9-]+)\/source$/, scope: "publish", handler: putSource },
+  { method: "GET", pattern: /^\/api\/admin\/tools\/([A-Za-z0-9~-]+)\/source$/, scope: "publish", handler: getSource },
   { method: "PATCH", pattern: /^\/api\/admin\/tools\/([a-z0-9-]+)$/, scope: "publish", handler: patchTool },
   { method: "POST", pattern: /^\/api\/admin\/tools\/([a-z0-9-]+)\/versions\/([0-9A-Za-z.+-]+)\/yank$/, scope: "publish", handler: yankVersion },
   { method: "DELETE", pattern: /^\/api\/admin\/tools\/([a-z0-9-]+)$/, scope: "admin", handler: deleteTool },
@@ -127,6 +129,41 @@ async function putIcon(env: Env, request: Request, auth: AuthContext, [id]: stri
   return json({ ok: true });
 }
 
+const MAX_SOURCE = 20 * 1024 * 1024;
+
+/** The tool's source code (a zip), kept for the team: any machine can fetch it with `ktrx-dev get`. */
+async function putSource(env: Env, request: Request, auth: AuthContext, [id]: string[]): Promise<Response> {
+  const tool = await toolExists(env, id);
+  if (!tool) return error("outil introuvable", 404);
+  const bytes = new Uint8Array(await request.arrayBuffer());
+  if (bytes.byteLength > MAX_SOURCE) return error("sources supérieures à 20 Mio", 413);
+  if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) return error("les sources doivent être une archive ZIP", 400);
+  const version = new URL(request.url).searchParams.get("version") ?? tool.latest_version;
+  await env.TOOLS_BUCKET.put(`tools/${id}/source.zip`, bytes, {
+    httpMetadata: { contentType: "application/zip" },
+    customMetadata: { version },
+  });
+  await audit(env, { actor: auth, action: "update_source", toolId: id, version, request });
+  return json({ ok: true, version, size_bytes: bytes.byteLength });
+}
+
+async function getSource(env: Env, _request: Request, _auth: AuthContext, [key]: string[]): Promise<Response> {
+  const myth = `K~${key.replace(/^k~/i, "").toUpperCase()}`;
+  const tool = await env.DB.prepare("SELECT id, myth_name FROM tools WHERE id = ? OR myth_name = ?")
+    .bind(key.toLowerCase(), myth)
+    .first<{ id: string; myth_name: string }>();
+  if (!tool) return error("outil introuvable", 404);
+  const object = await env.TOOLS_BUCKET.get(`tools/${tool.id}/source.zip`);
+  if (!object) return error("aucune source enregistrée pour cet outil (publiée avant 0.6.1, ou depuis le dépôt Git)", 404);
+  return new Response(object.body, {
+    headers: {
+      "content-type": "application/zip",
+      "content-disposition": `attachment; filename="${tool.myth_name}-source.zip"`,
+      "x-ktrx-version": object.customMetadata?.version ?? "",
+    },
+  });
+}
+
 async function putReadme(env: Env, request: Request, auth: AuthContext, [id]: string[]): Promise<Response> {
   if (!(await toolExists(env, id))) return error("outil introuvable", 404);
   const text = await request.text();
@@ -181,6 +218,7 @@ async function deleteTool(env: Env, request: Request, auth: AuthContext, [id]: s
   const { results } = await env.DB.prepare("SELECT r2_key FROM tool_versions WHERE tool_id = ?").bind(id).all<{ r2_key: string }>();
   for (const r of results) await env.TOOLS_BUCKET.delete(r.r2_key);
   if (tool.icon_key) await env.TOOLS_BUCKET.delete(tool.icon_key);
+  await env.TOOLS_BUCKET.delete(`tools/${id}/source.zip`);
   await env.DB.prepare("DELETE FROM tool_versions WHERE tool_id = ?").bind(id).run();
   await env.DB.prepare("DELETE FROM tools WHERE id = ?").bind(id).run();
   await audit(env, { actor: auth, action: "delete_tool", toolId: id, request, detail: tool.myth_name });
@@ -193,7 +231,7 @@ async function publishEngine(env: Env, request: Request, auth: AuthContext): Pro
   const platform = url.searchParams.get("platform") ?? "";
   const filename = url.searchParams.get("filename") ?? "";
   if (!/^\d+\.\d+\.\d+$/.test(version)) return error("version invalide (MAJOR.MINOR.PATCH)", 400);
-  if (!PLATFORMS.has(platform)) return error("plateforme inconnue (windows, linux, linux-arm64, macos)", 400);
+  if (!PLATFORMS.has(platform) && !DEV_PLATFORMS.has(platform)) return error("plateforme inconnue (windows, linux, linux-arm64, macos, dev-<plateforme>)", 400);
   if (!/^[A-Za-z0-9._-]{1,80}$/.test(filename)) return error("nom de fichier invalide", 400);
   const bytes = new Uint8Array(await request.arrayBuffer());
   if (bytes.byteLength === 0 || bytes.byteLength > MAX_ENGINE) return error("archive vide ou supérieure à 90 Mio", 400);

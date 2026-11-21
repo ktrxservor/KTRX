@@ -601,6 +601,63 @@ pub fn split_words(line: &str) -> Result<Vec<String>> {
     Ok(words)
 }
 
+/// The tool's source as a zip (rooted in the tool folder's name): no build output, no archive.
+pub fn source_zip(dir: &Path) -> Result<Vec<u8>> {
+    let root = dir.file_name().and_then(|n| n.to_str()).context("nom de dossier illisible")?.to_owned();
+    let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    let options = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+    let mut stack = vec![dir.to_path_buf()];
+    while let Some(folder) = stack.pop() {
+        let mut entries: Vec<_> = fs::read_dir(&folder)?.flatten().collect();
+        entries.sort_by_key(|e| e.file_name());
+        for entry in entries {
+            let path = entry.path();
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if path.is_dir() {
+                if !matches!(name.as_str(), "target" | ".git" | "node_modules") {
+                    stack.push(path);
+                }
+                continue;
+            }
+            if name == "module.wasm" || name.ends_with(".tool") || name.ends_with(".tool.tmp") {
+                continue;
+            }
+            let relative = path.strip_prefix(dir)?.to_string_lossy().replace('\\', "/");
+            zip.start_file(format!("{root}/{relative}"), options)?;
+            zip.write_all(&fs::read(&path)?)?;
+        }
+    }
+    Ok(zip.finish()?.into_inner())
+}
+
+/// Extracts a source zip into `parent`, refusing paths that would leave it. Returns the tool folder.
+pub fn extract_source(bytes: &[u8], parent: &Path) -> Result<PathBuf> {
+    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes)).context("archive de sources illisible")?;
+    let mut root: Option<PathBuf> = None;
+    for index in 0..archive.len() {
+        let mut file = archive.by_index(index)?;
+        let Some(relative) = file.enclosed_name() else { bail!("chemin dangereux dans l'archive : {}", file.name()) };
+        let first = relative.components().next().context("entrée vide")?.as_os_str().to_owned();
+        match &root {
+            None => root = Some(PathBuf::from(&first)),
+            Some(r) if r.as_os_str() != first => bail!("l'archive contient plusieurs dossiers racine"),
+            _ => {}
+        }
+        if index == 0 && parent.join(&first).exists() {
+            bail!("{} existe déjà : choisir un autre dossier avec --dir", parent.join(&first).display());
+        }
+        let target = parent.join(&relative);
+        if file.is_dir() {
+            fs::create_dir_all(&target)?;
+        } else {
+            fs::create_dir_all(target.parent().unwrap())?;
+            let mut out = fs::File::create(&target)?;
+            std::io::copy(&mut file, &mut out)?;
+        }
+    }
+    Ok(parent.join(root.context("archive vide")?))
+}
+
 /// The emblem as sent to the site: a 320 px PNG.
 pub fn web_icon(path: &Path) -> Result<Vec<u8>> {
     let image = image::open(path).with_context(|| format!("lecture de {}", path.display()))?;

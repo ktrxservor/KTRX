@@ -1,6 +1,6 @@
 // Public, read-only part of the registry: catalogue, downloads, engine releases.
 import type { Env } from "./types";
-import { json, error, compareVersions, safeJsonArray, PLATFORMS } from "./lib/http";
+import { json, error, compareVersions, safeJsonArray, PLATFORMS, DEV_PLATFORMS } from "./lib/http";
 import { parseManifestOnly, usageDoc } from "./lib/manifest";
 
 export interface ToolRow {
@@ -141,7 +141,8 @@ async function engineVersions(env: Env): Promise<string[]> {
 export async function engineInfo(env: Env): Promise<Response> {
   const versions = await engineVersions(env);
   if (versions.length === 0) return json({ version: null, platforms: {}, versions: [] });
-  const { results } = await env.DB.prepare("SELECT * FROM engine_releases WHERE version = ?").bind(versions[0]).all<ReleaseRow>();
+  const { results: rows } = await env.DB.prepare("SELECT * FROM engine_releases WHERE version = ?").bind(versions[0]).all<ReleaseRow>();
+  const results = rows.filter((r) => !r.platform.startsWith("dev-"));
   const platforms: Record<string, unknown> = {};
   for (const r of results) {
     platforms[r.platform] = { filename: r.filename, sha256: r.sha256, size_bytes: r.size_bytes, url: `/dl/engine/${r.platform}` };
@@ -153,8 +154,14 @@ export async function engineInfo(env: Env): Promise<Response> {
   );
 }
 
+/** The team tool, stored as engine_releases rows named dev-<platform>. Not linked from the site. */
+export async function downloadDev(env: Env, request: Request, platform: string): Promise<Response> {
+  if (!DEV_PLATFORMS.has(`dev-${platform}`)) return error("plateforme inconnue (windows, linux, linux-arm64, macos)", 404);
+  return downloadEngine(env, request, `dev-${platform}`);
+}
+
 export async function downloadEngine(env: Env, request: Request, platform: string): Promise<Response> {
-  if (!PLATFORMS.has(platform)) return error("plateforme inconnue (windows, linux, linux-arm64, macos)", 404);
+  if (!PLATFORMS.has(platform) && !DEV_PLATFORMS.has(platform)) return error("plateforme inconnue (windows, linux, linux-arm64, macos)", 404);
   // Without ?version only the latest release counts: a platform it no longer ships must not
   // silently fall back to an older release.
   const version = new URL(request.url).searchParams.get("version") ?? (await engineVersions(env))[0];
@@ -164,7 +171,7 @@ export async function downloadEngine(env: Env, request: Request, platform: strin
   if (!row) return error("aucune version disponible pour cette plateforme", 404);
   const object = await env.TOOLS_BUCKET.get(row.r2_key);
   if (!object) return error("fichier manquant", 500);
-  await logDownload(env, request, `engine-${platform}`, row.version);
+  await logDownload(env, request, platform.startsWith("dev-") ? platform : `engine-${platform}`, row.version);
   const headers = new Headers();
   object.writeHttpMetadata(headers);
   headers.set("content-disposition", `attachment; filename="${row.filename}"`);

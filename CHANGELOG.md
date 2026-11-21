@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.1
+
+**Plus aucune dépendance à GitHub pour travailler sur les outils.**
+
+- **`ktrx-dev` s'installe depuis le site** : `/install-dev.sh` et `/install-dev.ps1`, binaires servis par `/dl/dev/<plateforme>` (publiés par `ktrx-dev engine publish`, qui envoie désormais le moteur et `ktrx-dev`).
+- **`ktrx-dev guide [SECTION] [--list]`** : le guide développeur est embarqué dans le programme. Plus besoin de cloner le dépôt pour le lire.
+- **Sources sur le registre** : `ktrx-dev publish` envoie aussi le zip des sources de l'outil ; `ktrx-dev get OUTIL` les récupère sur n'importe quelle machine. API : `PUT` et `GET /api/admin/tools/<id>/source` (clé d'équipe).
+- `ktrx-dev init` (AGENTS.md et CLAUDE.md pour une IA lancée dans un dossier), `ktrx-dev doctor --fix` (installe la cible WebAssembly et rustfmt) ; `doctor` ne demande plus de dépôt.
+- Les scripts `scripts/install-dev.*` du dépôt sont supprimés (remplacés par ceux du site).
+
 ## 0.6.0
 
 **Le moteur public n'exécute plus que des outils ; l'équipe publie avec `ktrx-dev`.** Cassant : les commandes `pack`, `validate`, `describe` et `capabilities` ne sont plus dans `ktrx` (elles sont dans `ktrx-dev`).

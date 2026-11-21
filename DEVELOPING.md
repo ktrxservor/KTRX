@@ -9,81 +9,76 @@ Le seul document pour travailler sur KTRX : créer et publier des outils, publie
 | | Qui | Ce que c'est |
 |---|---|---|
 | **Moteur `ktrx`** | Tout le monde | Installe, met à jour et **exécute** des outils (`install`, `update`, `uninstall`, `list`, `search`, `run`, `info`). Il ne sert pas à en créer. |
-| **Site et registre** | Tout le monde, en lecture | Catalogue public des outils, téléchargement du moteur, documentation utilisateur. Stocke les outils et les binaires. |
-| **`ktrx-dev`** | L'équipe | Crée, vérifie et publie des outils, publie le moteur, gère les clés. Parle à l'API d'administration avec une clé personnelle. |
-| **GitHub** | Personne n'y va pour publier | Contient le code. Un seul workflow, `release.yml`, compile le moteur et `ktrx-dev` pour toutes les plateformes. Il n'est pas relié au site. |
+| **Site et registre** | Tout le monde, en lecture | Catalogue public des outils, téléchargement du moteur, documentation utilisateur. Il **stocke tout** : outils, sources, binaires. |
+| **`ktrx-dev`** | L'équipe | Crée, vérifie et publie des outils, récupère leurs sources, publie le moteur, gère les clés. Parle à l'API d'administration avec une clé personnelle. Contient ce guide. |
+| **GitHub** | Personne, au quotidien | Sert uniquement à **compiler** le moteur et `ktrx-dev` pour toutes les plateformes (`release.yml`, sur un tag). Aucun outil, aucune publication, aucun parcours d'équipe n'en dépend. |
 
 Ce qui est réservé à l'équipe :
 
 - **L'API d'écriture** (`/api/admin/…`) refuse toute requête sans clé valide. Elle n'est liée nulle part sur le site. Chaque membre a sa propre clé, révocable, et chaque action est enregistrée dans un journal.
-- **`ktrx-dev`** n'est pas distribué sur le site. Il se télécharge depuis les releases GitHub (§2).
+- **`ktrx-dev`** n'est pas lié sur le site public (son installateur existe, mais il ne sert à rien sans clé).
 - **Le moteur public** n'embarque aucune commande de création : `pack`, `validate`, `describe` et `capabilities` n'existent que dans `ktrx-dev`.
 
-Le dépôt est public : ce n'est pas un problème, car la publication est protégée par les clés, pas par le secret du code.
+**Tout passe par le registre, rien par Git.** Un outil se crée, se vérifie et se publie depuis n'importe quelle machine, dans n'importe quel dossier. Ses sources sont conservées sur le registre à chaque publication : sur une autre machine, `ktrx-dev get` les récupère pour continuer. Les 20 premiers outils (d'avant 0.6.1) vivent encore dans le dépôt Git ; ils n'ont pas de sources sur le registre tant qu'ils ne sont pas republiés.
 
 ## 2. Démarrage rapide
 
-**Installer `ktrx-dev`** (déjà compilé, sans droits administrateur) :
+Sur une machine vierge, trois choses à installer, une seule fois :
+
+1. **Rust** (les outils sont écrits en Rust) : <https://rustup.rs> (Windows : `winget install Rustlang.Rustup`, puis les « Visual Studio Build Tools » que rustup propose). Puis `rustup target add wasm32-wasip2`.
+2. **`ktrx-dev`**, déjà compilé, sans droits administrateur, depuis le site :
 
 ```sh
 # macOS, Linux
-curl -fsSL https://raw.githubusercontent.com/ktrxservor/KTRX/main/scripts/install-dev.sh | sh
+curl -fsSL https://ktrx-site.tiagoantunes2009.workers.dev/install-dev.sh | sh
 ```
 ```powershell
 # Windows (PowerShell)
-irm https://raw.githubusercontent.com/ktrxservor/KTRX/main/scripts/install-dev.ps1 | iex
+irm https://ktrx-site.tiagoantunes2009.workers.dev/install-dev.ps1 | iex
 ```
 
-Le script télécharge la dernière release, vérifie son empreinte avec `SHA256SUMS.txt` et installe `ktrx-dev` dans `~/.ktrx/bin`. Relancer la commande met à jour.
+3. **Sa clé d'API** : un administrateur la crée avec `ktrx-dev keys create "Alice"` (une clé par personne ou par machine, affichée une seule fois). Dans un terminal : `ktrx-dev login` (saisie masquée, stockée dans `~/.config/ktrx/dev.toml`, `%APPDATA%\ktrx\dev.toml` sous Windows).
 
-**Préparer la machine.** Les outils sont écrits en Rust : il faut Rust et la cible WebAssembly, et le dépôt cloné.
+Puis `ktrx-dev doctor` vérifie tout et dit quoi faire ; `ktrx-dev doctor --fix` installe seul la cible WebAssembly et rustfmt.
 
-```sh
-rustup target add wasm32-wasip2        # Rust : https://rustup.rs (Windows : winget install Rustlang.Rustup)
-git clone https://github.com/ktrxservor/KTRX && cd KTRX
-ktrx-dev login                         # colle ta clé d'API (demandée de façon masquée)
-ktrx-dev doctor                        # vérifie tout, et dit quoi faire s'il manque quelque chose
-```
-
-**Créer et publier un outil :**
+**Créer et publier un outil**, dans n'importe quel dossier :
 
 ```sh
+ktrx-dev init                          # facultatif : AGENTS.md et CLAUDE.md pour une IA lancée dans ce dossier
 ktrx-dev new neith JSON-Inspector --category analysis
-# → tools/NEITH ( JSON-Inspector )/ : code, manifeste, tests, README modèle, emblème par défaut. Il compile déjà.
+# → "NEITH ( JSON-Inspector )/" : code, manifeste, tests, README modèle, emblème par défaut. Il compile déjà.
 #   Remplir : src/lib.rs, manifest.toml, README.md (chaque « À COMPLÉTER » / « À REMPLACER »), et icon.png si tu l'as.
 ktrx-dev check neith                   # tests, compilation, archive, exemples exécutés, règles de documentation
-ktrx-dev publish neith                 # refait check, puis publie l'archive, le README et l'emblème
+ktrx-dev publish neith                 # refait check, puis publie archive, README, emblème et sources
 ```
 
 `publish` affiche l'adresse de la page de l'outil et la commande d'installation. L'outil est visible tout de suite sur le site et installable avec `ktrx install neith`.
 
-**Obtenir une clé.** Un administrateur la crée avec `ktrx-dev keys create "Alice"`, une clé par personne ou par machine. Elle n'est affichée qu'une fois ; la personne la colle dans `ktrx-dev login`. Elle est stockée dans `~/.config/ktrx/dev.toml` (`%APPDATA%\ktrx\dev.toml` sous Windows), lisible par son seul propriétaire.
+**Continuer sur une autre machine :** `ktrx-dev get neith` récupère les sources publiées, dans le dossier courant. On modifie, on incrémente `version` (`manifest.toml` ET `Cargo.toml`), puis `ktrx-dev check neith` et `ktrx-dev publish neith`.
+
+**Lire le guide sans rien d'autre :** `ktrx-dev guide` l'affiche en entier (il est embarqué dans le programme, donc toujours celui de la version installée), `ktrx-dev guide --list` liste les sections, `ktrx-dev guide 9` affiche la section 9.
 
 ## 3. Instructions pour une IA
 
-À copier-coller à une IA (Claude ou autre) qui travaille dans le dépôt. Le but : un outil complet, sans erreur, en ligne en quelques minutes.
+Le parcours d'une IA dans un dossier vide : elle installe `ktrx-dev`, lit le guide avec `ktrx-dev guide`, puis crée l'outil. Prompt à coller dans une session Claude Code (ou autre) ouverte dans un dossier vide, **après** que tu as lancé toi-même `ktrx-dev login` dans ton terminal (la clé ne doit pas passer par la conversation) :
 
 ````text
-Tu crées un outil pour KTRX, dans le dépôt courant. Lis d'abord DEVELOPING.md (sections 4 à 12 : règles d'un outil).
+Tu vas créer un outil pour KTRX. Rien n'est installé hors Rust.
+1. Installe ktrx-dev si `ktrx-dev --version` échoue :
+   macOS/Linux : curl -fsSL https://ktrx-site.tiagoantunes2009.workers.dev/install-dev.sh | sh      Windows (PowerShell) : irm https://ktrx-site.tiagoantunes2009.workers.dev/install-dev.ps1 | iex
+   (ouvre un nouveau terminal, ou ajoute ~/.ktrx/bin au PATH, si la commande est introuvable)
+2. Lance `ktrx-dev doctor --fix`, puis corrige ce qu'il signale encore. Une clé d'API valide est déjà enregistrée : ne la demande pas, ne l'affiche pas.
+3. Lis le guide : `ktrx-dev guide` (au minimum les sections 3 à 12 : `ktrx-dev guide 3`, `ktrx-dev guide 7`, `ktrx-dev guide 12`…).
+4. `ktrx-dev init`, puis crée l'outil : <décris ici ce qu'il doit faire>.
+   `ktrx-dev new <NOM> <Nom-Lisible> --category <investigation|analysis|encoding|generation>` (NOM = nom mythologique en majuscules A-Z, unique ; la commande refuse un nom pris).
+5. Dans le dossier créé, remplace TOUS les « À COMPLÉTER » et « À REMPLACER » :
+   - src/lib.rs : la logique dans `execute`, avec des tests unitaires déterministes (sans Internet). Erreur d'entrée = `Err(message)`, jamais de panic ni d'unwrap sur une entrée.
+   - manifest.toml : `description` (1 à 2 phrases), `[[arguments]]` (chacun bien décrit), `examples` sous la forme `ktrx run <nom> …`, et SEULEMENT les `permissions` nécessaires. Jamais de liste d'hôtes dans le manifeste. Tout accès réseau, fichier ou programme passe par `ktrx::tool::host::request` (guide, section 9) ; l'outil n'a aucun accès implicite.
+   - README.md : le modèle de la section 12, sans image ni HTML.
+6. `ktrx-dev check <nom>` : corrige tout jusqu'à « Tout est bon ». Ne contourne aucun contrôle.
+7. Seulement alors : `ktrx-dev publish <nom>`. Donne-moi l'adresse de la page affichée à la fin.
 
-Étapes :
-1. Lance `ktrx-dev doctor`. S'il signale un problème, applique la correction indiquée.
-2. `ktrx-dev new <NOM> <Nom-Lisible> --category <investigation|analysis|encoding|generation>`.
-   NOM = nom mythologique en majuscules A-Z, unique (ex. NEITH). La commande refuse un nom déjà pris.
-3. Dans `tools/<NOM> ( <Nom-Lisible> )/`, remplace TOUS les « À COMPLÉTER » et « À REMPLACER » :
-   - src/lib.rs : la logique, dans `execute`, avec des tests unitaires déterministes (pas d'accès Internet).
-     Erreurs utilisateur = `Err(message)` (renvoyé en JSON `{"error": …}`), jamais de panic ni d'unwrap sur une entrée.
-   - manifest.toml : `description` (1 à 2 phrases), `[[arguments]]` (chacun avec une vraie description), `examples`
-     sous la forme `ktrx run <nom> …`, et SEULEMENT les `permissions` nécessaires (network, file-read, file-write, raw-net, process).
-     N'ajoute jamais de liste d'hôtes dans le manifeste. L'accès réseau, fichiers ou programmes passe uniquement par
-     `ktrx::tool::host::request` (DEVELOPING.md §9) ; l'outil n'a aucun accès implicite.
-   - README.md : suis le modèle (DEVELOPING.md §12), sans image ni HTML ; sections Présentation, Utilisation, Sortie, Limites, Permissions.
-4. Lance `ktrx-dev check <nom>` et corrige tout ce qu'il signale, jusqu'à « Tout est bon ». Ne contourne aucun contrôle.
-5. Seulement alors : `ktrx-dev publish <nom>`. Donne-moi l'adresse de la page affichée à la fin.
-
-Règles : un outil = une fonction. Une modification d'un outil déjà publié exige d'incrémenter `version` dans manifest.toml ET Cargo.toml
-(une version publiée ne change jamais). Ne publie rien d'autre que cet outil. Ne modifie pas le moteur (engine/) pour un outil.
-Ne mets jamais de clé d'API dans un fichier ou un commit.
+Règles : un outil = une fonction. Une version publiée ne change jamais : pour modifier un outil, `ktrx-dev get <nom>`, incrémente `version` (manifest.toml ET Cargo.toml), puis check et publish. N'ajoute jamais de clé d'API dans un fichier. N'utilise ni Git ni GitHub.
 ````
 
 `ktrx-dev check` est le garde-fou : s'il est vert, l'outil respecte les règles, compile, s'installe et ses exemples tournent.
@@ -446,31 +441,34 @@ Commandes de test et de compilation de cet outil (§13).
 
 Règles :
 
-- **Aucune image, aucun HTML d’en-tête** dans les README (ni sur GitHub, ni sur le site). Un lien ou une image relatif (`icon.png`, `../autre/README.md`) ne fonctionne pas sur le site : utilise une URL absolue, ou rien.
+- **Aucune image, aucun HTML d’en-tête** dans les README (ni dans les sources, ni sur le site). Un lien ou une image relatif (`icon.png`, `../autre/README.md`) ne fonctionne pas sur le site : utilise une URL absolue, ou rien.
 - Un titre `#` unique, au tout début ; les sections en `##`. Le site s’appuie sur cet ordre : titre, citation mythologique, puis le corps.
-- Les exemples de commande utilisent le nom installé (`ktrx run neith …`), pas le chemin du dépôt.
+- Les exemples de commande utilisent le nom installé (`ktrx run neith …`), pas un chemin de dossier.
 - Même langue dans tout l’outil (README, descriptions des arguments, messages d’erreur) ; le français est la langue par défaut du projet.
 - Documente la sortie JSON avec un extrait réaliste et la signification des champs, pas seulement la liste de leurs noms.
 - Si l’outil est sensible (génération de contenu offensif, brute force, scan), dis clairement le cadre d’usage légitime : tests autorisés, périmètre, limites intégrées.
-- Mets à jour le README en même temps que le comportement : il est republié à chaque push sur `main`, même sans changement de version.
+- Mets à jour le README en même temps que le comportement : il est republié à chaque `ktrx-dev publish` (ou `publish --docs`), même sans changement de version.
 
 ---
 
 ## 13. `ktrx-dev`
 
-L'outil de l'équipe. Un seul exécutable, déjà compilé dans chaque release GitHub (`ktrx-dev-windows.zip`, `ktrx-dev-linux.tar.gz`, `ktrx-dev-linux-arm64.tar.gz`, `ktrx-dev-macos.tar.gz`), installé par `scripts/install-dev.sh` ou `.ps1` (§2).
+L'outil de l'équipe. Un seul exécutable, déjà compilé, installé depuis le site par `/install-dev.sh` ou `/install-dev.ps1` (§2). Il est stocké sur le registre à côté du moteur (`/dl/dev/<plateforme>`), publié par `ktrx-dev engine publish` (§16).
 
 | Commande | Rôle |
 |---|---|
 | `login [--registry URL]` | Enregistre la clé d'API sur la machine après l'avoir testée. |
 | `logout`, `whoami` | Supprime la clé locale ; affiche la clé utilisée et ses droits. |
-| `doctor` | Vérifie Rust, la cible `wasm32-wasip2`, rustfmt, le dépôt, le registre et la clé, et indique la correction de chaque problème. |
+| `doctor [--fix]` | Vérifie Rust, la cible `wasm32-wasip2`, rustfmt, le registre et la clé, et indique la correction de chaque problème ; `--fix` installe seul la cible et rustfmt. |
+| `guide [SECTION] [--list]` | Affiche ce guide (embarqué dans le programme). |
+| `init` | Crée `AGENTS.md` et `CLAUDE.md` dans le dossier courant : consignes pour une IA lancée là. |
+| `get OUTIL [--dir D]` | Récupère les sources publiées d'un outil, sur n'importe quelle machine. |
 | `new NOM Nom-Lisible [--category C] [--dir D]` | Crée un outil complet qui compile (§2). Pour une IA : §3. Refuse un nom ou un id déjà pris, localement ou sur le registre. |
 | `check OUTIL [--offline]` | Contrôle complet, voir ci-dessous. |
-| `publish OUTIL [--changelog "…"] [--docs]` | Refait `check`, puis publie archive, README et emblème. `--docs` met seulement à jour le README et l'emblème d'une version déjà en ligne. |
+| `publish OUTIL [--changelog "…"] [--docs]` | Refait `check`, puis publie archive, README, emblème **et sources** (zip du dossier sans `target/` ni archive). `--docs` met seulement à jour README, emblème et sources d'une version déjà en ligne. |
 | `yank OUTIL VERSION` | Retire une version : elle n'est plus installable, et la précédente redevient la dernière. |
 | `delete OUTIL [--yes]` | Supprime un outil et toutes ses versions (clé admin). |
-| `engine publish X.Y.Z` | Met sur le site les binaires d'une release GitHub du moteur (clé admin, §16). |
+| `engine publish X.Y.Z` | Met sur le site les binaires d'une release GitHub : le moteur et `ktrx-dev` (clé admin, §16). |
 | `keys list`, `keys create "Nom" [--admin]`, `keys revoke ID` | Gère les clés de l'équipe (clé admin). |
 | `audit [--limit N]` | Dernières actions sur le registre (clé admin). |
 | `pack`, `validate`, `describe`, `capabilities` | Outils de bas niveau : empaqueter, valider, décrire une archive, lister les opérations hôte. |
@@ -511,6 +509,7 @@ L'adresse par défaut est celle du site. Réponses en JSON ; les erreurs ont la 
 | `GET /api/engine` | Dernière version du moteur et ses archives par plateforme (`filename`, `sha256`, `size_bytes`, `url`). |
 | `GET /dl/engine/<windows\|linux\|linux-arm64\|macos>[?version=X]` | L'archive du moteur ; en-tête `x-ktrx-sha256`. |
 | `GET /install.sh`, `/install.ps1` | Les installateurs du moteur (texte UTF-8). |
+| `GET /install-dev.sh`, `/install-dev.ps1`, `/dl/dev/<plateforme>` | L'installateur et les binaires de `ktrx-dev` (non liés sur le site ; inutiles sans clé). |
 
 Toute autre méthode que `GET` hors de `/api/admin/` répond `405`. Les téléchargements sont comptés (outil, version, pays, user-agent), sans adresse IP.
 
@@ -524,16 +523,18 @@ Toutes les routes exigent `Authorization: Bearer <clé>`. Sans clé valide : `40
 | `POST /api/admin/tools[?changelog=…]` | publish | Corps : l'archive `.tool` brute. Crée l'outil ou ajoute une version. `201` / `200`, `409` si version, id ou nom pris, `400` si l'archive est invalide. |
 | `PUT /api/admin/tools/<id>/readme` | publish | Corps : le Markdown (≤ 512 Kio). |
 | `PUT /api/admin/tools/<id>/icon` | publish | Corps : un PNG (≤ 10 Mio). |
+| `PUT /api/admin/tools/<id>/source[?version=X]` | publish | Corps : le zip des sources (≤ 20 Mio). Gardé pour l'équipe seulement. |
+| `GET /api/admin/tools/<id\|nom>/source` | publish | Le zip des sources (en-tête `x-ktrx-version`) ; `404` pour un outil publié sans sources. |
 | `PATCH /api/admin/tools/<id>` | publish | JSON : `category`, `deprecated`. |
 | `POST /api/admin/tools/<id>/versions/<v>/yank` | publish | Retire une version. |
 | `DELETE /api/admin/tools/<id>` | admin | Supprime l'outil, ses versions et ses fichiers. |
-| `POST /api/admin/engine?version=X.Y.Z&platform=P&filename=F` | admin | Corps : l'archive du moteur (≤ 90 Mio). `409` si déjà publiée. |
+| `POST /api/admin/engine?version=X.Y.Z&platform=P&filename=F` | admin | Corps : l'archive du moteur ou de `ktrx-dev` (≤ 90 Mio) ; `platform` : `windows`, `linux`, `linux-arm64`, `macos`, ou `dev-<plateforme>` pour `ktrx-dev`. `409` si déjà publiée. |
 | `GET`, `POST`, `DELETE /api/admin/keys[/<id>]` | admin | Liste, crée (`{label, scope}`), révoque. |
 | `GET /api/admin/audit?limit=N` | admin | Journal des actions. |
 
 **Clés.** Un identifiant, un libellé, un droit : `publish` (publier, mettre à jour la documentation, retirer une version) ou `admin` (tout, dont supprimer, publier le moteur et gérer les clés). Le registre ne conserve que l'empreinte SHA-256 de la clé : une clé perdue ne se récupère pas, on en crée une autre et on révoque l'ancienne. Chaque écriture est inscrite au journal avec la clé utilisée et l'adresse IP. Première clé administrateur : `node site/scripts/create-api-key.mjs "Nom" admin`, puis exécuter le SQL affiché avec `wrangler d1 execute ktrx-catalog --remote --command "…"`.
 
-**Hébergement.** Un Worker Cloudflare (`site/`) : API et site statique. Les fichiers sont dans un bucket R2 (`ktrx-tools` : `tools/<id>/<version>/K~NOM.tool`, `icons/<id>.png`, `engine/<version>/<fichier>`), le catalogue dans une base D1 (`ktrx-catalog` : `tools`, `tool_versions`, `engine_releases`, `categories`, `download_events`, `api_keys`, `audit_log`). Déploiement du site : `cd site && npm install && npx wrangler deploy` (nécessite Node et `wrangler login` sur le compte Cloudflare du registre).
+**Hébergement.** Un Worker Cloudflare (`site/`) : API et site statique. Les fichiers sont dans un bucket R2 (`ktrx-tools` : `tools/<id>/<version>/K~NOM.tool`, `tools/<id>/source.zip`, `icons/<id>.png`, `engine/<version>/<fichier>`), le catalogue dans une base D1 (`ktrx-catalog` : `tools`, `tool_versions`, `engine_releases`, `categories`, `download_events`, `api_keys`, `audit_log`). Déploiement du site : `cd site && npm install && npx wrangler deploy` (nécessite Node et `wrangler login` sur le compte Cloudflare du registre).
 
 **Limites connues.** Pas de limitation de débit configurée. Archives non signées (§14). Les binaires du moteur ne sont pas signés Apple/Microsoft : l'installation en une ligne n'est pas concernée, un fichier téléchargé avec un navigateur peut être bloqué par Gatekeeper ou SmartScreen.
 
@@ -581,7 +582,7 @@ Les chemins propres à Unix (ICMP brut, sondes SYN, `/proc/net/arp`) se testent 
 1. Incrémenter `version` dans `engine/Cargo.toml`, relancer `cargo update --workspace` (met `Cargo.lock` à jour), ajouter l'entrée du `CHANGELOG.md`.
 2. Commit, puis `git tag -a vX.Y.Z -m "KTRX X.Y.Z" && git push origin vX.Y.Z`.
 3. Le workflow **Release** lance les tests, compile `ktrx` et `ktrx-dev` pour Windows x64, Linux x86_64 et ARM64 (statiques, musl), macOS (binaire universel Apple Silicon + Intel signé ad hoc), vérifie que chaque binaire ne dépend de rien d'installé (statique, ou seulement des bibliothèques du système, ou aucun runtime Visual C++) et qu'il démarre, puis crée la release GitHub avec les archives et `SHA256SUMS.txt`. Le lancer à la main depuis l'onglet Actions construit et vérifie sans publier.
-4. Mettre la release sur le site : `ktrx-dev engine publish X.Y.Z`. Il télécharge les archives de la release, vérifie leurs empreintes avec `SHA256SUMS.txt` et les envoie au registre. Le site propose alors la nouvelle version et les installateurs la servent.
+4. Mettre la release sur le site : `ktrx-dev engine publish X.Y.Z`. Il télécharge les archives de la release (moteur **et** `ktrx-dev`), vérifie leurs empreintes avec `SHA256SUMS.txt` et les envoie au registre. Le site propose alors la nouvelle version du moteur, et les installateurs (`/install.sh`, `/install-dev.sh`…) servent les nouveaux binaires. C'est la seule étape qui touche à GitHub : elle lit une release publique, sans identifiant.
 
 Les binaires sont autonomes : OpenSSL intégré, Linux 100 % statique, runtime C statique sous Windows, bibliothèques système seulement sous macOS. La confiance TLS utilise les certificats de la machine ; les racines de Mozilla, embarquées, servent de repli sur Unix sans certificats, et sont toujours ajoutées sous Windows (un Windows neuf n'a qu'une partie des racines publiques). `KTRX_EMBEDDED_CA=1` force les racines embarquées (test).
 

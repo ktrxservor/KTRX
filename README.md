@@ -38,13 +38,12 @@ Un outil qui demande le réseau, des fichiers ou des programmes n'obtient rien s
 | `tools/` | Les outils, chacun un projet Rust indépendant (`tools/MYTHE ( Nom )/`), et le SDK `ktrx-net-sdk` |
 | `site/` | Le site et l'API du registre (Cloudflare Worker) |
 | `proxy-app/` | Proxy d'interception HTTP/HTTPS, programme séparé |
-| `scripts/` | Installateurs de `ktrx-dev` |
 
-Le site héberge les outils et les binaires ; GitHub sert uniquement à compiler le moteur pour chaque plateforme (workflow `release.yml`, déclenché par un tag `v*`). Les deux ne sont pas reliés : l'équipe publie les outils et les versions du moteur sur le site avec `ktrx-dev`.
+Le site héberge les outils, leurs sources et les binaires ; GitHub sert uniquement à compiler le moteur et `ktrx-dev` pour chaque plateforme (workflow `release.yml`, déclenché par un tag `v*`). Les deux ne sont pas reliés : l'équipe publie les outils et les versions du moteur sur le site avec `ktrx-dev`.
 
 ## Contribuer (équipe)
 
-Tout se trouve dans **[DEVELOPING.md](DEVELOPING.md)** : installer `ktrx-dev`, créer et publier un outil en quelques commandes, instructions à donner à une IA, API du registre, architecture du moteur, publication d'une version. Seule l'équipe peut publier dans le catalogue (clé d'API personnelle).
+Tout se trouve dans **[DEVELOPING.md](DEVELOPING.md)**, aussi lisible sans le dépôt avec `ktrx-dev guide` : installer `ktrx-dev` depuis le site, créer et publier un outil en quelques commandes, instructions à donner à une IA, API du registre, architecture du moteur, publication d'une version. Aucun besoin de Git pour créer un outil : tout passe par le registre. Seule l'équipe peut publier (clé d'API personnelle).
 
 ```sh
 cargo build --manifest-path engine/Cargo.toml --release -p ktrx-cli -p ktrx-dev
