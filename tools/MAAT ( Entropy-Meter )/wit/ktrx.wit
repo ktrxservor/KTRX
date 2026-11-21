@@ -1,0 +1,16 @@
+package ktrx:tool@1.0.0;
+
+interface tool {
+    /// Runs one invocation. Input and output use JSON text so the engine API stays forward-compatible.
+    run: func(input: string) -> string;
+}
+
+interface host {
+    /// Performs an explicitly permissioned operation through the KTRX host.
+    request: func(operation: string, input: string) -> result<string, string>;
+}
+
+world ktrx-tool {
+    import host;
+    export tool;
+}

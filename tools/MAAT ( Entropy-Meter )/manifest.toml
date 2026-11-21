@@ -1,0 +1,30 @@
+id = "entropy-meter"
+name = "K~MAAT"
+version = "1.0.0"
+description = "Mesure l'entropie de Shannon d'un texte et décrit ses familles de caractères, pour repérer un secret ou un mot de passe peu aléatoire."
+author = "KTRX"
+api_version = "1"
+category = "analysis"
+tags = ["entropy", "password", "secret", "audit"]
+license = "MIT"
+permissions = []
+examples = [
+  "ktrx run maat \"correct horse battery staple\"",
+  "ktrx run maat \"Tr0ub4dor&3\"",
+  "ktrx run maat \"é€ü\" --bytes",
+]
+
+[[arguments]]
+name = "text"
+description = "Texte à mesurer (1 Mio maximum). Il n'est ni enregistré ni transmis : l'outil n'a aucun accès réseau ni fichier."
+value_type = "string"
+required = true
+positional = true
+
+[[arguments]]
+name = "bytes"
+description = "Mesure les octets UTF-8 du texte au lieu des caractères Unicode."
+value_type = "boolean"
+required = false
+positional = false
+default = false
