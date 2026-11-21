@@ -75,21 +75,32 @@ jobs:
       matrix:
         shell: [powershell, pwsh]       # Windows PowerShell 5.1 (as on a new PC) and PowerShell 7
     steps:
-      - name: Install with the one-liner
-        shell: ${{ matrix.shell }}
+      - name: Write the test scripts
+        shell: pwsh
         run: |
+          @'
+          $ErrorActionPreference = 'Stop'
           $env:USERPROFILE = Join-Path $env:RUNNER_TEMP 'profile'
           New-Item -ItemType Directory -Force $env:USERPROFILE | Out-Null
           irm "$env:SITE/install.ps1" | iex
           if (-not (Test-Path "$env:USERPROFILE\.ktrx\bin\ktrx.exe")) { throw 'ktrx.exe not installed' }
           $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
           if ($userPath -notlike "*$env:USERPROFILE\.ktrx\bin*") { throw 'user PATH not updated' }
-      - name: A new process finds ktrx and runs a tool
-        shell: ${{ matrix.shell }}
-        run: |
+          '@ | Set-Content -Encoding UTF8 "$env:RUNNER_TEMP\install.ps1"
+          @'
+          $ErrorActionPreference = 'Stop'
+          # A new process: PATH comes from the registry, as in a new terminal.
           $env:Path = [Environment]::GetEnvironmentVariable('Path', 'User') + ';' + [Environment]::GetEnvironmentVariable('Path', 'Machine')
           ktrx --version
           if ($LASTEXITCODE -ne 0) { throw 'ktrx --version failed' }
           ktrx install argus
+          if ($LASTEXITCODE -ne 0) { throw 'ktrx install failed' }
           $out = ktrx run -y argus https://example.com | Out-String
           if ($out -notmatch '"verified": true') { Write-Host $out; throw 'TLS verification failed' }
+          '@ | Set-Content -Encoding UTF8 "$env:RUNNER_TEMP\check.ps1"
+      - name: Install with the one-liner
+        shell: pwsh
+        run: '& ${{ matrix.shell }} -NoProfile -ExecutionPolicy Bypass -File "$env:RUNNER_TEMP\install.ps1"; if ($LASTEXITCODE) { exit $LASTEXITCODE }'
+      - name: A new process finds ktrx and runs a tool
+        shell: pwsh
+        run: '& ${{ matrix.shell }} -NoProfile -ExecutionPolicy Bypass -File "$env:RUNNER_TEMP\check.ps1"; if ($LASTEXITCODE) { exit $LASTEXITCODE }'
