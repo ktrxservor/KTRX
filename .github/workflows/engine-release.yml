@@ -1,11 +1,14 @@
 name: Engine Release
 
 # The released binaries are self-contained: nothing has to be installed to run them.
-#   Linux    static musl binary (no glibc, no OpenSSL)
-#   Windows  static C runtime (.cargo/config.toml), OpenSSL built in
-#   macOS    OpenSSL built in; only system libraries and frameworks are linked
-# On every platform TLS verification uses the machine's CA certificates, and falls back to
-# Mozilla's roots embedded in the binary when the machine has none.
+#   Linux    static musl binaries, x86_64 and arm64 (no glibc, no OpenSSL)
+#   Windows  x64, static C runtime (.cargo/config.toml), OpenSSL built in; also runs on
+#            Windows 11 on ARM through its x64 emulation
+#   macOS    one universal binary (Apple Silicon + Intel, macOS 10.15+), OpenSSL built in;
+#            only system libraries and frameworks are linked
+# TLS verification uses the machine's CA certificates. Mozilla's roots, embedded in the
+# binary, are the fallback on Unix machines without any, and are always added on Windows,
+# whose root store is only filled on demand.
 #
 # A tag v* builds and publishes a release. A push to a release-test/* branch runs the same
 # builds and checks without publishing anything.
@@ -31,15 +34,19 @@ jobs:
           - os: ubuntu-latest
             asset: linux
             target: x86_64-unknown-linux-musl
+          - os: ubuntu-24.04-arm
+            asset: linux-arm64
+            target: aarch64-unknown-linux-musl
           - os: windows-latest
             asset: windows
             target: x86_64-pc-windows-msvc
+          # The two macOS slices are joined into one universal binary by the next job.
           - os: macos-latest
-            asset: macos
+            asset: macos-arm64
             target: aarch64-apple-darwin
             deployment: "11.0"
           - os: macos-15-intel
-            asset: macos-intel
+            asset: macos-x86_64
             target: x86_64-apple-darwin
             deployment: "10.15"
     env:
@@ -136,25 +143,68 @@ jobs:
           '
 
       - name: Package Linux binary
-        if: matrix.asset == 'linux'
-        run: tar -C "$(dirname "$KTRX_BIN")" -czf ktrx-linux.tar.gz ktrx
-      - name: Package macOS binary
-        if: runner.os == 'macOS'
+        if: runner.os == 'Linux'
         run: tar -C "$(dirname "$KTRX_BIN")" -czf ktrx-${{ matrix.asset }}.tar.gz ktrx
       - name: Package Windows binary
         if: runner.os == 'Windows'
         shell: pwsh
         run: Compress-Archive -Path $env:KTRX_BIN -DestinationPath ktrx-windows.zip
       - uses: actions/upload-artifact@v4
+        if: runner.os != 'macOS'
         with:
           name: ktrx-${{ matrix.asset }}
           path: ktrx-${{ matrix.asset }}.*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'macOS'
+        with:
+          name: slice-${{ matrix.asset }}
+          path: ${{ env.KTRX_BIN }}
+          if-no-files-found: error
+
+  macos-universal:
+    name: macOS universal binary
+    needs: build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: slice-macos-arm64
+          path: arm64
+      - uses: actions/download-artifact@v4
+        with:
+          name: slice-macos-x86_64
+          path: x86_64
+      - name: Join the slices
+        run: |
+          mkdir -p dist
+          lipo -create arm64/ktrx x86_64/ktrx -output dist/ktrx
+          chmod 755 dist/ktrx
+          lipo -archs dist/ktrx
+          [ "$(lipo -archs dist/ktrx | tr ' ' '\n' | sort | tr '\n' ' ')" = "arm64 x86_64 " ]
+          # Apple Silicon refuses to run unsigned code: ad-hoc sign every slice of the fat binary.
+          codesign --force --sign - dist/ktrx
+          codesign --verify --verbose dist/ktrx
+          bad="$(otool -L dist/ktrx | grep -vE ':$|^[[:space:]]+(/usr/lib/|/System/Library/)' || true)"
+          if [ -n "$bad" ]; then echo "Non-system libraries linked:"; echo "$bad"; exit 1; fi
+      - name: Smoke test
+        run: |
+          set -e
+          dist/ktrx --version
+          dist/ktrx install thoth --dir "$RUNNER_TEMP/tools"
+          dist/ktrx run "$RUNNER_TEMP/tools/K~THOTH.tool" --encode ok | grep -q "b2s="
+      - name: Package
+        run: tar -C dist -czf ktrx-macos.tar.gz ktrx
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ktrx-macos
+          path: ktrx-macos.tar.gz
           if-no-files-found: error
 
   publish:
     name: Publish GitHub release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [build, macos-universal]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4

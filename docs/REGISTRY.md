@@ -22,7 +22,19 @@ Dossier d’installation : `--dir`, sinon `$KTRX_HOME/tools`, sinon `~/.ktrx/too
 
 Chaque téléchargement est vérifié avant d’être écrit : le SHA-256 doit être celui publié par le registre, l’archive doit s’ouvrir comme un `.tool` valide (manifeste, `api_version`, `min_engine_version`) et son `id` doit correspondre à l’outil demandé. En cas d’échec rien n’est installé. Le registre doit être en HTTPS.
 
-Le moteur lui-même se télécharge depuis la section « Télécharger le moteur » du site, ou via `/dl/engine/<windows|linux|macos|macos-intel>` (`macos` = Apple Silicon). Le SHA-256 de chaque archive est affiché sur le site et renvoyé dans l’en-tête `x-ktrx-sha256`.
+Le moteur s’installe en une ligne, sans droits administrateur :
+
+```sh
+curl -fsSL https://ktrx-site.tiagoantunes2009.workers.dev/install.sh | sh        # macOS, Linux
+```
+
+```powershell
+irm https://ktrx-site.tiagoantunes2009.workers.dev/install.ps1 | iex             # Windows (PowerShell 5.1 ou 7)
+```
+
+Les installateurs (`/install.sh`, `/install.ps1`, servis en texte UTF-8) choisissent l’archive de la machine (`linux`, `linux-arm64`, `macos` universel, `windows`), vérifient son SHA-256 (en-tête `x-ktrx-sha256`), installent `ktrx` dans `~/.ktrx/bin` et l’ajoutent au PATH. Les relancer met à jour. Options : `KTRX_VERSION`, `KTRX_INSTALL`, `KTRX_NO_MODIFY_PATH=1`. Ils évitent aussi la mise en quarantaine qu’applique un navigateur (Gatekeeper sur macOS, marque « téléchargé depuis Internet » sur Windows) à un binaire non signé.
+
+Archives pour une installation manuelle : `/dl/engine/<plateforme>[?version=X]`, avec leur SHA-256 sur le site et dans l’en-tête `x-ktrx-sha256`. Les versions 0.5.0 et 0.5.1 du moteur, qui dépendaient d’un OpenSSL installé, ne sont plus distribuées.
 
 ## API publique (lecture)
 
@@ -48,7 +60,7 @@ Toutes ces requêtes exigent `Authorization: Bearer <clé>`. Sans clé valide, o
 | `PATCH /api/tools/<id>` | `upload` | JSON : `description`, `category`, `tags`, `readme`, `deprecated`. |
 | `DELETE /api/tools/<id>/versions/<version>` | `delete` | Retire la version (elle répond alors `410`). Avec `?hard=1`, supprime aussi le fichier. |
 | `DELETE /api/tools/<id>` | `delete` | Supprime l’outil, ses versions et ses fichiers. |
-| `POST /api/engine?version=X.Y.Z&platform=…&filename=…` | `upload` | Corps : l’archive du moteur (≤ 90 Mio). `platform` : `windows`, `linux`, `macos`, `macos-intel`. `409` si cette plateforme existe déjà pour cette version. |
+| `POST /api/engine?version=X.Y.Z&platform=…&filename=…` | `upload` | Corps : l’archive du moteur (≤ 90 Mio). `platform` : `windows`, `linux`, `linux-arm64`, `macos` (universel depuis 0.5.3), `macos-intel` (versions antérieures). `409` si cette plateforme existe déjà pour cette version. |
 
 Le scope `admin` autorise tout. Une version publiée ne change jamais : pour corriger un outil, publier une nouvelle version.
 
@@ -85,4 +97,4 @@ Une clé a un identifiant, un libellé et des scopes (`upload`, `delete`, `admin
 
 - Les archives ne sont pas signées : l’intégrité repose sur le SHA-256 publié par le registre lui-même et sur HTTPS. Une signature (clé détenue par le mainteneur, vérifiée par `ktrx install`) est prévue mais n’existe pas encore.
 - Pas de limitation de débit configurée sur les routes d’écriture ni sur les téléchargements.
-- Le binaire macOS Apple Silicon et le binaire macOS Intel sont deux fichiers distincts.
+- Les binaires du moteur ne sont pas signés (Apple Developer ID, Authenticode). Les installateurs en une ligne évitent les blocages, mais un binaire téléchargé avec un navigateur peut être bloqué par Gatekeeper (macOS) ou signalé par SmartScreen (Windows).

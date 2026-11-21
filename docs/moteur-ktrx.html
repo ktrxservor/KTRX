@@ -411,7 +411,7 @@ footer { padding-top: 28px; color: var(--quiet); font-size: 13px; display: flex;
 
   <footer>
     <span>Sources : engine/crates/ktrx-runtime, ktrx-core, ktrx-cli, engine/wit/ktrx.wit</span>
-    <span class="mono">KTRX 0.5.2 · API 1</span>
+    <span class="mono">KTRX 0.5.3 · API 1</span>
   </footer>
 </div>
 
@@ -420,7 +420,7 @@ const OPS = [
   { group: "Sans permission", items: [
     { op: "host.info", perm: "none", isNew: true, desc: "Décrit le moteur et ce que l'exécution peut faire : versions, système, permissions accordées, programmes autorisés et, pour chaque opération, si elle est accessible.",
       req: {},
-      res: { engine: "ktrx", engine_version: "0.5.2", api_version: "1", os: "linux", family: "unix", arch: "x86_64", cpus: 8, permissions: ["network", "process"], programs: ["nmap"], operations: [{ operation: "process.exec", permissions: ["process"], granted: true }, "…"] } },
+      res: { engine: "ktrx", engine_version: "0.5.3", api_version: "1", os: "linux", family: "unix", arch: "x86_64", cpus: 8, permissions: ["network", "process"], programs: ["nmap"], operations: [{ operation: "process.exec", permissions: ["process"], granted: true }, "…"] } },
     { op: "progress.update", perm: "none", desc: "Publie un instantané de progression. Affiché sur le terminal (rafraîchi toutes les 100 ms au plus) et envoyé en événement.",
       req: { phase: "TCP connect scan", current: 400, total: 1000, recovered: 3, item_label: "ports", result_label: "open" },
       res: { accepted: true } },

@@ -4,7 +4,7 @@ KTRX is a Rust command-line host for portable WebAssembly Component Model tools.
 
 ## Catalogue des outils
 
-Le [site officiel KTRX](https://ktrx-site.tiagoantunes2009.workers.dev) présente chaque outil (documentation, arguments, permissions, versions) et permet de télécharger le moteur `ktrx` pour Windows, Linux et macOS (Apple Silicon et Intel). Les outils s'installent aussi en ligne de commande avec `ktrx install <outil>` (voir « Installing tools from the registry »). Le tableau ci-dessous est généré par `scripts/readme_tools.py`.
+Le [site officiel KTRX](https://ktrx-site.tiagoantunes2009.workers.dev) présente chaque outil (documentation, arguments, permissions, versions) et permet d'installer le moteur `ktrx` sur Windows, macOS et Linux. Les outils s'installent aussi en ligne de commande avec `ktrx install <outil>` (voir « Installing tools from the registry »). Le tableau ci-dessous est généré par `scripts/readme_tools.py`.
 
 <!-- KTRX:TOOLS:START -->
 
@@ -32,6 +32,22 @@ Le [site officiel KTRX](https://ktrx-site.tiagoantunes2009.workers.dev) présent
 | [`K~THOTH`](https://ktrx-site.tiagoantunes2009.workers.dev/tool?id=base64) | Encode and decode UTF-8 text using standard Base64. | aucune | [source](tools/THOTH%20%28%20Base64%20%29/) |
 
 <!-- KTRX:TOOLS:END -->
+
+## Install
+
+Nothing else needs to be installed: the binaries are self-contained (OpenSSL built in, static Linux builds, static C runtime on Windows, CA certificates embedded as a fallback).
+
+```sh
+# macOS (Apple Silicon or Intel) and Linux (x86_64 or arm64)
+curl -fsSL https://ktrx-site.tiagoantunes2009.workers.dev/install.sh | sh
+```
+
+```powershell
+# Windows 10/11, in PowerShell
+irm https://ktrx-site.tiagoantunes2009.workers.dev/install.ps1 | iex
+```
+
+The installer picks the build for the machine, verifies its SHA-256, puts `ktrx` in `~/.ktrx/bin` without administrator rights and adds it to the PATH. Run it again to update. `KTRX_VERSION=0.5.3` installs a given version, `KTRX_INSTALL=DIR` another folder, `KTRX_NO_MODIFY_PATH=1` leaves shell files alone. Archives for manual installation are on the site and in the GitHub releases.
 
 ## Build
 
@@ -67,11 +83,11 @@ Tools go to `~/.ktrx/tools` (`$KTRX_HOME/tools`, or `--dir`). Every download is 
 
 ## Engine CI and releases
 
-Changes to `engine/` are tested on Linux, Windows, and macOS by GitHub Actions. To build and publish platform binaries, bump the version in `engine/Cargo.toml` (and `engine/Cargo.lock`), add a `CHANGELOG.md` entry, then push a version tag beginning with `v` (for example, `v0.5.2`). The release workflow builds four archives: `ktrx-linux.tar.gz`, `ktrx-windows.zip`, `ktrx-macos.tar.gz` (Apple Silicon) and `ktrx-macos-intel.tar.gz`. They are attached to the GitHub Release and, when the `KTRX_REGISTRY_KEY` secret is set, uploaded to the registry, where the site offers them at `/dl/engine/<windows|linux|macos|macos-intel>`.
+Changes to `engine/` are tested on Linux, Windows, and macOS by GitHub Actions. To build and publish platform binaries, bump the version in `engine/Cargo.toml` (and `engine/Cargo.lock`), add a `CHANGELOG.md` entry, then push a version tag beginning with `v` (for example, `v0.5.3`). The release workflow builds `ktrx-linux.tar.gz` and `ktrx-linux-arm64.tar.gz` (static musl), `ktrx-windows.zip` (x64, static C runtime) and `ktrx-macos.tar.gz` (universal: Apple Silicon and Intel), checks that none of them depends on anything outside the operating system, and smoke-tests each one, including on a bare container without CA certificates. A push to a `release-test/*` branch runs the same builds and checks without publishing. The archives are attached to the GitHub Release and, when the `KTRX_REGISTRY_KEY` secret is set, uploaded to the registry, which serves them at `/dl/engine/<windows|linux|linux-arm64|macos>` and through the installers. After a release, the `Installers` workflow (`installers.yml`) checks the one-line installers on clean machines.
 
 ```sh
-git tag -a v0.5.2 -m "KTRX 0.5.2"
-git push origin v0.5.2
+git tag -a v0.5.3 -m "KTRX 0.5.3"
+git push origin v0.5.3
 ```
 
 Pushing tools to `main` publishes them to the registry through `.github/workflows/registry-publish.yml` (same secret). See [docs/REGISTRY.md](docs/REGISTRY.md).

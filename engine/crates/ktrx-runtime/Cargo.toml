@@ -21,9 +21,12 @@ openssl = { version = "0.10", features = ["vendored"] }
 # A vendored OpenSSL has no CA bundle of its own. Outside Windows (which reads the machine's
 # certificate stores) the system bundle is located at run time, and Mozilla's root list is the
 # fallback on a machine that has none (minimal containers, bare installs).
+# Mozilla's public root list, embedded: the fallback on Unix machines without a CA bundle,
+# and added to the machine's stores on Windows (a fresh Windows does not hold every root).
+webpki-root-certs = "1"
+
 [target.'cfg(not(windows))'.dependencies]
 openssl-probe = "0.1"
-webpki-root-certs = "1"
 
 [target.'cfg(windows)'.dependencies]
 schannel = "0.1"

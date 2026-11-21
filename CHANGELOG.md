@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.3 — engine
+
+- **One-line installers.** `curl -fsSL https://ktrx-site.tiagoantunes2009.workers.dev/install.sh | sh` (macOS, Linux) and `irm https://ktrx-site.tiagoantunes2009.workers.dev/install.ps1 | iex` (Windows) pick the right build for the machine, verify its SHA-256, install it in `~/.ktrx/bin` (no administrator rights) and add it to the PATH. Unlike a browser download, they do not trigger macOS Gatekeeper's quarantine or Windows' downloaded-file mark.
+- **Linux ARM64** (Raspberry Pi 64-bit, ARM servers): new static musl binary, `ktrx-linux-arm64.tar.gz`.
+- **macOS**: a single universal binary (Apple Silicon and Intel, macOS 10.15+) replaces the two separate archives.
+- **Windows TLS trust**: Mozilla's embedded roots are now always added to the Windows certificate stores. A fresh Windows only holds part of the public roots (it fetches the others on demand, which OpenSSL never triggers), so some sites failed verification in tools.
+- **Proxies**: `ktrx install`, `update` and `search` honour `HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY` and `NO_PROXY`.
+- A weekly workflow (`installers.yml`) runs both installers on fresh runners and bare containers (Alpine, Debian, Fedora, Ubuntu 20.04, Windows PowerShell 5.1 and 7).
+
 ## 0.5.2 — engine
 
 Released binaries are now self-contained: they start on a clean machine with nothing installed. 0.5.0 and 0.5.1 were not (the macOS binaries needed Homebrew's OpenSSL, the Linux one needed `libssl.so.3` and glibc 2.39).

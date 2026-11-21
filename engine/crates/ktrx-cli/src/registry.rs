@@ -55,6 +55,8 @@ impl Registry {
             .timeout_connect(Duration::from_secs(10))
             .timeout(Duration::from_secs(120))
             .user_agent(concat!("ktrx/", env!("CARGO_PKG_VERSION")))
+            // Corporate networks: honour HTTPS_PROXY / HTTP_PROXY / ALL_PROXY (and NO_PROXY).
+            .try_proxy_from_env(true)
             .build();
         Ok(Self { base, agent })
     }

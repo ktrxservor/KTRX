@@ -112,9 +112,7 @@ impl TlsOptions {
         // Trust roots are loaded even when verification is not enforced, so the
         // reported verification result stays accurate for an inspection run.
         #[cfg(windows)]
-        for root in windows_roots()? {
-            let _ = builder.cert_store_mut().add_cert(root.clone());
-        }
+        load_windows_roots(&mut builder);
         #[cfg(not(windows))]
         load_unix_roots(&mut builder)?;
         builder.set_verify(if self.verify {
@@ -390,7 +388,7 @@ fn load_unix_roots(builder: &mut SslConnectorBuilder) -> Result<(), String> {
     Ok(())
 }
 
-#[cfg(not(windows))]
+/// Mozilla's public root list, embedded in the binary (parsed once).
 fn embedded_roots() -> &'static [X509] {
     use std::sync::OnceLock;
     static ROOTS: OnceLock<Vec<X509>> = OnceLock::new();
@@ -402,6 +400,27 @@ fn embedded_roots() -> &'static [X509] {
     })
 }
 
+/// Trust roots on Windows: the machine's stores **plus** Mozilla's embedded list.
+///
+/// A fresh Windows installation does not hold every public root: Windows downloads a root the
+/// first time its own TLS stack needs it, which OpenSSL never triggers. Reading the stores alone
+/// would therefore fail on sites whose root has not been fetched yet. The machine's stores are
+/// still loaded so private and corporate roots keep working. `KTRX_EMBEDDED_CA=1` trusts only
+/// the embedded list (used to test it).
+#[cfg(windows)]
+fn load_windows_roots(builder: &mut SslConnectorBuilder) {
+    let embedded_only = std::env::var_os("KTRX_EMBEDDED_CA").is_some_and(|value| value == "1");
+    if !embedded_only {
+        for root in windows_roots() {
+            let _ = builder.cert_store_mut().add_cert(root.clone());
+        }
+    }
+    for root in embedded_roots() {
+        // A root already present in the machine's stores is simply reported as a duplicate.
+        let _ = builder.cert_store_mut().add_cert(root.clone());
+    }
+}
+
 /// Root certificates installed on this Windows machine, loaded once.
 ///
 /// The vendored OpenSSL used on Windows starts with an empty trust store, so
@@ -411,11 +430,11 @@ fn embedded_roots() -> &'static [X509] {
 /// current-user "Root" store normally carries the public trust anchors. The two
 /// stores overlap, so certificates are deduplicated by DER encoding.
 #[cfg(windows)]
-fn windows_roots() -> Result<&'static [X509], String> {
+fn windows_roots() -> &'static [X509] {
     use schannel::cert_store::CertStore;
     use std::{collections::HashSet, sync::OnceLock};
     static ROOTS: OnceLock<Vec<X509>> = OnceLock::new();
-    let roots = ROOTS.get_or_init(|| {
+    ROOTS.get_or_init(|| {
         let mut seen = HashSet::new();
         let mut roots = Vec::new();
         for store in [
@@ -436,12 +455,7 @@ fn windows_roots() -> Result<&'static [X509], String> {
             }
         }
         roots
-    });
-    if roots.is_empty() {
-        Err("TLS setup failed: no Windows root certificates could be loaded".to_owned())
-    } else {
-        Ok(roots)
-    }
+    })
 }
 
 #[cfg(test)]
@@ -569,7 +583,7 @@ mod tests {
     }
 }
 
-#[cfg(all(test, not(windows)))]
+#[cfg(test)]
 mod embedded_root_tests {
     #[test]
     fn embeds_mozillas_root_list() {
