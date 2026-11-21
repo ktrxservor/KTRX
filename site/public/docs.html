@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Documentation — KTRX</title>
+  <meta name="description" content="Installer KTRX et utiliser ses outils : installation, commandes, permissions, sécurité, mise à jour et dépannage.">
+  <meta property="og:title" content="Documentation — KTRX">
+  <meta property="og:description" content="Installer KTRX et utiliser ses outils en toute sécurité.">
+  <meta property="og:type" content="website">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/site.js" defer></script>
+  <script src="/assets/docs.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="/"><span class="brand-mark">K</span>KTRX</a>
+      <nav class="nav" id="nav">
+        <a href="/outils">Outils</a>
+        <a href="/telecharger">Télécharger</a>
+        <a href="/docs">Documentation</a>
+        <a href="https://github.com/ktrxservor/KTRX">GitHub</a>
+      </nav>
+      <a class="btn btn-primary header-cta" href="/telecharger">Installer</a>
+      <button class="menu-toggle" type="button" aria-label="Menu" aria-controls="nav" aria-expanded="false"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 6h14M2 12h14"/></svg></button>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap docs">
+      <nav class="docs-nav" id="docs-nav" aria-label="Sommaire">
+        <div class="nav-title">Documentation</div>
+        <a href="#demarrer">Démarrer</a>
+        <a href="#installer">Installer KTRX</a>
+        <a href="#outils">Installer des outils</a>
+        <a href="#lancer">Lancer un outil</a>
+        <a href="#permissions">Permissions</a>
+        <a href="#securite">Sécurité</a>
+        <a href="#mettre-a-jour">Mettre à jour, désinstaller</a>
+        <a href="#depannage">Dépannage</a>
+        <a href="#usage">Usage responsable</a>
+      </nav>
+      <article class="prose">
+        <h1>Documentation</h1>
+        <p class="subtitle" style="font-size:21px;margin-bottom:8px">Tout ce qu'il faut pour installer KTRX et utiliser ses outils.</p>
+
+        <section id="demarrer">
+          <h2>Démarrer</h2>
+          <p>KTRX est un moteur qui exécute des <strong>outils</strong> : de petits programmes WebAssembly spécialisés (inspection HTTP, audit d'en-têtes, conversion Base64…). Le moteur s'installe une fois ; les outils se téléchargent à la demande depuis le <a href="/outils">catalogue</a>.</p>
+          <p>Trois commandes suffisent :</p>
+          <div class="code"><pre><code># 1. installer le moteur (macOS, Linux)
+curl -fsSL https://ktrx-site.tiagoantunes2009.workers.dev/install.sh | sh
+# 2. installer un outil
+ktrx install thoth
+# 3. le lancer
+ktrx run thoth --encode "Bonjour"</code></pre></div>
+          <p>Sous Windows, la première commande se lance dans PowerShell : <code>irm https://ktrx-site.tiagoantunes2009.workers.dev/install.ps1 | iex</code>.</p>
+        </section>
+
+        <section id="installer">
+          <h2>Installer KTRX</h2>
+          <h3>macOS et Linux</h3>
+          <p>Dans le Terminal :</p>
+          <div class="code"><pre><code>curl -fsSL https://ktrx-site.tiagoantunes2009.workers.dev/install.sh | sh</code></pre></div>
+          <p>Sans <code>curl</code> (Alpine, certaines distributions minimales) : <code>wget -qO- https://ktrx-site.tiagoantunes2009.workers.dev/install.sh | sh</code>.</p>
+          <h3>Windows</h3>
+          <p>Dans PowerShell (menu Démarrer › « PowerShell ») :</p>
+          <div class="code"><pre><code>irm https://ktrx-site.tiagoantunes2009.workers.dev/install.ps1 | iex</code></pre></div>
+          <h3>Ce que fait l'installateur</h3>
+          <ul>
+            <li>il détecte votre système et votre processeur (Windows x64, macOS Apple Silicon ou Intel, Linux x86_64 ou ARM64) ;</li>
+            <li>il télécharge le moteur et vérifie son empreinte SHA-256 ; au moindre écart, il s'arrête sans rien installer ;</li>
+            <li>il place <code>ktrx</code> dans <code>~/.ktrx/bin</code> (<code>%USERPROFILE%\.ktrx\bin</code> sous Windows), sans droits administrateur ;</li>
+            <li>il ajoute ce dossier à votre <code>PATH</code>. Ouvrez un nouveau terminal pour que <code>ktrx</code> soit reconnu.</li>
+          </ul>
+          <h3>Options</h3>
+          <table>
+            <thead><tr><th>Variable</th><th>Effet</th></tr></thead>
+            <tbody>
+              <tr><td><code>KTRX_VERSION=0.6.0</code></td><td>installe cette version au lieu de la dernière</td></tr>
+              <tr><td><code>KTRX_INSTALL=/chemin</code></td><td>autre dossier d'installation (le moteur va dans <code>bin/</code>)</td></tr>
+              <tr><td><code>KTRX_NO_MODIFY_PATH=1</code></td><td>ne modifie pas le <code>PATH</code></td></tr>
+            </tbody>
+          </table>
+          <p>Pour une installation manuelle, les archives et leurs empreintes sont sur la page <a href="/telecharger">Télécharger</a>.</p>
+        </section>
+
+        <section id="outils">
+          <h2>Installer des outils</h2>
+          <table>
+            <thead><tr><th>Commande</th><th>Effet</th></tr></thead>
+            <tbody>
+              <tr><td><code>ktrx search</code></td><td>liste le catalogue ; <code>ktrx search hash</code> filtre</td></tr>
+              <tr><td><code>ktrx install anubis</code></td><td>installe la dernière version (accepte aussi <code>K~ANUBIS</code>)</td></tr>
+              <tr><td><code>ktrx install anubis@1.1.0</code></td><td>installe une version précise</td></tr>
+              <tr><td><code>ktrx list</code></td><td>outils installés et leur version</td></tr>
+              <tr><td><code>ktrx update</code></td><td>met à jour tous les outils ; <code>ktrx update anubis</code> pour un seul</td></tr>
+              <tr><td><code>ktrx uninstall anubis</code></td><td>supprime l'outil</td></tr>
+              <tr><td><code>ktrx info anubis</code></td><td>description, version, permissions, exemples</td></tr>
+            </tbody>
+          </table>
+          <p>Les outils sont rangés dans <code>~/.ktrx/tools</code> (variable <code>KTRX_HOME</code> pour un autre dossier, ou <code>--dir</code>). Chaque téléchargement est vérifié avant d'être écrit : empreinte SHA-256 publiée par le catalogue, archive valide, version du moteur compatible. Si une vérification échoue, rien n'est installé.</p>
+        </section>
+
+        <section id="lancer">
+          <h2>Lancer un outil</h2>
+          <div class="code"><pre><code>ktrx run &lt;outil&gt; [arguments]</code></pre></div>
+          <p>Chaque outil décrit ses arguments avec <code>ktrx run anubis --help</code>. La page de chaque outil, dans le <a href="/outils">catalogue</a>, détaille aussi ses arguments, ses valeurs admises et des exemples prêts à copier.</p>
+          <h3>Résultat</h3>
+          <p>Un outil renvoie du JSON, affiché joliment dans le terminal. Options du moteur, à placer après le nom de l'outil :</p>
+          <ul>
+            <li><code>--json</code> : JSON sur une seule ligne, pratique pour un script ;</li>
+            <li><code>--events</code> : progression puis résultat en JSON, une ligne par événement.</li>
+          </ul>
+          <p>Un outil long affiche sa progression. <kbd>Ctrl</kbd>+<kbd>C</kbd> l'interrompt proprement. On peut aussi lancer une archive directement : <code>ktrx run ./K~THOTH.tool --encode "Bonjour"</code>.</p>
+        </section>
+
+        <section id="permissions">
+          <h2>Permissions</h2>
+          <p>Un outil n'a accès à rien par défaut. S'il a besoin du réseau, de fichiers ou de programmes, il le déclare, et KTRX vous le demande <strong>à chaque exécution</strong> :</p>
+          <div class="code"><pre><code>K~HERMES requests network access for this run. Allow? [y/N]</code></pre></div>
+          <table>
+            <thead><tr><th>Permission</th><th>Ce qu'elle autorise</th></tr></thead>
+            <tbody>
+              <tr><td>Réseau</td><td>connexions DNS, TCP, TLS et UDP vers la cible donnée en argument</td></tr>
+              <tr><td>Lecture de fichiers</td><td>lire les fichiers et dossiers que vous désignez</td></tr>
+              <tr><td>Écriture de fichiers</td><td>écrire uniquement dans un dossier choisi (<code>--write-dir</code>, sinon le dossier courant)</td></tr>
+              <tr><td>Réseau bas niveau</td><td>ping ICMP, ARP, sondes TCP ; peut demander des droits administrateur</td></tr>
+              <tr><td>Programmes</td><td>lancer des programmes de votre machine, avec vos droits ; la liste est affichée avant d'accepter</td></tr>
+            </tbody>
+          </table>
+          <h3>Options de <code>ktrx run</code>, avant le nom de l'outil</h3>
+          <ul>
+            <li><code>-y</code> : accepte d'avance les permissions déclarées par l'outil (utile dans un script) ;</li>
+            <li><code>--write-dir DOSSIER</code> : le seul dossier où l'outil pourra écrire ;</li>
+            <li><code>--allow-program NOM</code> : restreint les programmes qu'il pourra lancer (répétable).</li>
+          </ul>
+          <p>Hors d'un terminal interactif (script, tâche planifiée), sans <code>-y</code>, toutes les permissions sont refusées.</p>
+        </section>
+
+        <section id="securite">
+          <h2>Sécurité</h2>
+          <ul>
+            <li><strong>Isolation.</strong> Chaque outil s'exécute dans un bac à sable WebAssembly, sans accès implicite au disque, au réseau, aux variables d'environnement ni au système, avec une mémoire limitée.</li>
+            <li><strong>Accès accordés une fois.</strong> Une permission vaut pour une seule exécution et seulement pour ce que l'outil a déclaré.</li>
+            <li><strong>Programmes.</strong> La permission « Programmes » est la seule qui sort du bac à sable : un programme lancé a vos droits. Chaque lancement est affiché, et tout ce qu'un outil a démarré est arrêté avec lui.</li>
+            <li><strong>Téléchargements vérifiés.</strong> Moteur et outils passent par HTTPS et sont contrôlés par empreinte SHA-256 avant d'être installés.</li>
+            <li><strong>Publication.</strong> Seule l'équipe KTRX publie des outils dans le catalogue ; chaque publication est tracée.</li>
+            <li><strong>Limite actuelle.</strong> Les binaires ne sont pas encore signés par Apple ni Microsoft ; voir <a href="#depannage">Dépannage</a> si vous les téléchargez avec un navigateur.</li>
+          </ul>
+          <p>Un problème de sécurité ? Signalez-le sur <a href="https://github.com/ktrxservor/KTRX/issues">GitHub</a>.</p>
+        </section>
+
+        <section id="mettre-a-jour">
+          <h2>Mettre à jour, désinstaller</h2>
+          <h3>Mettre à jour</h3>
+          <p>Le moteur : relancez la commande d'installation. Les outils : <code>ktrx update</code>.</p>
+          <h3>Désinstaller</h3>
+          <p>macOS et Linux : <code>rm -rf ~/.ktrx</code>, puis retirez les lignes précédées de <code># KTRX</code> dans <code>~/.zshrc</code>, <code>~/.bashrc</code> ou <code>~/.profile</code>.</p>
+          <p>Windows (PowerShell) : <code>Remove-Item -Recurse -Force $env:USERPROFILE\.ktrx</code>, puis retirez <code>%USERPROFILE%\.ktrx\bin</code> du <code>PATH</code> utilisateur (Paramètres › « Modifier les variables d'environnement pour votre compte »).</p>
+        </section>
+
+        <section id="depannage">
+          <h2>Dépannage</h2>
+          <h3>« ktrx : command not found » ou « n'est pas reconnu »</h3>
+          <p>Ouvrez un nouveau terminal : le <code>PATH</code> mis à jour n'est lu qu'à l'ouverture. En attendant : <code>~/.ktrx/bin/ktrx</code> (macOS, Linux) ou <code>%USERPROFILE%\.ktrx\bin\ktrx.exe</code>.</p>
+          <h3>macOS refuse d'ouvrir ktrx</h3>
+          <p>Seulement si vous avez téléchargé l'archive avec un navigateur. Utilisez l'installation en une ligne, ou retirez la mise en quarantaine : <code>xattr -d com.apple.quarantine ~/chemin/vers/ktrx</code>.</p>
+          <h3>Windows affiche « Windows a protégé votre ordinateur »</h3>
+          <p>Seulement pour un fichier téléchargé avec un navigateur : « Informations complémentaires » › « Exécuter quand même », ou utilisez l'installation en une ligne. Vous pouvez vérifier l'empreinte sur la page <a href="/telecharger">Télécharger</a>.</p>
+          <h3>Derrière un proxy d'entreprise</h3>
+          <p>KTRX utilise les variables <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> et <code>NO_PROXY</code> : <code>export HTTPS_PROXY=http://proxy.exemple:8080</code>.</p>
+          <h3>« aucune version de KTRX n'est publiée pour cette machine »</h3>
+          <p>Votre système ou processeur n'est pas pris en charge. KTRX existe pour Windows x64, macOS 10.15+ et Linux x86_64 ou ARM64.</p>
+          <h3>« this tool requires KTRX X.Y.Z or newer »</h3>
+          <p>L'outil a besoin d'un moteur plus récent : relancez la commande d'installation pour mettre KTRX à jour.</p>
+        </section>
+
+        <section id="usage">
+          <h2>Usage responsable</h2>
+          <p>KTRX réunit des outils d'analyse et de test. Les outils qui contactent un service ou un hôte ne doivent viser que des systèmes que vous possédez ou que vous êtes explicitement autorisé à tester. Respectez la loi et les règles des services concernés. Chaque outil borne sa portée et explique ses limites sur sa page ; lisez-la avant de l'utiliser.</p>
+          <p>Vous développez des outils pour KTRX ? La publication passe par l'outil d'équipe <code>ktrx-dev</code> et une clé d'API réservée. Elle est décrite dans le fichier <a href="https://github.com/ktrxservor/KTRX/blob/main/DEVELOPING.md">DEVELOPING.md</a> du dépôt. Le moteur public, lui, sert uniquement à installer et exécuter des outils.</p>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="footer-cols">
+        <div><h4>KTRX</h4><p>Des outils de sécurité et d'analyse exécutés dans un bac à sable WebAssembly. À utiliser uniquement sur des systèmes que vous possédez ou que vous êtes autorisé à tester.</p></div>
+        <div><h4>Produit</h4><a href="/outils">Outils</a><a href="/telecharger">Télécharger</a><a href="/docs">Documentation</a></div>
+        <div><h4>Projet</h4><a href="https://github.com/ktrxservor/KTRX">Code source</a><a href="https://github.com/ktrxservor/KTRX/releases">Versions</a><a href="/docs#securite">Sécurité</a></div>
+      </div>
+      <div class="footer-bottom"><span>© 2026 KTRX</span><span data-engine-version></span></div>
+    </div>
+  </footer>
+</body>
+</html>

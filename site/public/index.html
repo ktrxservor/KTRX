@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KTRX — Outils de sécurité isolés</title>
+  <meta name="description" content="KTRX exécute des outils de sécurité, d'analyse et de conversion dans un bac à sable WebAssembly. Un binaire, aucune dépendance, des permissions demandées à chaque exécution.">
+  <meta property="og:title" content="KTRX — Outils de sécurité isolés">
+  <meta property="og:description" content="Des outils de sécurité et d'analyse exécutés dans un bac à sable WebAssembly. Un binaire, aucune dépendance.">
+  <meta property="og:type" content="website">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/site.js" defer></script>
+  <script src="/assets/home.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="/"><span class="brand-mark">K</span>KTRX</a>
+      <nav class="nav" id="nav">
+        <a href="/outils">Outils</a>
+        <a href="/telecharger">Télécharger</a>
+        <a href="/docs">Documentation</a>
+        <a href="https://github.com/ktrxservor/KTRX">GitHub</a>
+      </nav>
+      <a class="btn btn-primary header-cta" href="/telecharger">Installer</a>
+      <button class="menu-toggle" type="button" aria-label="Menu" aria-controls="nav" aria-expanded="false"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 6h14M2 12h14"/></svg></button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <p class="eyebrow reveal">KTRX</p>
+        <h1 class="headline reveal" style="--i:1">Des outils de sécurité.<br>Isolés par conception.</h1>
+        <p class="subtitle reveal" style="--i:2">Un moteur léger qui exécute des outils d'audit, d'analyse et de conversion dans un bac à sable WebAssembly. Rien ne touche à votre machine sans votre accord.</p>
+        <div class="install reveal" style="--i:3" data-install></div>
+        <div class="hero-actions reveal" style="--i:4">
+          <a class="link-arrow" href="/outils">Parcourir les outils</a>
+          <a class="link-arrow" href="/docs">Lire la documentation</a>
+        </div>
+        <div class="hero-visual reveal-scale" id="hero-visual">
+          <div class="terminal" aria-label="Exemple d'utilisation de KTRX">
+            <div class="terminal-bar"><span></span><span></span><span></span></div>
+            <pre id="terminal"></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-alt">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 class="title reveal">Isolé. Contrôlé. Vérifié.</h2>
+          <p class="subtitle reveal" style="--i:1">Chaque outil est un module WebAssembly scellé. Le moteur ne lui donne que ce que vous autorisez.</p>
+        </div>
+        <div class="tiles">
+          <article class="tile reveal">
+            <div class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 2.8 20 7.3v9.4l-8 4.5-8-4.5V7.3z"/><path d="m4 7.3 8 4.5 8-4.5M12 11.8v9.4"/></svg></div>
+            <h3>Un bac à sable par outil.</h3>
+            <p>Aucun accès implicite au disque, au réseau ou au système. Un outil ne voit que les arguments que vous lui passez.</p>
+          </article>
+          <article class="tile reveal" style="--i:1">
+            <div class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/></svg></div>
+            <h3>Des permissions explicites.</h3>
+            <p>Réseau, fichiers, programmes : chaque accès est annoncé par l'outil et demandé à chaque exécution. Vous gardez la main.</p>
+          </article>
+          <article class="tile reveal" style="--i:2">
+            <div class="tile-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.5c0 4.4 3.1 8.2 7.5 9.5 4.4-1.3 7.5-5.1 7.5-9.5V6z"/><path d="m8.8 12.2 2.3 2.3 4.3-4.6"/></svg></div>
+            <h3>Des téléchargements vérifiés.</h3>
+            <p>Chaque outil est contrôlé avant installation : empreinte SHA-256, archive valide, moteur compatible. Sinon, rien n'est installé.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap split">
+        <div>
+          <p class="eyebrow reveal">Permissions</p>
+          <h2 class="title reveal" style="--i:1">Vous décidez.<br>À chaque exécution.</h2>
+          <p class="subtitle reveal" style="--i:2">Un outil réseau ne contacte que la cible que vous lui donnez, et seulement après votre accord.</p>
+          <ul class="checklist">
+            <li class="reveal" style="--i:3"><span><strong>Rien par défaut.</strong> Sans réponse de votre part, l'accès est refusé.</span></li>
+            <li class="reveal" style="--i:4"><span><strong>Écriture confinée.</strong> Un outil n'écrit que dans le dossier que vous choisissez.</span></li>
+            <li class="reveal" style="--i:5"><span><strong>Tout est montré.</strong> Chaque programme lancé est affiché, et s'arrête avec l'outil.</span></li>
+          </ul>
+        </div>
+        <div class="prompt-card reveal-scale">
+          <div><span class="p-dim">$</span> ktrx run hermes https://example.com</div>
+          <div><span class="p-tool">K~HERMES</span> requests network access for this run.</div>
+          <div><span class="p-ask">Allow? [y/N]</span> y</div>
+          <div class="p-dim">{</div>
+          <div class="p-dim">&nbsp;&nbsp;"alpn": "h2",</div>
+          <div class="p-dim">&nbsp;&nbsp;"content_encoding": "gzip",</div>
+          <div class="p-dim">&nbsp;&nbsp;"elapsed_ms": 254,</div>
+          <div class="p-dim">&nbsp;&nbsp;…</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-alt" style="overflow:hidden">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 class="title reveal">Un catalogue qui grandit.</h2>
+          <p class="subtitle reveal" style="--i:1">Inspection réseau, analyse, conversion, génération. Chaque outil fait une chose, et la fait bien.</p>
+        </div>
+      </div>
+      <div class="rail reveal" id="rail">
+        <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+      </div>
+      <div class="center reveal"><a class="btn btn-secondary" href="/outils">Voir tous les outils</a></div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 class="title reveal">Un binaire.<br>Aucune dépendance.</h2>
+          <p class="subtitle reveal" style="--i:1">KTRX fonctionne sur un ordinateur qui sort du carton. Pas de runtime à installer, pas de bibliothèque à ajouter.</p>
+        </div>
+        <div class="stats">
+          <div class="reveal"><div class="stat-value" id="stat-tools">20</div><div class="stat-label">outils disponibles</div></div>
+          <div class="reveal" style="--i:1"><div class="stat-value">4</div><div class="stat-label">plateformes</div></div>
+          <div class="reveal" style="--i:2"><div class="stat-value">0</div><div class="stat-label">dépendance à installer</div></div>
+        </div>
+        <div class="platforms">
+          <div class="platform reveal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><h3>Windows</h3><p>10 et 11, 64 bits</p></div>
+          <div class="platform reveal" style="--i:1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="4" y="5" width="16" height="11" rx="2"/><path d="M2 19h20"/></svg><h3>macOS</h3><p>Apple Silicon et Intel</p></div>
+          <div class="platform reveal" style="--i:2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="4" y="3" width="16" height="7" rx="1.5"/><rect x="4" y="14" width="16" height="7" rx="1.5"/><path d="M8 6.5h.01M8 17.5h.01"/></svg><h3>Linux</h3><p>Toutes distributions, x86_64</p></div>
+          <div class="platform reveal" style="--i:3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg><h3>Linux ARM</h3><p>Raspberry Pi, serveurs ARM</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-alt">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 class="title reveal">Trois commandes.</h2>
+          <p class="subtitle reveal" style="--i:1">Installer le moteur, choisir un outil, le lancer.</p>
+        </div>
+        <div class="steps">
+          <div class="step reveal"><h3>Installer KTRX</h3><p>Une ligne dans le terminal. Le moteur s'ajoute à votre PATH.</p><code id="step-install">curl -fsSL …/install.sh | sh</code></div>
+          <div class="step reveal" style="--i:1"><h3>Installer un outil</h3><p>Téléchargé depuis le catalogue et vérifié avant d'être écrit.</p><code>ktrx install anubis</code></div>
+          <div class="step reveal" style="--i:2"><h3>Le lancer</h3><p>Chaque outil explique ses options avec <code style="display:inline;padding:0 4px">--help</code>.</p><code>ktrx run anubis --help</code></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap center">
+        <h2 class="title reveal">Prêt en dix secondes.</h2>
+        <p class="subtitle reveal" style="--i:1">Sans droits administrateur. Relancez la même commande pour mettre à jour.</p>
+        <div class="install reveal" style="--i:2" data-install></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="footer-cols">
+        <div><h4>KTRX</h4><p>Des outils de sécurité et d'analyse exécutés dans un bac à sable WebAssembly. À utiliser uniquement sur des systèmes que vous possédez ou que vous êtes autorisé à tester.</p></div>
+        <div><h4>Produit</h4><a href="/outils">Outils</a><a href="/telecharger">Télécharger</a><a href="/docs">Documentation</a></div>
+        <div><h4>Projet</h4><a href="https://github.com/ktrxservor/KTRX">Code source</a><a href="https://github.com/ktrxservor/KTRX/releases">Versions</a><a href="/docs#securite">Sécurité</a></div>
+      </div>
+      <div class="footer-bottom"><span>© 2026 KTRX</span><span data-engine-version></span></div>
+    </div>
+  </footer>
+</body>
+</html>

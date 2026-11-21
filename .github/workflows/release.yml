@@ -1,0 +1,129 @@
+name: Release
+
+# The only GitHub automation of KTRX: build the `ktrx` engine (and the team's `ktrx-dev`) for every
+# platform and attach them to a GitHub release. It never talks to the KTRX site; putting a release
+# on the site is done afterwards with `ktrx-dev engine publish X.Y.Z`.
+#
+#   git tag -a v0.6.0 -m "KTRX 0.6.0" && git push origin v0.6.0    build and publish the release
+#   git push origin HEAD:refs/heads/release-test/x                  build and check only (no release)
+#
+# Every binary must start on a clean machine: OpenSSL is built in, Linux is static (musl),
+# Windows links its C runtime statically (.cargo/config.toml), macOS links system libraries only.
+
+on:
+  push:
+    tags: ["v*"]
+    branches: ["release-test/**"]   # a dry run: same builds and checks, nothing published
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --manifest-path engine/Cargo.toml --locked --quiet
+
+  build:
+    name: build (${{ matrix.asset }})
+    needs: test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { os: ubuntu-latest,    asset: linux,        target: x86_64-unknown-linux-musl }
+          - { os: ubuntu-24.04-arm, asset: linux-arm64,  target: aarch64-unknown-linux-musl }
+          - { os: windows-latest,   asset: windows,      target: x86_64-pc-windows-msvc }
+          - { os: macos-latest,     asset: macos-arm64,  target: aarch64-apple-darwin, deployment: "11.0" }
+          - { os: macos-15-intel,   asset: macos-x86_64, target: x86_64-apple-darwin,  deployment: "10.15" }
+    env:
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - if: runner.os == 'Windows'
+        uses: shogo82148/actions-setup-perl@v1   # OpenSSL's build needs a native Perl on Windows
+      - if: runner.os == 'Linux'
+        run: |
+          python3 -m venv "$HOME/zig" && "$HOME/zig/bin/pip" install -q ziglang cargo-zigbuild
+          echo "$HOME/zig/bin" >> "$GITHUB_PATH"
+
+      - name: Build
+        run: |
+          build=build; [ "$RUNNER_OS" = Linux ] && build=zigbuild
+          cargo $build --manifest-path engine/Cargo.toml --release --locked --target ${{ matrix.target }} -p ktrx-cli -p ktrx-dev
+          out="engine/target/${{ matrix.target }}/release"; ext=""; [ "$RUNNER_OS" = Windows ] && ext=".exe"
+          mkdir dist && cp "$out/ktrx$ext" "$out/ktrx-dev$ext" dist/
+
+      - name: Check that the binaries need nothing installed
+        run: |
+          case "$RUNNER_OS" in
+            Linux)   for b in dist/*; do file "$b" | grep -qE "statically linked|static-pie" || { file "$b"; exit 1; }; done ;;
+            macOS)   bad="$(otool -L dist/* | grep -vE ':$|^[[:space:]]+(/usr/lib/|/System/Library/)' || true)"
+                     [ -z "$bad" ] || { echo "$bad"; exit 1; } ;;
+            Windows) dumpbin="$(find "/c/Program Files/Microsoft Visual Studio" -path '*Hostx64/x64/dumpbin.exe' | head -1)"
+                     deps="$("$dumpbin" //dependents dist/ktrx.exe dist/ktrx-dev.exe)"
+                     if grep -qiE "vcruntime|msvcp|api-ms-win-crt|ucrtbase|libssl|libcrypto" <<<"$deps"; then echo "$deps"; exit 1; fi ;;
+          esac
+          for b in dist/ktrx dist/ktrx-dev; do "$b" --version; done
+
+      - name: Package
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            cd dist && 7z a -bd ../ktrx-windows.zip ktrx.exe >/dev/null && 7z a -bd ../ktrx-dev-windows.zip ktrx-dev.exe >/dev/null
+          elif [ "$RUNNER_OS" = Linux ]; then
+            tar -C dist -czf ktrx-${{ matrix.asset }}.tar.gz ktrx
+            tar -C dist -czf ktrx-dev-${{ matrix.asset }}.tar.gz ktrx-dev
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ runner.os == 'macOS' && 'slice' || 'archives' }}-${{ matrix.asset }}
+          path: ${{ runner.os == 'macOS' && 'dist/*' || 'ktrx-*' }}
+          if-no-files-found: error
+
+  macos:
+    name: build (macos universal)
+    needs: build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: slice-macos-arm64, path: arm64 }
+      - uses: actions/download-artifact@v4
+        with: { name: slice-macos-x86_64, path: x86_64 }
+      - name: Join, sign and check
+        run: |
+          mkdir dist
+          for b in ktrx ktrx-dev; do
+            lipo -create "arm64/$b" "x86_64/$b" -output "dist/$b"
+            chmod 755 "dist/$b"
+            codesign --force --sign - "dist/$b"      # Apple Silicon only runs signed code
+            [ "$(lipo -archs "dist/$b")" = "x86_64 arm64" ]
+            "dist/$b" --version
+          done
+          tar -C dist -czf ktrx-macos.tar.gz ktrx
+          tar -C dist -czf ktrx-dev-macos.tar.gz ktrx-dev
+      - uses: actions/upload-artifact@v4
+        with: { name: archives-macos, path: "ktrx*.tar.gz", if-no-files-found: error }
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { pattern: archives-*, path: assets, merge-multiple: true }
+      - run: cd assets && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: assets/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true

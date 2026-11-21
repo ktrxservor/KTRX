@@ -1,10 +1,10 @@
 [workspace]
 resolver = "2"
-members = ["crates/ktrx-cli", "crates/ktrx-core", "crates/ktrx-runtime", "crates/ktrx-sdk"]
+members = ["crates/ktrx-cli", "crates/ktrx-core", "crates/ktrx-dev", "crates/ktrx-runtime", "crates/ktrx-sdk"]
 exclude = ["tests/host-probe"]
 
 [workspace.package]
-version = "0.5.3"
+version = "0.6.0"
 edition = "2024"
 license = "MIT"
 authors = ["KTRX contributors"]

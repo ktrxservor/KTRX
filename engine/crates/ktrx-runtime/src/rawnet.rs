@@ -227,7 +227,8 @@ fn arp(input: &Value) -> Result<String, String> {
     Ok(json!({"ip": address.to_string(), "mac": mac}).to_string())
 }
 
-#[cfg_attr(windows, allow(dead_code))]
+// Used by the ARP code of some platforms only.
+#[allow(dead_code)]
 fn format_mac(bytes: &[u8]) -> String {
     bytes
         .iter()
@@ -479,6 +480,7 @@ mod platform {
 mod platform {
     use super::*;
     use socket2::{Domain, Protocol, SockAddr, Socket, Type};
+    #[allow(unused_imports)] // UdpSocket is only used on some Unix systems.
     use std::{
         mem::MaybeUninit,
         net::{SocketAddrV4, UdpSocket},

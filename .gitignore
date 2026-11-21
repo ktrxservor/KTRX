@@ -1,2 +1,5 @@
 **/target/
 **/module.wasm
+site/node_modules/
+site/.wrangler/
+*.key

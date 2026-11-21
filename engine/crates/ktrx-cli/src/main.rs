@@ -20,12 +20,11 @@ fn print_line(args: std::fmt::Arguments) {
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use ktrx_core::{ToolPackage, validate_arguments, validate_manifest};
+use ktrx_core::{ToolPackage, validate_arguments};
 use ktrx_runtime::{Approvals, Runtime};
 mod registry;
 
 use std::{
-    fs::File,
     io::{self, IsTerminal, Write},
     path::{Path, PathBuf},
 };
@@ -73,7 +72,8 @@ enum Command {
         #[arg(long, conflicts_with = "json")]
         events: bool,
     },
-    /// Download a tool from the KTRX registry into the install directory.
+    /// Install a tool from the KTRX registry.
+    ///
     /// Accepts `name`, `K~NAME` or `name@version`; the SHA-256 published by the
     /// registry is verified before anything is written.
     Install {
@@ -116,26 +116,6 @@ enum Command {
     },
     /// Show manifest details.
     Info { tool: PathBuf },
-    /// Print the manifest as JSON.
-    Describe {
-        tool: PathBuf,
-        #[arg(long, default_value_t = true)]
-        json: bool,
-    },
-    /// Validate the archive, manifest, and WebAssembly component.
-    Validate { tool: PathBuf },
-    /// List the host operations available to tools and the permission each needs.
-    Capabilities {
-        /// Print the list as JSON.
-        #[arg(long)]
-        json: bool,
-    },
-    /// Package manifest.toml and module.wasm from a tool directory.
-    Pack {
-        directory: PathBuf,
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-    },
 }
 
 fn main() {
@@ -353,42 +333,6 @@ fn execute(cli: Cli) -> Result<()> {
                 }
             }
         }
-        Command::Capabilities { json } => {
-            let capabilities = ktrx_runtime::capabilities();
-            if json {
-                println!("{}", serde_json::to_string_pretty(&capabilities)?);
-            } else {
-                println!(
-                    "KTRX {} — host API {}\n",
-                    ktrx_core::ENGINE_VERSION,
-                    ktrx_core::API_VERSION
-                );
-                for capability in capabilities {
-                    let permissions = if capability.permissions.is_empty() {
-                        "none".to_owned()
-                    } else {
-                        capability
-                            .permissions
-                            .iter()
-                            .map(|p| p.as_str())
-                            .collect::<Vec<_>>()
-                            .join(" or ")
-                    };
-                    println!("  {:20} {}", capability.operation, permissions);
-                }
-            }
-        }
-        Command::Describe { tool, .. } => {
-            let p = ToolPackage::open(registry::locate(tool))?;
-            println!("{}", serde_json::to_string_pretty(&p.manifest)?);
-        }
-        Command::Validate { tool } => {
-            let tool = registry::locate(tool);
-            let p = ToolPackage::open(&tool)?;
-            Runtime::new()?.validate(&p)?;
-            println!("Valid: {} ({})", p.manifest.name, p.manifest.id);
-        }
-        Command::Pack { directory, output } => pack(&directory, output.as_deref())?,
     }
     Ok(())
 }
@@ -519,37 +463,6 @@ fn print_tool_help(m: &ktrx_core::Manifest) -> Result<()> {
     Ok(())
 }
 
-fn pack(directory: &Path, output: Option<&Path>) -> Result<()> {
-    let manifest = directory.join("manifest.toml");
-    let module = directory.join("module.wasm");
-    let manifest_data =
-        std::fs::read(&manifest).with_context(|| format!("reading {}", manifest.display()))?;
-    let manifest: ktrx_core::Manifest = toml::from_str(std::str::from_utf8(&manifest_data)?)?;
-    validate_manifest(&manifest)?;
-    let module_data =
-        std::fs::read(&module).with_context(|| format!("reading {}", module.display()))?;
-    anyhow::ensure!(
-        module_data.starts_with(b"\0asm"),
-        "module.wasm is not a WebAssembly binary"
-    );
-    let output = output.map(Path::to_path_buf).unwrap_or_else(|| {
-        directory.join(format!(
-            "{}.tool",
-            directory.file_name().unwrap_or_default().to_string_lossy()
-        ))
-    });
-    let file = File::create(&output)?;
-    let mut zip = zip::ZipWriter::new(file);
-    let options = zip::write::SimpleFileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated);
-    zip.start_file("manifest.toml", options)?;
-    zip.write_all(&manifest_data)?;
-    zip.start_file("module.wasm", options)?;
-    zip.write_all(&module_data)?;
-    zip.finish()?;
-    println!("Created {}", output.display());
-    Ok(())
-}
 
 /// Ask before a tool may write files. The prompt names the one directory the
 /// writes are confined to.

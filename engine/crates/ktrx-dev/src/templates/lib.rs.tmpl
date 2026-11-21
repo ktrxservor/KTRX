@@ -1,0 +1,52 @@
+//! K~{{MYTH}} — {{READABLE}}
+//!
+//! `run` reçoit les arguments déclarés dans manifest.toml, déjà validés, sous forme d'objet JSON
+//! (une clé par `[[arguments]]`), et renvoie un texte JSON. Une erreur se renvoie en
+//! `{"error": "message"}` : ne jamais paniquer sur une entrée utilisateur.
+//! Réseau, fichiers, programmes : uniquement via `ktrx::tool::host::request` (voir DEVELOPING.md).
+
+wit_bindgen::generate!({ path: "wit", world: "ktrx-tool" });
+
+use serde_json::{Value, json};
+
+struct Tool;
+
+impl exports::ktrx::tool::tool::Guest for Tool {
+    fn run(input: String) -> String {
+        let result = serde_json::from_str::<Value>(&input)
+            .map_err(|e| format!("entrée JSON invalide : {e}"))
+            .and_then(|args| execute(&args));
+        match result {
+            Ok(value) => value.to_string(),
+            Err(message) => json!({ "error": message }).to_string(),
+        }
+    }
+}
+
+export!(Tool);
+
+/// Le travail de l'outil.
+fn execute(args: &Value) -> Result<Value, String> {
+    let text = args
+        .get("text")
+        .and_then(Value::as_str)
+        .ok_or("argument « text » manquant")?;
+    // À REMPLACER : la logique de l'outil. Cet exemple compte les caractères.
+    Ok(json!({ "text": text, "characters": text.chars().count() }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn handles_a_valid_input() {
+        let out = execute(&json!({ "text": "abc" })).unwrap();
+        assert_eq!(out["characters"], 3);
+    }
+
+    #[test]
+    fn rejects_a_missing_argument() {
+        assert!(execute(&json!({})).is_err());
+    }
+}

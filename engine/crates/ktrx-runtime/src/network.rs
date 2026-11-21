@@ -109,10 +109,17 @@ impl Write for Socket {
 
 impl Socket {
     fn set_read_timeout(&self, timeout: Duration) -> io::Result<()> {
-        match self {
+        let result = match self {
             Self::Tcp(stream) => stream.set_read_timeout(Some(timeout)),
             Self::Tls(stream) => stream.get_ref().set_read_timeout(Some(timeout)),
+        };
+        // macOS answers EINVAL when the peer has already closed the connection. That is not a
+        // failure: the read that follows returns the data still buffered, or the end of stream.
+        #[cfg(unix)]
+        if matches!(&result, Err(error) if error.raw_os_error() == Some(libc::EINVAL)) {
+            return Ok(());
         }
+        result
     }
 
     /// Whether a read would return without blocking: buffered TLS plaintext,

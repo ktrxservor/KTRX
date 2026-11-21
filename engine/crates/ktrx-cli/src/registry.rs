@@ -40,6 +40,7 @@ impl Registry {
                 || base.starts_with("http://127.0.0.1"),
             "the registry must use https:// (got {base})"
         );
+        #[allow(unused_mut)] // only mutated on Linux
         let mut tls = native_tls::TlsConnector::builder();
         // A Linux machine without a CA bundle (minimal container, bare install) still trusts
         // Mozilla's public roots, so `ktrx install` works everywhere.

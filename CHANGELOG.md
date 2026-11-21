@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.0
+
+**Le moteur public n'exécute plus que des outils ; l'équipe publie avec `ktrx-dev`.** Cassant : les commandes `pack`, `validate`, `describe` et `capabilities` ne sont plus dans `ktrx` (elles sont dans `ktrx-dev`).
+
+- **`ktrx-dev`** (nouveau, livré compilé dans chaque release, installable par `scripts/install-dev.sh` ou `.ps1`) : `login`, `doctor`, `new` (crée un outil complet qui compile), `check` (tests, compilation, archive, exemples exécutés, règles de documentation), `publish`, `yank`, `delete`, `engine publish`, `keys`, `audit`.
+- **API d'administration** sous `/api/admin/…`, réservée aux clés de l'équipe (droits `publish` et `admin`, une clé par personne, révocables, journal des actions). Les anciennes routes d'écriture (`POST /api/tools`…) n'existent plus ; l'API publique reste identique.
+- **Site refondu** : accueil, catalogue (`/outils`), page d'un outil (`/outils/<nom>`, README rendu, arguments et exemples tirés du manifeste), téléchargement, documentation utilisateur. Le code du site est dans `site/`.
+- **Documentation** regroupée : `README.md`, `DEVELOPING.md` (le seul guide développeur, avec instructions pour une IA) et ce fichier.
+- **GitHub** réduit à un workflow, `release.yml` : tests, compilation de `ktrx` et `ktrx-dev` pour Windows, Linux x86_64 et ARM64, macOS universel, contrôles « aucune dépendance » et démarrage, release avec `SHA256SUMS.txt`. Plus de publication automatique vers le site.
+- Correctif macOS : lire un socket dont le pair venait de fermer la connexion pouvait échouer avec « Invalid argument (os error 22) » ; la lecture renvoie maintenant les données restantes ou la fin de flux.
+- `ktrx install`, `update` et `search` honorent `HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY`.
+
 ## 0.5.3 — engine
 
 - **One-line installers.** `curl -fsSL https://ktrx-site.tiagoantunes2009.workers.dev/install.sh | sh` (macOS, Linux) and `irm https://ktrx-site.tiagoantunes2009.workers.dev/install.ps1 | iex` (Windows) pick the right build for the machine, verify its SHA-256, install it in `~/.ktrx/bin` (no administrator rights) and add it to the PATH. Unlike a browser download, they do not trigger macOS Gatekeeper's quarantine or Windows' downloaded-file mark.
