@@ -58,11 +58,21 @@ jobs:
           echo "$HOME/zig/bin" >> "$GITHUB_PATH"
 
       - name: Build
+        if: runner.os != 'Windows'
         run: |
           build=build; [ "$RUNNER_OS" = Linux ] && build=zigbuild
           cargo $build --manifest-path engine/Cargo.toml --release --locked --target ${{ matrix.target }} -p ktrx-cli -p ktrx-dev
-          out="engine/target/${{ matrix.target }}/release"; ext=""; [ "$RUNNER_OS" = Windows ] && ext=".exe"
-          mkdir dist && cp "$out/ktrx$ext" "$out/ktrx-dev$ext" dist/
+          mkdir dist && cp engine/target/${{ matrix.target }}/release/ktrx engine/target/${{ matrix.target }}/release/ktrx-dev dist/
+
+      # PowerShell, not Git Bash: OpenSSL's build must find Strawberry Perl, not the MSYS one.
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cargo build --manifest-path engine/Cargo.toml --release --locked --target ${{ matrix.target }} -p ktrx-cli -p ktrx-dev
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory dist | Out-Null
+          Copy-Item engine/target/${{ matrix.target }}/release/ktrx.exe, engine/target/${{ matrix.target }}/release/ktrx-dev.exe dist/
 
       - name: Check that the binaries need nothing installed
         run: |
