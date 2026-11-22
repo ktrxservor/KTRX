@@ -172,7 +172,7 @@ main() {
 	case ":$PATH:" in
 	*":$bin_dir:"*)
 		say ""
-		say "C'est prêt. Ensuite :  ktrx-dev login   puis   ktrx-dev guide"
+		say "C'est prêt. Ensuite :  ktrx-dev guide   (ktrx-dev login seulement pour publier)"
 		;;
 	*)
 		if [ "${KTRX_NO_MODIFY_PATH:-}" = "1" ]; then
@@ -183,7 +183,7 @@ main() {
 			say ""
 			say "Ouvrez un nouveau terminal, ou lancez d'abord :"
 			say "  export PATH=\"$bin_dir:\$PATH\""
-			say "puis :  ktrx-dev login   puis   ktrx-dev guide"
+			say "puis :  ktrx-dev guide   (ktrx-dev login seulement pour publier)"
 		fi
 		;;
 	esac

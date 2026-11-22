@@ -79,7 +79,7 @@ function Install-Ktrx {
         $inPath = ($env:Path -split ';' | ForEach-Object { $_.TrimEnd('\') }) -contains $bin.TrimEnd('\')
         if ($inPath) {
             Write-Host ''
-            Write-Host "C'est prêt. Essayez :  ktrx-dev login, puis ktrx-dev guide"
+            Write-Host "C'est prêt. Essayez :  ktrx-dev guide (ktrx-dev login seulement pour publier)"
         } elseif ($env:KTRX_NO_MODIFY_PATH -eq '1') {
             Write-Host ''
             Write-Host "Ajoutez $bin à votre PATH pour lancer ktrx-dev par son nom."
@@ -93,7 +93,7 @@ function Install-Ktrx {
             $env:Path = "$bin;$env:Path"
             Write-Host ''
             Write-Host "PATH de l'utilisateur mis à jour. ktrx-dev est utilisable dans ce terminal et dans les nouveaux."
-            Write-Host 'Essayez :  ktrx-dev login, puis ktrx-dev guide'
+            Write-Host 'Essayez :  ktrx-dev guide (ktrx-dev login seulement pour publier)'
         }
     } finally {
         Remove-Item -Recurse -Force -Path $tmp -ErrorAction SilentlyContinue
