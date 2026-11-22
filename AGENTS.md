@@ -1,5 +1,6 @@
 # Instructions pour les agents IA
 
+- **Machine vierge** : lis et applique la partie 1 de https://ktrx-site.tiagoantunes2009.workers.dev/dev/guide-ia.md (installation complète, sans créer d'outil). Guide humain : https://ktrx-site.tiagoantunes2009.workers.dev/dev/guide-equipe.
 - **Créer ou modifier un outil** : suis `DEVELOPING.md` (section 3 « Instructions pour une IA »), avec `ktrx-dev new`, `ktrx-dev check` puis `ktrx-dev publish`. Ne publie rien tant que `check` n'est pas entièrement vert.
 - Un outil = un projet Rust indépendant sous `tools/<MYTHE> ( <Nom> )/`, cible `wasm32-wasip2`. N'ajoute jamais de logique propre à un outil dans `engine/`.
 - Une version publiée ne change jamais : incrémente `version` dans `manifest.toml` et `Cargo.toml` à chaque modification de l'archive.

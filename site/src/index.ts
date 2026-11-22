@@ -37,6 +37,15 @@ export default {
         });
       }
 
+      // Developer guides (public, no secret inside): UTF-8 so they read right in a browser and for an AI fetching them.
+      if (path === "/dev/guide-ia.md") {
+        const asset = await env.ASSETS.fetch(request);
+        if (!asset.ok) return asset;
+        return new Response(asset.body, {
+          headers: { "content-type": "text/markdown; charset=utf-8", "cache-control": "public, max-age=300", "x-content-type-options": "nosniff" },
+        });
+      }
+
       // Tool pages: /outils/<name>, with the tool's title and description in the HTML head.
       m = /^\/outils\/([A-Za-z0-9~-]+)\/?$/.exec(path);
       if (m) return await toolPage(env, request, m[1]);

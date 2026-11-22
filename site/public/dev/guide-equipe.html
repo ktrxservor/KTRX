@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KTRX — Guide de création d'outils</title>
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--ink:#16181d;--mute:#5d636e;--line:#e1ded7;--acc:#b8650a;--code:#14161b;--codeink:#e8e6e1}
+@media (prefers-color-scheme:dark){:root{--bg:#101216;--card:#181b21;--ink:#ecebe7;--mute:#9aa0ab;--line:#2a2e36;--acc:#e8a04a;--code:#0a0b0e;--codeink:#e8e6e1}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:780px;margin:0 auto;padding:40px 20px 80px}
+h1{font-size:2rem;margin:0 0 6px;letter-spacing:-.02em}
+.sub{color:var(--mute);margin:0 0 28px}
+h2{font-size:1.2rem;margin:0 0 12px;display:flex;gap:12px;align-items:center}
+h2 .n{flex:none;width:30px;height:30px;border-radius:50%;background:var(--acc);color:#fff;display:grid;place-items:center;font-size:.95rem}
+section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;margin:0 0 18px}
+p{margin:.5em 0}
+.mute{color:var(--mute);font-size:.92rem}
+.os{display:inline-block;font-size:.75rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--acc);margin:14px 0 4px}
+.box{position:relative;margin:6px 0 10px}
+pre{margin:0;background:var(--code);color:var(--codeink);border-radius:10px;padding:14px 76px 14px 14px;overflow-x:auto;font:13.5px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word}
+button.cp{position:absolute;top:8px;right:8px;border:1px solid #3a3f49;background:#232730;color:#ddd;border-radius:7px;padding:4px 10px;font-size:.78rem;cursor:pointer}
+button.cp:hover{background:#2d323d}
+code.i{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font:.9em ui-monospace,Menlo,Consolas,monospace}
+.pw{font-weight:700;color:var(--acc)}
+table{width:100%;border-collapse:collapse;font-size:.93rem}
+td,th{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mute);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em}
+.note{border-left:3px solid var(--acc);padding:6px 14px;background:var(--bg);border-radius:0 8px 8px 0;margin:12px 0;font-size:.93rem}
+ul{padding-left:1.2em;margin:.4em 0}
+footer{color:var(--mute);font-size:.85rem;text-align:center;margin-top:30px}
+@media print{body{background:#fff}section{break-inside:avoid;box-shadow:none}button.cp{display:none}pre{padding-right:14px}}
+</style>
+</head>
+<body>
+<main>
+<h1>Créer des outils KTRX</h1>
+<p class="sub">Du poste vierge au premier outil publié. Une fois la machine prête (étapes 1 à 3, 10 minutes), on ne fait plus que l'étape 4.</p>
+
+<section>
+<h2><span class="n">1</span>Installer Rust</h2>
+<p>Les outils sont écrits en Rust et compilés en WebAssembly. À faire une seule fois par machine.</p>
+<span class="os">macOS · Linux</span>
+<div class="box"><pre>curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh</pre></div>
+<span class="os">Windows (PowerShell)</span>
+<div class="box"><pre>winget install Rustlang.Rustup</pre></div>
+<p class="mute">Sous Windows, rustup propose d'installer les « Visual Studio Build Tools » : accepte. Ensuite, <b>ferme et rouvre le terminal</b>, puis ajoute la cible WebAssembly :</p>
+<div class="box"><pre>rustup target add wasm32-wasip2</pre></div>
+</section>
+
+<section>
+<h2><span class="n">2</span>Installer ktrx-dev</h2>
+<p><code class="i">ktrx-dev</code> est l'outil de l'équipe : il crée, vérifie et publie. Il s'installe sans droits administrateur.</p>
+<span class="os">macOS · Linux</span>
+<div class="box"><pre>curl -fsSL https://ktrx-site.tiagoantunes2009.workers.dev/install-dev.sh | sh</pre></div>
+<span class="os">Windows (PowerShell)</span>
+<div class="box"><pre>irm https://ktrx-site.tiagoantunes2009.workers.dev/install-dev.ps1 | iex</pre></div>
+<p class="mute">Ouvre un nouveau terminal (ou ajoute <code class="i">~/.ktrx/bin</code> au PATH), puis vérifie :</p>
+<div class="box"><pre>ktrx-dev --version
+ktrx-dev doctor --fix</pre></div>
+<p class="mute"><code class="i">doctor</code> contrôle tout et dit quoi corriger. Il doit finir par « Tout est prêt ». Le mot de passe n'est pas demandé à ce stade.</p>
+</section>
+
+<section>
+<h2><span class="n">3</span>Se connecter (pour publier)</h2>
+<p>Un seul mot de passe pour toute l'équipe, nécessaire <b>uniquement pour publier</b>. Créer et tester un outil n'en demande aucun.</p>
+<div class="box"><pre>ktrx-dev login</pre></div>
+<p>Saisie masquée. Le mot de passe est celui de l'équipe (il n'est écrit nulle part ici : demande-le à un membre de l'équipe).</p>
+<p class="mute">Il est stocké sur la machine (<code class="i">~/.config/ktrx/dev.toml</code>, <code class="i">%APPDATA%\ktrx\dev.toml</code> sous Windows). Ne le mets jamais dans un fichier du projet ni dans un commit. Pour le changer : <code class="i">npx wrangler secret put ADMIN_PASSWORD</code> dans <code class="i">site/</code>.</p>
+</section>
+
+<section>
+<h2><span class="n">4</span>Créer un outil avec une IA</h2>
+<p>Ouvre un dossier vide, lance Claude Code (ou une autre IA de code) dedans, et colle l'un des prompts. Remplace uniquement ce qui est entre <code class="i">&lt;…&gt;</code>.</p>
+
+<p><b>Prompt 0 — préparer une IA (à faire une fois par machine)</b></p>
+<div class="box"><pre>Lis ce guide et applique la partie 1 (installation), sans créer d'outil : https://ktrx-site.tiagoantunes2009.workers.dev/dev/guide-ia.md</pre></div>
+<p class="mute">L'IA installe tout, vérifie, puis attend. Ensuite, tes prompts « crée-moi tel outil » suffisent : elle ne te demande que le mot de passe, au moment de publier. Les prompts A, B et C ci-dessous sont l'équivalent autonome, si l'IA n'a pas accès au lien.</p>
+
+<p><b>Prompt A — à partir d'une idée</b></p>
+<div class="box"><pre>Tu vas créer un outil pour KTRX.
+1. Si `ktrx-dev --version` échoue, installe-le : macOS/Linux `curl -fsSL https://ktrx-site.tiagoantunes2009.workers.dev/install-dev.sh | sh`, Windows `irm https://ktrx-site.tiagoantunes2009.workers.dev/install-dev.ps1 | iex`. Lance ensuite `ktrx-dev doctor --fix` et corrige ce qu'il signale.
+2. Lis le guide complet : `ktrx-dev guide` (au minimum les sections 3 à 12).
+3. Lance `ktrx-dev init`, puis crée l'outil : &lt;ce qu'il doit faire&gt;.
+   Commande : `ktrx-dev new &lt;NOM-MYTHOLOGIQUE-EN-MAJUSCULES&gt; &lt;Nom-Lisible&gt; --category &lt;investigation|analysis|encoding|generation&gt;`.
+4. Remplace TOUS les « À COMPLÉTER » et « À REMPLACER » (src/lib.rs avec des tests sans Internet, manifest.toml, README.md).
+5. `ktrx-dev check &lt;nom&gt;` doit finir par « Tout est bon ». Ne contourne aucun contrôle.
+6. Seulement alors, DEMANDE-MOI le mot de passe de publication, enregistre-le avec `ktrx-dev login --password &lt;mot de passe&gt;` (ne l'écris dans aucun fichier), puis `ktrx-dev publish &lt;nom&gt;` et donne-moi l'adresse de la page.
+Règles : un outil = une fonction. Pas de Git ni GitHub. Aucun accès réseau ou fichier hors des primitives du moteur (guide, section 9).</pre></div>
+
+<p><b>Prompt B — à partir d'une documentation en ligne</b></p>
+<div class="box"><pre>Tu vas créer un outil KTRX à partir de cette documentation : &lt;URL&gt;.
+Lis-la, puis fais l'outil qui &lt;fonction précise, ex. interroger tel endpoint et résumer la réponse&gt;.
+Suis exactement la procédure ci-dessus (installation de ktrx-dev si besoin, `ktrx-dev guide`, `ktrx-dev init`, `ktrx-dev new`, `ktrx-dev check` jusqu'à « Tout est bon »). Demande-moi le mot de passe seulement au moment de publier, enregistre-le avec `ktrx-dev login --password …`, puis `ktrx-dev publish`.</pre></div>
+
+<p><b>Prompt C — modifier un outil existant</b></p>
+<div class="box"><pre>Modifie l'outil KTRX « &lt;nom&gt; » : &lt;changement voulu&gt;.
+`ktrx-dev get &lt;nom&gt;` récupère les sources. Incrémente `version` dans manifest.toml ET Cargo.toml. Mets à jour le README si besoin. `ktrx-dev check &lt;nom&gt;` jusqu'à « Tout est bon ». Demande-moi le mot de passe, `ktrx-dev login --password …`, puis `ktrx-dev publish &lt;nom&gt;`.</pre></div>
+</section>
+
+<section>
+<h2><span class="n">5</span>À la main, sans IA</h2>
+<div class="box"><pre>ktrx-dev new neith JSON-Inspector --category analysis
+# remplir src/lib.rs, manifest.toml, README.md (chaque « À COMPLÉTER »)
+ktrx-dev check neith       # tests, compilation, exemples exécutés, règles de doc
+ktrx-dev publish neith     # refait check, puis publie</pre></div>
+<p>L'outil est visible tout de suite sur le site et s'installe avec <code class="i">ktrx install neith</code>.</p>
+</section>
+
+<section>
+<h2><span class="n">6</span>Les règles à ne pas rater</h2>
+<ul>
+<li><b>Nom</b> : mythologique, en majuscules A–Z, unique. <code class="i">ktrx-dev new</code> refuse un nom déjà pris.</li>
+<li><b>Une version publiée ne change jamais.</b> Toute modification = nouvelle <code class="i">version</code> dans <code class="i">manifest.toml</code> <i>et</i> <code class="i">Cargo.toml</code>.</li>
+<li><b>Un outil = une fonction.</b> Aucune logique d'outil dans le moteur.</li>
+<li><b>Permissions</b> : seulement celles nécessaires (<code class="i">network</code>, <code class="i">file-read</code>, <code class="i">file-write</code>, <code class="i">raw-net</code>, <code class="i">process</code>). Jamais de liste d'hôtes dans le manifeste.</li>
+<li><b>Erreurs</b> : renvoyer <code class="i">{"error":"…"}</code>, jamais de panic sur une entrée utilisateur.</li>
+<li><b>README</b> : sans image ni HTML ; l'emblème <code class="i">icon.png</code> (1024×1024, sans texte) est facultatif, un défaut est fourni.</li>
+<li><b>Pas de Git</b> : tout passe par le registre.</li>
+</ul>
+</section>
+
+<section>
+<h2><span class="n">7</span>Aide-mémoire</h2>
+<table>
+<tr><th>Commande</th><th>Rôle</th></tr>
+<tr><td><code class="i">ktrx-dev guide [N]</code></td><td>Le guide complet (ou la section N) ; <code class="i">--list</code> pour le sommaire</td></tr>
+<tr><td><code class="i">ktrx-dev doctor --fix</code></td><td>Vérifie la machine, installe la cible WebAssembly</td></tr>
+<tr><td><code class="i">ktrx-dev init</code></td><td>Crée AGENTS.md et CLAUDE.md pour une IA dans le dossier</td></tr>
+<tr><td><code class="i">ktrx-dev new</code> / <code class="i">check</code> / <code class="i">publish</code></td><td>Créer, vérifier, publier</td></tr>
+<tr><td><code class="i">ktrx-dev get OUTIL</code></td><td>Récupère les sources publiées (autre machine)</td></tr>
+<tr><td><code class="i">ktrx-dev yank OUTIL VERSION</code></td><td>Retire une version défectueuse</td></tr>
+<tr><td><code class="i">ktrx-dev delete OUTIL</code></td><td>Supprime un outil du registre</td></tr>
+<tr><td><code class="i">ktrx-dev whoami</code></td><td>Vérifie que le mot de passe est accepté</td></tr>
+<tr><td><code class="i">ktrx-dev audit</code></td><td>Dernières actions sur le registre</td></tr>
+</table>
+</section>
+
+<section>
+<h2><span class="n">8</span>Si ça coince</h2>
+<table>
+<tr><th>Symptôme</th><th>Solution</th></tr>
+<tr><td><code class="i">ktrx-dev</code> introuvable</td><td>Ouvre un nouveau terminal, ou ajoute <code class="i">~/.ktrx/bin</code> au PATH</td></tr>
+<tr><td>Cible wasm32-wasip2 absente</td><td><code class="i">rustup target add wasm32-wasip2</code> (ou <code class="i">ktrx-dev doctor --fix</code>)</td></tr>
+<tr><td>Erreur de compilation sous Windows</td><td>Installer les Visual Studio Build Tools proposés par rustup</td></tr>
+<tr><td>« mot de passe refusé »</td><td>Relancer <code class="i">ktrx-dev login</code> (vérifier la saisie)</td></tr>
+<tr><td>« version déjà publiée »</td><td>Incrémenter <code class="i">version</code> dans manifest.toml ET Cargo.toml</td></tr>
+<tr><td>Derrière un proxy</td><td>Définir <code class="i">HTTPS_PROXY</code></td></tr>
+<tr><td>Un doute sur une règle</td><td><code class="i">ktrx-dev guide</code> : il est embarqué et toujours à jour</td></tr>
+</table>
+</section>
+
+<footer>Guide équipe KTRX · ktrx-dev 0.6.3 · Le mot de passe de publication n'est volontairement écrit dans aucun guide.</footer>
+</main>
+<script>
+document.querySelectorAll('.box').forEach(b=>{
+  const btn=document.createElement('button');btn.className='cp';btn.textContent='Copier';
+  btn.onclick=async()=>{const t=b.querySelector('pre').innerText;try{await navigator.clipboard.writeText(t);btn.textContent='Copié ✓'}catch(e){const r=document.createRange();r.selectNodeContents(b.querySelector('pre'));const s=getSelection();s.removeAllRanges();s.addRange(r);btn.textContent='Sélectionné'}setTimeout(()=>btn.textContent='Copier',1500)};
+  b.appendChild(btn);
+});
+</script>
+</body>
+</html>
