@@ -104,6 +104,35 @@ impl Registry {
         found.with_context(|| format!("no tool named {query:?} in the registry (try `ktrx search`)"))
     }
 
+    /// Registry entries as JSON (for `ktrx mcp`): name, id, version, description, category, permissions.
+    pub fn search_json(&self, query: Option<&str>) -> Result<Value> {
+        let value = self.get_json("/api/tools")?;
+        let needle = query.map(str::to_lowercase);
+        let mut found = Vec::new();
+        for t in value["tools"].as_array().into_iter().flatten() {
+            if t["deprecated"].as_bool().unwrap_or(false) {
+                continue;
+            }
+            let hay = format!(
+                "{} {} {} {} {}",
+                t["myth_name"].as_str().unwrap_or(""),
+                t["id"].as_str().unwrap_or(""),
+                t["description"].as_str().unwrap_or(""),
+                t["category"].as_str().unwrap_or(""),
+                t["tags"]
+            )
+            .to_lowercase();
+            if needle.as_ref().is_none_or(|n| n.split_whitespace().all(|w| hay.contains(w))) {
+                found.push(serde_json::json!({
+                    "name": t["name"], "id": t["id"], "version": t["latest_version"],
+                    "description": t["description"], "category": t["category"],
+                    "permissions": t["permissions"],
+                }));
+            }
+        }
+        Ok(Value::Array(found))
+    }
+
     pub fn search(&self, query: Option<&str>) -> Result<()> {
         let value = self.get_json("/api/tools")?;
         let needle = query.map(str::to_lowercase);

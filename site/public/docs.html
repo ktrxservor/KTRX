@@ -22,6 +22,7 @@
       <nav class="nav" id="nav">
         <a href="/outils">Outils</a>
         <a href="/telecharger">Télécharger</a>
+        <a href="/ia">Pour les IA</a>
         <a href="/docs">Documentation</a>
         <a href="https://github.com/ktrxservor/KTRX">GitHub</a>
       </nav>
@@ -40,6 +41,7 @@
         <a href="#lancer">Lancer un outil</a>
         <a href="#permissions">Permissions</a>
         <a href="#securite">Sécurité</a>
+        <a href="#ia">Assistants IA</a>
         <a href="#mettre-a-jour">Mettre à jour, désinstaller</a>
         <a href="#depannage">Dépannage</a>
         <a href="#usage">Usage responsable</a>
@@ -155,6 +157,13 @@ ktrx run thoth --encode "Bonjour"</code></pre></div>
           <p>Un problème de sécurité ? Signalez-le sur <a href="https://github.com/ktrxservor/KTRX/issues">GitHub</a>.</p>
         </section>
 
+        <section id="ia">
+          <h2>Assistants IA</h2>
+          <p><code>ktrx mcp</code> met les outils à disposition d'un assistant (Claude Code, Codex, Gemini CLI, Cursor…) par le protocole MCP. Enregistrez-le une fois, par exemple pour Claude Code :</p>
+          <div class="code"><pre><code>claude mcp add --scope user ktrx -- ktrx mcp</code></pre></div>
+          <p>L'assistant dispose alors de trois actions : chercher un outil, lire ses arguments, le lancer. Les résultats sont en JSON. Les permissions accordées sont fixées par vous, une fois, avec <code>--allow</code> (par défaut <code>network</code>, <code>file-read</code> et <code>file-write</code> ; <code>raw-net</code> et <code>process</code> sont refusées). Les écritures restent dans <code>~/.ktrx/workspace</code>, ou dans le dossier de <code>--write-dir</code>. Détails et commandes pour chaque assistant : <a href="/ia">Pour les IA</a>.</p>
+        </section>
+
         <section id="mettre-a-jour">
           <h2>Mettre à jour, désinstaller</h2>
           <h3>Mettre à jour</h3>
@@ -193,7 +202,7 @@ ktrx run thoth --encode "Bonjour"</code></pre></div>
     <div class="wrap">
       <div class="footer-cols">
         <div><h4>KTRX</h4><p>Des outils de sécurité et d'analyse exécutés dans un bac à sable WebAssembly. À utiliser uniquement sur des systèmes que vous possédez ou que vous êtes autorisé à tester.</p></div>
-        <div><h4>Produit</h4><a href="/outils">Outils</a><a href="/telecharger">Télécharger</a><a href="/docs">Documentation</a></div>
+        <div><h4>Produit</h4><a href="/outils">Outils</a><a href="/telecharger">Télécharger</a><a href="/ia">Pour les IA</a><a href="/docs">Documentation</a></div>
         <div><h4>Projet</h4><a href="https://github.com/ktrxservor/KTRX">Code source</a><a href="https://github.com/ktrxservor/KTRX/releases">Versions</a><a href="/docs#securite">Sécurité</a></div>
       </div>
       <div class="footer-bottom"><span>© 2026 KTRX</span><span data-engine-version></span></div>

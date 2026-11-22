@@ -43,6 +43,8 @@ Le site héberge les outils, leurs sources et les binaires ; GitHub sert uniquem
 
 ## Contribuer (équipe)
 
+**Pour les assistants IA :** `ktrx mcp` met les outils à disposition de Claude, Codex, Gemini, Cursor… (`claude mcp add --scope user ktrx -- ktrx mcp`) ; voir la page `/ia` du site.
+
 Tout se trouve dans **[DEVELOPING.md](DEVELOPING.md)**, aussi lisible sans le dépôt avec `ktrx-dev guide` : installer `ktrx-dev` depuis le site, créer et publier un outil en quelques commandes, instructions à donner à une IA, API du registre, architecture du moteur, publication d'une version. Aucun besoin de Git pour créer un outil : tout passe par le registre. Seule l'équipe peut publier (mot de passe de l'équipe).
 
 ```sh

@@ -22,6 +22,7 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use ktrx_core::{ToolPackage, validate_arguments};
 use ktrx_runtime::{Approvals, Runtime};
+mod mcp;
 mod registry;
 
 use std::{
@@ -116,6 +117,20 @@ enum Command {
     },
     /// Show manifest details.
     Info { tool: PathBuf },
+    /// Serve the tools to AI assistants (Claude, Codex, Gemini, Cursor...) over MCP, on stdio.
+    ///
+    /// Register it once with your assistant, e.g. `claude mcp add ktrx -- ktrx mcp`. The assistant
+    /// can then search, describe and run KTRX tools. It cannot answer permission prompts, so the
+    /// permissions you grant here apply to every run.
+    Mcp {
+        /// Permissions granted to the assistant, comma-separated (network, file-read, file-write,
+        /// raw-net, process). Default: network,file-read,file-write.
+        #[arg(long, value_name = "LIST")]
+        allow: Option<String>,
+        /// Directory tools with file-write may write inside (default: ~/.ktrx/workspace).
+        #[arg(long = "write-dir", value_name = "DIR")]
+        write_dir: Option<PathBuf>,
+    },
 }
 
 fn main() {
@@ -293,6 +308,7 @@ fn execute(cli: Cli) -> Result<()> {
         Command::Search { query, registry } => {
             registry::Registry::new(registry)?.search(query.as_deref())?;
         }
+        Command::Mcp { allow, write_dir } => mcp::serve(allow, write_dir)?,
         Command::Info { tool } => {
             let p = ToolPackage::open(registry::locate(tool))?;
             println!("{}  {}", p.manifest.name, p.manifest.version);

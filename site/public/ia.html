@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pour les IA — KTRX</title>
+  <meta name="description" content="Branchez KTRX à Claude, Codex, Gemini ou Cursor en une commande : l'assistant cherche, comprend et lance les outils, et reçoit du JSON.">
+  <meta property="og:title" content="Pour les IA — KTRX">
+  <meta property="og:description" content="Une commande, et votre assistant IA utilise les outils KTRX dans un bac à sable, avec des résultats en JSON.">
+  <meta property="og:type" content="website">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="Description du site pour les IA">
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/site.js" defer></script>
+  <script src="/assets/ia.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="/"><span class="brand-mark">K</span>KTRX</a>
+      <nav class="nav" id="nav">
+        <a href="/outils">Outils</a>
+        <a href="/telecharger">Télécharger</a>
+        <a href="/ia">Pour les IA</a>
+        <a href="/docs">Documentation</a>
+        <a href="https://github.com/ktrxservor/KTRX">GitHub</a>
+      </nav>
+      <a class="btn btn-primary header-cta" href="/telecharger">Installer</a>
+      <button class="menu-toggle" type="button" aria-label="Menu" aria-controls="nav" aria-expanded="false"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 6h14M2 12h14"/></svg></button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" style="padding-bottom:40px">
+      <div class="wrap">
+        <p class="eyebrow reveal">Pour les IA</p>
+        <h1 class="title reveal" style="--i:1">Vos outils, dans votre assistant.</h1>
+        <p class="subtitle reveal" style="--i:2">Une commande, et Claude, Codex, Gemini ou Cursor cherchent, comprennent et lancent les outils KTRX. Chaque résultat revient en JSON, exécuté dans un bac à sable.</p>
+
+        <div class="install reveal" style="--i:3">
+          <div class="os-switch" id="clients" role="tablist" aria-label="Assistant">
+            <button type="button" class="is-active" data-client="claude">Claude Code</button>
+            <button type="button" data-client="codex">Codex</button>
+            <button type="button" data-client="gemini">Gemini CLI</button>
+            <button type="button" data-client="json">Cursor et autres</button>
+          </div>
+          <div class="install-line">
+            <span class="prompt" id="cmd-prompt">$</span>
+            <code id="cmd" style="white-space:pre-wrap">claude mcp add --scope user ktrx -- ktrx mcp</code>
+            <button class="copy" type="button" id="cmd-copy" data-copy="claude mcp add --scope user ktrx -- ktrx mcp">Copier</button>
+          </div>
+          <p class="install-note" id="cmd-note">Le moteur KTRX doit être installé (<a href="/telecharger">une ligne</a>). Redémarrez l'assistant : trois actions apparaissent, <code>ktrx_search</code>, <code>ktrx_describe</code> et <code>ktrx_run</code>.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-alt" style="padding-top:80px">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 class="title reveal" style="font-size:clamp(28px,4vw,40px)">Vous demandez, il exécute.</h2>
+          <p class="subtitle reveal" style="--i:1;font-size:19px">L'assistant choisit l'outil, lit ses arguments, le lance et vous répond avec le résultat réel, pas une estimation.</p>
+        </div>
+        <div class="terminal reveal" aria-label="Exemple de conversation avec un assistant">
+          <div class="terminal-bar"><span></span><span></span><span></span></div>
+<pre><span class="t-dim">vous</span>        <span class="t-cmd">Donne-moi 3 UUID v7 triables par date.</span>
+
+<span class="t-dim">assistant</span>  <span class="t-key">ktrx_search</span> {"query": "uuid"}
+             <span class="t-ok">→ nyx — Génère des UUID (v4, v7, v5…) et les analyse</span>
+             <span class="t-key">ktrx_describe</span> {"tool": "nyx"}
+             <span class="t-ok">→ arguments : action, count, name, namespace…</span>
+             <span class="t-key">ktrx_run</span> {"tool": "nyx", "arguments": {"action": "v7", "count": 3}}
+             <span class="t-ok">→ {"uuids": ["019…", "019…", "019…"]}</span>
+
+<span class="t-dim">assistant</span>  <span class="t-cmd">Voici trois UUID v7, du plus ancien au plus récent : …</span></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="tiles">
+          <article class="tile reveal"><h3>Trois actions, quel que soit le catalogue.</h3><p>Chercher, décrire, lancer. L'assistant découvre les outils au besoin et les installe seul au premier usage, avec vérification de l'empreinte SHA-256. Le catalogue peut grandir sans alourdir son contexte.</p></article>
+          <article class="tile reveal" style="--i:1"><h3>Du JSON, pas du texte à deviner.</h3><p>Chaque outil renvoie un résultat structuré et décrit ses arguments par un schéma JSON. L'assistant enchaîne plusieurs outils sans rien interpréter à l'aveugle.</p></article>
+          <article class="tile reveal" style="--i:2"><h3>Vous gardez la main.</h3><p>Un outil s'exécute dans un bac à sable WebAssembly, sans accès implicite. Vous décidez une fois pour toutes des permissions accordées à l'assistant.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-alt">
+      <div class="wrap wrap-narrow prose">
+        <h2 class="title reveal" style="font-size:clamp(28px,4vw,40px)">Permissions</h2>
+        <p>Un assistant ne peut pas répondre à la question « Autoriser ? ». C'est donc vous qui fixez la règle, au moment d'enregistrer le serveur. Elle s'applique à chaque exécution.</p>
+        <table>
+          <thead><tr><th>Permission</th><th>Par défaut</th><th>Ce qu'elle permet</th></tr></thead>
+          <tbody>
+            <tr><td><code>network</code></td><td>autorisée</td><td>Résolution DNS et connexions réseau choisies à l'exécution.</td></tr>
+            <tr><td><code>file-read</code></td><td>autorisée</td><td>Lire les fichiers et dossiers que l'assistant désigne.</td></tr>
+            <tr><td><code>file-write</code></td><td>autorisée</td><td>Écrire uniquement dans <code>~/.ktrx/workspace</code> (ou le dossier de <code>--write-dir</code>).</td></tr>
+            <tr><td><code>raw-net</code></td><td>refusée</td><td>ICMP, ARP et sondes TCP brutes.</td></tr>
+            <tr><td><code>process</code></td><td>refusée</td><td>Lancer des programmes de la machine, hors du bac à sable.</td></tr>
+          </tbody>
+        </table>
+        <p>Pour changer la règle, ajoutez les options à la commande d'enregistrement :</p>
+        <div class="code"><pre><code>ktrx mcp --allow network,file-read --write-dir ~/ktrx-sortie</code></pre></div>
+        <div class="callout"><strong>Contenu venu d'Internet.</strong> Ce qu'un outil récupère sur le réseau est une donnée, jamais une instruction : le serveur le rappelle à l'assistant. Pour les usages sensibles, ne gardez que <code>network</code> ou retirez <code>file-read</code>.</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap wrap-narrow prose">
+        <h2 class="title reveal" style="font-size:clamp(28px,4vw,40px)">Sans MCP</h2>
+        <p>Le site lui-même est lisible par une IA, y compris un assistant en ligne qui ne peut pas exécuter de programme.</p>
+        <ul>
+          <li><a href="/llms.txt"><code>/llms.txt</code></a> : la description de KTRX et la liste des outils, au format prévu pour les modèles de langage.</li>
+          <li><a href="/api/tools"><code>/api/tools</code></a> et <code>/api/tools/&lt;outil&gt;</code> : le catalogue en JSON, avec pour chaque outil ses arguments, ses exemples et ses permissions.</li>
+          <li>En ligne de commande, n'importe quel agent peut lancer <code>ktrx run --json &lt;outil&gt; …</code> et lire la sortie.</li>
+        </ul>
+        <p>Pour un assistant en ligne, ce message suffit :</p>
+        <div class="code"><pre><code>Lis https://ktrx-site.tiagoantunes2009.workers.dev/llms.txt : c'est KTRX, un catalogue d'outils. Utilise-le pour répondre à ma demande : choisis l'outil adapté, explique-moi la commande `ktrx run` à lancer et ce qu'elle renvoie.</code></pre></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="footer-cols">
+        <div><h4>KTRX</h4><p>Des outils de sécurité et d'analyse exécutés dans un bac à sable WebAssembly. À utiliser uniquement sur des systèmes que vous possédez ou que vous êtes autorisé à tester.</p></div>
+        <div><h4>Produit</h4><a href="/outils">Outils</a><a href="/telecharger">Télécharger</a><a href="/ia">Pour les IA</a><a href="/docs">Documentation</a></div>
+        <div><h4>Projet</h4><a href="https://github.com/ktrxservator/KTRX">Code source</a><a href="https://github.com/ktrxservator/KTRX/releases">Versions</a><a href="/docs#securite">Sécurité</a></div>
+      </div>
+      <div class="footer-bottom"><span>© 2026 KTRX</span><span data-engine-version></span></div>
+    </div>
+  </footer>
+</body>
+</html>

@@ -2,6 +2,7 @@
 import type { Env } from "./types";
 import { error } from "./lib/http";
 import { handleAdmin } from "./admin";
+import { llmsTxt } from "./llms";
 import { listTools, getTool, downloadTool, getIcon, engineInfo, downloadEngine, downloadDev, findTool, toolToJson } from "./public";
 
 export default {
@@ -36,6 +37,9 @@ export default {
           headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=300", "x-content-type-options": "nosniff" },
         });
       }
+
+      // Description of the site for language models (llmstxt.org), built from the live catalogue.
+      if (path === "/llms.txt") return await llmsTxt(env, url.origin);
 
       // Developer guides (public, no secret inside): UTF-8 so they read right in a browser and for an AI fetching them.
       if (path === "/dev/guide-ia.md") {

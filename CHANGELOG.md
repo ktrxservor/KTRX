@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0
+
+**KTRX pour les IA.**
+
+- **`ktrx mcp`** : serveur MCP intégré (stdio) qui met les outils à disposition des assistants IA (Claude Code, Codex, Gemini CLI, Cursor, Claude Desktop…). Trois actions quel que soit le nombre d'outils : `ktrx_search`, `ktrx_describe` (arguments en JSON Schema) et `ktrx_run` (résultat JSON). Un outil absent est installé à la première utilisation, avec vérification SHA-256. Enregistrement en une commande, par exemple `claude mcp add --scope user ktrx -- ktrx mcp`.
+- **Permissions décidées une fois** : un assistant ne peut pas répondre à une invite, donc `ktrx mcp --allow LISTE` fixe les permissions accordées (défaut : `network`, `file-read`, `file-write` ; `raw-net` et `process` refusées). Écritures confinées à `~/.ktrx/workspace` ou à `--write-dir`. Un outil dont une permission est refusée renvoie une erreur qui explique comment l'autoriser.
+- **Site** : page `/ia` (« Pour les IA ») avec la commande pour chaque assistant, et `/llms.txt` (description du site et liste des outils pour les modèles de langage, générée depuis le catalogue).
+
 ## 0.6.3
 
 **Un mot de passe d'équipe à la place des clés d'API.** Cassant pour `ktrx-dev` : à mettre à jour.
