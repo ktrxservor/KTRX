@@ -1,7 +1,7 @@
-// Team API, under /api/admin/. Every route needs `Authorization: Bearer <key>`.
+// Team API, under /api/admin/. Every route needs `Authorization: Bearer <password>`.
 // Used by ktrx-dev; never linked from the public site.
 import type { Env } from "./types";
-import { authenticate, allows, audit, sha256Text, type AuthContext, type Scope } from "./lib/auth";
+import { authenticate, audit } from "./lib/auth";
 import { json, error, compareVersions, CATEGORIES, PLATFORMS, DEV_PLATFORMS } from "./lib/http";
 import { parseToolArchive, usageDoc, sha256Hex, ManifestError } from "./lib/manifest";
 import { toolToJson, type ToolRow } from "./public";
@@ -10,52 +10,46 @@ const MAX_ICON = 10 * 1024 * 1024;
 const MAX_README = 512 * 1024;
 const MAX_ENGINE = 90 * 1024 * 1024;
 
-type Handler = (env: Env, request: Request, auth: AuthContext, params: string[]) => Promise<Response>;
+type Handler = (env: Env, request: Request, params: string[]) => Promise<Response>;
 interface Route {
   method: string;
   pattern: RegExp;
-  scope: Scope;
   handler: Handler;
 }
 
 const routes: Route[] = [
-  { method: "GET", pattern: /^\/api\/admin\/whoami$/, scope: "publish", handler: whoami },
-  { method: "POST", pattern: /^\/api\/admin\/tools$/, scope: "publish", handler: publishVersion },
-  { method: "PUT", pattern: /^\/api\/admin\/tools\/([a-z0-9-]+)\/icon$/, scope: "publish", handler: putIcon },
-  { method: "PUT", pattern: /^\/api\/admin\/tools\/([a-z0-9-]+)\/readme$/, scope: "publish", handler: putReadme },
-  { method: "PUT", pattern: /^\/api\/admin\/tools\/([a-z0-9-]+)\/source$/, scope: "publish", handler: putSource },
-  { method: "GET", pattern: /^\/api\/admin\/tools\/([A-Za-z0-9~-]+)\/source$/, scope: "publish", handler: getSource },
-  { method: "PATCH", pattern: /^\/api\/admin\/tools\/([a-z0-9-]+)$/, scope: "publish", handler: patchTool },
-  { method: "POST", pattern: /^\/api\/admin\/tools\/([a-z0-9-]+)\/versions\/([0-9A-Za-z.+-]+)\/yank$/, scope: "publish", handler: yankVersion },
-  { method: "DELETE", pattern: /^\/api\/admin\/tools\/([a-z0-9-]+)$/, scope: "admin", handler: deleteTool },
-  { method: "POST", pattern: /^\/api\/admin\/engine$/, scope: "admin", handler: publishEngine },
-  { method: "GET", pattern: /^\/api\/admin\/keys$/, scope: "admin", handler: listKeys },
-  { method: "POST", pattern: /^\/api\/admin\/keys$/, scope: "admin", handler: createKey },
-  { method: "DELETE", pattern: /^\/api\/admin\/keys\/([a-f0-9]+)$/, scope: "admin", handler: revokeKey },
-  { method: "GET", pattern: /^\/api\/admin\/audit$/, scope: "admin", handler: listAudit },
+  { method: "GET", pattern: /^\/api\/admin\/whoami$/, handler: whoami },
+  { method: "POST", pattern: /^\/api\/admin\/tools$/, handler: publishVersion },
+  { method: "PUT", pattern: /^\/api\/admin\/tools\/([a-z0-9-]+)\/icon$/, handler: putIcon },
+  { method: "PUT", pattern: /^\/api\/admin\/tools\/([a-z0-9-]+)\/readme$/, handler: putReadme },
+  { method: "PUT", pattern: /^\/api\/admin\/tools\/([a-z0-9-]+)\/source$/, handler: putSource },
+  { method: "GET", pattern: /^\/api\/admin\/tools\/([A-Za-z0-9~-]+)\/source$/, handler: getSource },
+  { method: "PATCH", pattern: /^\/api\/admin\/tools\/([a-z0-9-]+)$/, handler: patchTool },
+  { method: "POST", pattern: /^\/api\/admin\/tools\/([a-z0-9-]+)\/versions\/([0-9A-Za-z.+-]+)\/yank$/, handler: yankVersion },
+  { method: "DELETE", pattern: /^\/api\/admin\/tools\/([a-z0-9-]+)$/, handler: deleteTool },
+  { method: "POST", pattern: /^\/api\/admin\/engine$/, handler: publishEngine },
+  { method: "GET", pattern: /^\/api\/admin\/audit$/, handler: listAudit },
 ];
 
 export async function handleAdmin(env: Env, request: Request, path: string): Promise<Response> {
-  const auth = await authenticate(request, env);
-  if (!auth) return error("clé API manquante ou invalide", 401);
+  if (!(await authenticate(request, env))) return error("mot de passe manquant ou invalide", 401);
   for (const route of routes) {
     const match = route.pattern.exec(path);
     if (!match || route.method !== request.method) continue;
-    if (!allows(auth, route.scope)) return error(`cette action demande une clé « ${route.scope} »`, 403);
-    return route.handler(env, request, auth, match.slice(1));
+    return route.handler(env, request, match.slice(1));
   }
   return error("route inconnue", 404);
 }
 
-async function whoami(_env: Env, _request: Request, auth: AuthContext): Promise<Response> {
-  return json({ id: auth.keyId, label: auth.label, scopes: auth.scopes });
+async function whoami(): Promise<Response> {
+  return json({ ok: true });
 }
 
 async function toolExists(env: Env, id: string): Promise<ToolRow | null> {
   return env.DB.prepare("SELECT * FROM tools WHERE id = ?").bind(id).first<ToolRow>();
 }
 
-async function publishVersion(env: Env, request: Request, auth: AuthContext): Promise<Response> {
+async function publishVersion(env: Env, request: Request): Promise<Response> {
   const changelog = new URL(request.url).searchParams.get("changelog");
   const archive = new Uint8Array(await request.arrayBuffer());
   let manifest;
@@ -107,7 +101,7 @@ async function publishVersion(env: Env, request: Request, auth: AuthContext): Pr
     .bind(manifest.id, manifest.version, key, sha256, archive.byteLength, JSON.stringify(manifest.permissions), changelog,
       manifest.min_engine_version ?? null, now, JSON.stringify(usageDoc(manifest)))
     .run();
-  await audit(env, { actor: auth, action: existing ? "publish_version" : "create_tool", toolId: manifest.id, version: manifest.version, request });
+  await audit(env, { action: existing ? "publish_version" : "create_tool", toolId: manifest.id, version: manifest.version, request });
   const name = manifest.name.replace(/^K~/, "").toLowerCase();
   return json({ ok: true, id: manifest.id, name, version: manifest.version, sha256, page_url: `/outils/${name}`, created: !existing }, existing ? 200 : 201);
 }
@@ -117,7 +111,7 @@ function isPng(bytes: Uint8Array): boolean {
   return bytes.length > 24 && sig.every((b, i) => bytes[i] === b);
 }
 
-async function putIcon(env: Env, request: Request, auth: AuthContext, [id]: string[]): Promise<Response> {
+async function putIcon(env: Env, request: Request, [id]: string[]): Promise<Response> {
   if (!(await toolExists(env, id))) return error("outil introuvable", 404);
   const bytes = new Uint8Array(await request.arrayBuffer());
   if (bytes.byteLength > MAX_ICON) return error("emblème supérieur à 10 Mio", 413);
@@ -125,14 +119,14 @@ async function putIcon(env: Env, request: Request, auth: AuthContext, [id]: stri
   const key = `icons/${id}.png`;
   await env.TOOLS_BUCKET.put(key, bytes, { httpMetadata: { contentType: "image/png" } });
   await env.DB.prepare("UPDATE tools SET icon_key = ?, updated_at = ? WHERE id = ?").bind(key, new Date().toISOString(), id).run();
-  await audit(env, { actor: auth, action: "update_icon", toolId: id, request });
+  await audit(env, { action: "update_icon", toolId: id, request });
   return json({ ok: true });
 }
 
 const MAX_SOURCE = 20 * 1024 * 1024;
 
 /** The tool's source code (a zip), kept for the team: any machine can fetch it with `ktrx-dev get`. */
-async function putSource(env: Env, request: Request, auth: AuthContext, [id]: string[]): Promise<Response> {
+async function putSource(env: Env, request: Request, [id]: string[]): Promise<Response> {
   const tool = await toolExists(env, id);
   if (!tool) return error("outil introuvable", 404);
   const bytes = new Uint8Array(await request.arrayBuffer());
@@ -143,11 +137,11 @@ async function putSource(env: Env, request: Request, auth: AuthContext, [id]: st
     httpMetadata: { contentType: "application/zip" },
     customMetadata: { version },
   });
-  await audit(env, { actor: auth, action: "update_source", toolId: id, version, request });
+  await audit(env, { action: "update_source", toolId: id, version, request });
   return json({ ok: true, version, size_bytes: bytes.byteLength });
 }
 
-async function getSource(env: Env, _request: Request, _auth: AuthContext, [key]: string[]): Promise<Response> {
+async function getSource(env: Env, _request: Request, [key]: string[]): Promise<Response> {
   const myth = `K~${key.replace(/^k~/i, "").toUpperCase()}`;
   const tool = await env.DB.prepare("SELECT id, myth_name FROM tools WHERE id = ? OR myth_name = ?")
     .bind(key.toLowerCase(), myth)
@@ -164,16 +158,16 @@ async function getSource(env: Env, _request: Request, _auth: AuthContext, [key]:
   });
 }
 
-async function putReadme(env: Env, request: Request, auth: AuthContext, [id]: string[]): Promise<Response> {
+async function putReadme(env: Env, request: Request, [id]: string[]): Promise<Response> {
   if (!(await toolExists(env, id))) return error("outil introuvable", 404);
   const text = await request.text();
   if (text.length > MAX_README) return error("README supérieur à 512 Kio", 413);
   await env.DB.prepare("UPDATE tools SET readme_md = ?, updated_at = ? WHERE id = ?").bind(text, new Date().toISOString(), id).run();
-  await audit(env, { actor: auth, action: "update_readme", toolId: id, request });
+  await audit(env, { action: "update_readme", toolId: id, request });
   return json({ ok: true });
 }
 
-async function patchTool(env: Env, request: Request, auth: AuthContext, [id]: string[]): Promise<Response> {
+async function patchTool(env: Env, request: Request, [id]: string[]): Promise<Response> {
   if (!(await toolExists(env, id))) return error("outil introuvable", 404);
   const body = await request.json<Record<string, unknown>>().catch(() => null);
   if (!body) return error("JSON invalide", 400);
@@ -190,11 +184,11 @@ async function patchTool(env: Env, request: Request, auth: AuthContext, [id]: st
   }
   if (sets.length === 0) return error("champs modifiables : category, deprecated", 400);
   await env.DB.prepare(`UPDATE tools SET ${sets.join(", ")}, updated_at = ? WHERE id = ?`).bind(...values, new Date().toISOString(), id).run();
-  await audit(env, { actor: auth, action: "patch_tool", toolId: id, request, detail: JSON.stringify(body) });
+  await audit(env, { action: "patch_tool", toolId: id, request, detail: JSON.stringify(body) });
   return json({ ok: true });
 }
 
-async function yankVersion(env: Env, request: Request, auth: AuthContext, [id, version]: string[]): Promise<Response> {
+async function yankVersion(env: Env, request: Request, [id, version]: string[]): Promise<Response> {
   const tool = await toolExists(env, id);
   if (!tool) return error("outil introuvable", 404);
   const row = await env.DB.prepare("SELECT yanked FROM tool_versions WHERE tool_id = ? AND version = ?").bind(id, version).first();
@@ -208,11 +202,11 @@ async function yankVersion(env: Env, request: Request, auth: AuthContext, [id, v
   } else {
     await env.DB.prepare("UPDATE tools SET deprecated = 1, updated_at = ? WHERE id = ?").bind(new Date().toISOString(), id).run();
   }
-  await audit(env, { actor: auth, action: "yank_version", toolId: id, version, request });
+  await audit(env, { action: "yank_version", toolId: id, version, request });
   return json({ ok: true, latest_version: latest ?? null, hidden: !latest });
 }
 
-async function deleteTool(env: Env, request: Request, auth: AuthContext, [id]: string[]): Promise<Response> {
+async function deleteTool(env: Env, request: Request, [id]: string[]): Promise<Response> {
   const tool = await toolExists(env, id);
   if (!tool) return error("outil introuvable", 404);
   const { results } = await env.DB.prepare("SELECT r2_key FROM tool_versions WHERE tool_id = ?").bind(id).all<{ r2_key: string }>();
@@ -221,11 +215,11 @@ async function deleteTool(env: Env, request: Request, auth: AuthContext, [id]: s
   await env.TOOLS_BUCKET.delete(`tools/${id}/source.zip`);
   await env.DB.prepare("DELETE FROM tool_versions WHERE tool_id = ?").bind(id).run();
   await env.DB.prepare("DELETE FROM tools WHERE id = ?").bind(id).run();
-  await audit(env, { actor: auth, action: "delete_tool", toolId: id, request, detail: tool.myth_name });
+  await audit(env, { action: "delete_tool", toolId: id, request, detail: tool.myth_name });
   return json({ ok: true, deleted: toolToJson(tool).name });
 }
 
-async function publishEngine(env: Env, request: Request, auth: AuthContext): Promise<Response> {
+async function publishEngine(env: Env, request: Request): Promise<Response> {
   const url = new URL(request.url);
   const version = url.searchParams.get("version") ?? "";
   const platform = url.searchParams.get("platform") ?? "";
@@ -244,53 +238,14 @@ async function publishEngine(env: Env, request: Request, auth: AuthContext): Pro
   await env.DB.prepare("INSERT INTO engine_releases (version, platform, filename, r2_key, sha256, size_bytes) VALUES (?, ?, ?, ?, ?, ?)")
     .bind(version, platform, filename, key, sha256, bytes.byteLength)
     .run();
-  await audit(env, { actor: auth, action: "publish_engine", toolId: `engine-${platform}`, version, request });
+  await audit(env, { action: "publish_engine", toolId: `engine-${platform}`, version, request });
   return json({ ok: true, version, platform, sha256 }, 201);
-}
-
-async function listKeys(env: Env): Promise<Response> {
-  const { results } = await env.DB.prepare(
-    "SELECT id, label, scopes, created_at, last_used_at, revoked_at FROM api_keys ORDER BY created_at",
-  ).all<Record<string, string>>();
-  return json({ keys: results.map((k) => ({ ...k, scopes: JSON.parse(k.scopes || "[]") })) });
-}
-
-function randomHex(bytes: number): string {
-  return [...crypto.getRandomValues(new Uint8Array(bytes))].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-function randomSecret(): string {
-  const raw = crypto.getRandomValues(new Uint8Array(32));
-  return "ktrx_" + btoa(String.fromCharCode(...raw)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-async function createKey(env: Env, request: Request, auth: AuthContext): Promise<Response> {
-  const body = await request.json<{ label?: unknown; scope?: unknown }>().catch(() => null);
-  const label = typeof body?.label === "string" ? body.label.trim() : "";
-  const scope = body?.scope === "admin" ? "admin" : "publish";
-  if (!label || label.length > 60) return error("label requis (60 caractères max)", 400);
-  const id = randomHex(8);
-  const secret = randomSecret();
-  await env.DB.prepare("INSERT INTO api_keys (id, key_hash, label, scopes) VALUES (?, ?, ?, ?)")
-    .bind(id, await sha256Text(secret), label, JSON.stringify([scope]))
-    .run();
-  await audit(env, { actor: auth, action: "create_key", request, detail: `${id} ${label} ${scope}` });
-  return json({ id, label, scope, key: secret }, 201);
-}
-
-async function revokeKey(env: Env, request: Request, auth: AuthContext, [id]: string[]): Promise<Response> {
-  if (id === auth.keyId) return error("impossible de révoquer la clé utilisée pour cette requête", 400);
-  const result = await env.DB.prepare("UPDATE api_keys SET revoked_at = datetime('now') WHERE id = ? AND revoked_at IS NULL").bind(id).run();
-  if (!result.meta.changes) return error("clé introuvable ou déjà révoquée", 404);
-  await audit(env, { actor: auth, action: "revoke_key", request, detail: id });
-  return json({ ok: true });
 }
 
 async function listAudit(env: Env, request: Request): Promise<Response> {
   const limit = Math.min(Math.max(parseInt(new URL(request.url).searchParams.get("limit") ?? "50", 10) || 50, 1), 500);
   const { results } = await env.DB.prepare(
-    `SELECT a.at, a.action, a.tool_id, a.version, a.detail, k.label AS actor
-     FROM audit_log a LEFT JOIN api_keys k ON k.id = a.actor_key_id ORDER BY a.id DESC LIMIT ?`,
+    `SELECT at, action, tool_id, version, detail, ip FROM audit_log ORDER BY id DESC LIMIT ?`,
   )
     .bind(limit)
     .all();

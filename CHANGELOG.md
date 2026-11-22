@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.3
+
+**Un mot de passe d'équipe à la place des clés d'API.** Cassant pour `ktrx-dev` : à mettre à jour.
+
+- L'API d'administration (`/api/admin/…`) n'accepte plus qu'un seul mot de passe, secret du Worker `ADMIN_PASSWORD`, qui donne tous les droits. Les clés, leurs droits (`publish` / `admin`), la table `api_keys`, les routes `/api/admin/keys` et `ktrx-dev keys` sont supprimés.
+- `ktrx-dev login [--password MDP]` enregistre le mot de passe (saisie masquée, entrée standard ou option) ; variable `KTRX_PASSWORD` à la place de `KTRX_API_KEY`. Seule la publication en a besoin : `new`, `check`, `guide`, `doctor` fonctionnent sans. Une IA peut donc lire une documentation, installer et configurer, coder, puis demander le mot de passe pour publier.
+
 ## 0.6.2
 
 - **Mémoire par outil : 512 Mio** (au lieu de 64 Mio). C'est une borne de ressources générique : elle permet à un outil de traiter une image ou un fichier volumineux (un outil de conversion d'images, par exemple) sans rien changer au bac à sable. La mémoire n'est allouée qu'à l'usage ; un outil qui en demande davantage est interrompu.

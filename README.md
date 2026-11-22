@@ -43,7 +43,7 @@ Le site héberge les outils, leurs sources et les binaires ; GitHub sert uniquem
 
 ## Contribuer (équipe)
 
-Tout se trouve dans **[DEVELOPING.md](DEVELOPING.md)**, aussi lisible sans le dépôt avec `ktrx-dev guide` : installer `ktrx-dev` depuis le site, créer et publier un outil en quelques commandes, instructions à donner à une IA, API du registre, architecture du moteur, publication d'une version. Aucun besoin de Git pour créer un outil : tout passe par le registre. Seule l'équipe peut publier (clé d'API personnelle).
+Tout se trouve dans **[DEVELOPING.md](DEVELOPING.md)**, aussi lisible sans le dépôt avec `ktrx-dev guide` : installer `ktrx-dev` depuis le site, créer et publier un outil en quelques commandes, instructions à donner à une IA, API du registre, architecture du moteur, publication d'une version. Aucun besoin de Git pour créer un outil : tout passe par le registre. Seule l'équipe peut publier (mot de passe de l'équipe).
 
 ```sh
 cargo build --manifest-path engine/Cargo.toml --release -p ktrx-cli -p ktrx-dev

@@ -4,7 +4,7 @@ members = ["crates/ktrx-cli", "crates/ktrx-core", "crates/ktrx-dev", "crates/ktr
 exclude = ["tests/host-probe"]
 
 [workspace.package]
-version = "0.6.2"
+version = "0.6.3"
 edition = "2024"
 license = "MIT"
 authors = ["KTRX contributors"]

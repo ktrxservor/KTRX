@@ -1,5 +1,5 @@
 //! ktrx-dev — the KTRX team tool. Creates, checks and publishes tools to the registry, publishes
-//! engine releases and manages the team's API keys. Not distributed to users: the public `ktrx`
+//! engine releases. Not distributed to users: the public `ktrx`
 //! engine only installs and runs tools.
 
 mod api;
@@ -30,17 +30,20 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Cmd {
-    /// Enregistre ta clé d'API sur cette machine (demandée de façon masquée, ou lue sur l'entrée standard).
+    /// Enregistre le mot de passe de l'équipe sur cette machine (saisie masquée, ou lu sur l'entrée standard, ou `--password`).
     Login {
+        /// Le mot de passe (sinon il est demandé, ou lu sur l'entrée standard).
+        #[arg(long)]
+        password: Option<String>,
         /// Registre à utiliser (par défaut : le registre officiel).
         #[arg(long)]
         registry: Option<String>,
     },
-    /// Supprime la clé enregistrée sur cette machine.
+    /// Supprime le mot de passe enregistré sur cette machine.
     Logout,
-    /// Affiche la clé utilisée et ses droits.
+    /// Vérifie que le mot de passe enregistré est accepté par le registre.
     Whoami,
-    /// Vérifie que la machine est prête : Rust, cible wasm32-wasip2, connexion, clé.
+    /// Vérifie que la machine est prête : Rust, cible wasm32-wasip2, connexion (le mot de passe n'est requis que pour publier).
     Doctor {
         /// Installe ce qui peut l'être seul (cible wasm32-wasip2, rustfmt).
         #[arg(long)]
@@ -96,24 +99,19 @@ enum Cmd {
     },
     /// Retire une version publiée (elle n'est plus installable).
     Yank { tool: String, version: String },
-    /// Supprime un outil du registre, toutes versions comprises (clé admin).
+    /// Supprime un outil du registre, toutes versions comprises.
     Delete {
         tool: String,
         /// Confirme sans question.
         #[arg(long)]
         yes: bool,
     },
-    /// Publie sur le site les binaires d'une release GitHub du moteur (clé admin).
+    /// Publie sur le site les binaires d'une release GitHub du moteur.
     Engine {
         #[command(subcommand)]
         action: EngineCmd,
     },
-    /// Gère les clés de l'équipe (clé admin).
-    Keys {
-        #[command(subcommand)]
-        action: KeysCmd,
-    },
-    /// Dernières actions faites sur le registre (clé admin).
+    /// Dernières actions faites sur le registre.
     Audit {
         #[arg(long, default_value_t = 30)]
         limit: u32,
@@ -142,22 +140,6 @@ enum EngineCmd {
     Publish { version: String },
 }
 
-#[derive(Subcommand)]
-enum KeysCmd {
-    /// Liste les clés.
-    List,
-    /// Crée une clé (affichée une seule fois).
-    Create {
-        /// Nom de la personne ou de la machine.
-        label: String,
-        /// Donne tous les droits (supprimer un outil, publier le moteur, gérer les clés).
-        #[arg(long)]
-        admin: bool,
-    },
-    /// Révoque une clé.
-    Revoke { id: String },
-}
-
 fn main() {
     if let Err(err) = run(Cli::parse()) {
         eprintln!("ktrx-dev : {err:#}");
@@ -169,18 +151,18 @@ fn run(cli: Cli) -> Result<()> {
     let config = Config::load()?;
     let api = Api::new(&config)?;
     match cli.command {
-        Cmd::Login { registry } => login(registry.unwrap_or_else(|| config.registry())),
+        Cmd::Login { registry, password } => login(registry.unwrap_or_else(|| config.registry()), password),
         Cmd::Logout => {
             let path = api::config_path()?;
             if path.exists() {
                 std::fs::remove_file(&path)?;
             }
-            println!("Clé supprimée de cette machine.");
+            println!("Mot de passe supprimé de cette machine.");
             Ok(())
         }
         Cmd::Whoami => {
-            let me = api.admin_json("GET", "/whoami", None)?;
-            println!("{} ({}) sur {}", me["label"].as_str().unwrap_or("?"), scopes(&me["scopes"]), api.base);
+            api.admin_json("GET", "/whoami", None)?;
+            println!("Mot de passe accepté par {}", api.base);
             Ok(())
         }
         Cmd::Doctor { fix } => doctor(&api, &config, fix),
@@ -223,14 +205,13 @@ fn run(cli: Cli) -> Result<()> {
             Ok(())
         }
         Cmd::Engine { action: EngineCmd::Publish { version } } => engine_publish(&api, &version),
-        Cmd::Keys { action } => keys(&api, action),
         Cmd::Audit { limit } => {
             let out = api.admin_json("GET", &format!("/audit?limit={limit}"), None)?;
             for e in out["entries"].as_array().into_iter().flatten() {
                 println!(
                     "{}  {:<14} {:<16} {:<22} {}",
                     e["at"].as_str().unwrap_or(""),
-                    e["actor"].as_str().unwrap_or("?"),
+                    e["ip"].as_str().unwrap_or("?"),
                     e["action"].as_str().unwrap_or(""),
                     format!("{} {}", e["tool_id"].as_str().unwrap_or(""), e["version"].as_str().unwrap_or("")).trim(),
                     e["detail"].as_str().unwrap_or("")
@@ -269,26 +250,24 @@ fn run(cli: Cli) -> Result<()> {
     }
 }
 
-fn scopes(value: &serde_json::Value) -> String {
-    value.as_array().into_iter().flatten().filter_map(|s| s.as_str()).collect::<Vec<_>>().join(", ")
-}
-
-fn login(registry: String) -> Result<()> {
-    let key = if io::stdin().is_terminal() {
-        rpassword::prompt_password("Clé d'API KTRX (ktrx_…) : ")?
-    } else {
-        let mut line = String::new();
-        io::stdin().lock().read_line(&mut line)?;
-        line
+fn login(registry: String, password: Option<String>) -> Result<()> {
+    let password = match password {
+        Some(p) => p,
+        None if io::stdin().is_terminal() => rpassword::prompt_password("Mot de passe KTRX : ")?,
+        None => {
+            let mut line = String::new();
+            io::stdin().lock().read_line(&mut line)?;
+            line
+        }
     };
-    let key = key.trim().to_owned();
-    if !key.starts_with("ktrx_") {
-        bail!("une clé KTRX commence par « ktrx_ »");
+    let password = password.trim().to_owned();
+    if password.is_empty() {
+        bail!("mot de passe vide");
     }
-    let api = Api::new(&Config { registry: Some(registry.clone()), key: Some(key.clone()) })?;
-    let me = api.admin_json("GET", "/whoami", None)?;
-    let path = Config::save(&registry, &key)?;
-    println!("Connecté : {} ({}). Clé enregistrée dans {}", me["label"].as_str().unwrap_or("?"), scopes(&me["scopes"]), path.display());
+    let api = Api::new(&Config { registry: Some(registry.clone()), password: Some(password.clone()) })?;
+    api.admin_json("GET", "/whoami", None)?;
+    let path = Config::save(&registry, &password)?;
+    println!("Connecté. Mot de passe enregistré dans {}", path.display());
     Ok(())
 }
 
@@ -321,8 +300,9 @@ fn doctor(api: &Api, config: &Config, fix: bool) -> Result<()> {
     line(rustfmt, "rustfmt", "rustup component add rustfmt");
     let online = api.get_public("/api/engine").is_ok();
     line(online, &format!("registre joignable ({})", api.base), "vérifier la connexion Internet (HTTPS_PROXY derrière un proxy)");
-    let logged = config.key.is_some() && api.admin_json("GET", "/whoami", None).is_ok();
-    line(logged, "clé d'API valide", "ktrx-dev login");
+    // Only publishing needs the password: report it without counting it as a problem.
+    let logged = config.password.is_some() && api.admin_json("GET", "/whoami", None).is_ok();
+    println!("  {} mot de passe enregistré{}", if logged { "✓" } else { "·" }, if logged { "" } else { " (non : requis seulement pour publier, `ktrx-dev login`)" });
     println!();
     if problems == 0 {
         println!("Tout est prêt.");
@@ -439,40 +419,6 @@ fn engine_publish(api: &Api, version: &str) -> Result<()> {
     Ok(())
 }
 
-fn keys(api: &Api, action: KeysCmd) -> Result<()> {
-    match action {
-        KeysCmd::List => {
-            let out = api.admin_json("GET", "/keys", None)?;
-            for k in out["keys"].as_array().into_iter().flatten() {
-                let state = if k["revoked_at"].is_string() { "révoquée" } else { "active" };
-                println!(
-                    "{}  {:<20} {:<8} {:<9} dernière utilisation : {}",
-                    k["id"].as_str().unwrap_or(""),
-                    k["label"].as_str().unwrap_or(""),
-                    scopes(&k["scopes"]),
-                    state,
-                    k["last_used_at"].as_str().unwrap_or("jamais")
-                );
-            }
-        }
-        KeysCmd::Create { label, admin } => {
-            let out = api.admin_json(
-                "POST",
-                "/keys",
-                Some(serde_json::json!({ "label": label, "scope": if admin { "admin" } else { "publish" } })),
-            )?;
-            println!("Clé créée pour {} ({}) — id {}", label, out["scope"].as_str().unwrap_or(""), out["id"].as_str().unwrap_or(""));
-            println!("\n  {}\n", out["key"].as_str().unwrap_or(""));
-            println!("Elle ne sera plus jamais affichée. À transmettre à la personne, qui lance : ktrx-dev login");
-        }
-        KeysCmd::Revoke { id } => {
-            api.admin_json("DELETE", &format!("/keys/{id}"), None)?;
-            println!("Clé {id} révoquée.");
-        }
-    }
-    Ok(())
-}
-
 /// The developer guide, embedded at build time so it always matches this ktrx-dev.
 const GUIDE: &str = include_str!("../../../../DEVELOPING.md");
 
@@ -516,12 +462,12 @@ fn guide(section: Option<&str>, list: bool) -> Result<()> {
 
 const AGENT_NOTES: &str = "# Dossier de travail KTRX
 
-Ce dossier sert à créer des outils pour KTRX avec `ktrx-dev` (installé, clé enregistrée par `ktrx-dev login`).
+Ce dossier sert à créer des outils pour KTRX avec `ktrx-dev` (installé ; le mot de passe de l'équipe, demandé à l'utilisateur, n'est nécessaire qu'à la publication : `ktrx-dev login`).
 
 - Lis le guide complet : `ktrx-dev guide` (ou une section : `ktrx-dev guide 3`, liste : `ktrx-dev guide --list`).
 - Créer un outil : `ktrx-dev new NOM Nom-Lisible --category <investigation|analysis|encoding|generation>`, remplir les « À COMPLÉTER » et « À REMPLACER », puis `ktrx-dev check NOM` jusqu'à « Tout est bon », puis `ktrx-dev publish NOM`.
 - Modifier un outil existant : `ktrx-dev get NOM` récupère ses sources, puis incrémenter `version` (manifest.toml ET Cargo.toml), `check`, `publish`.
-- Une version publiée ne change jamais. Ne mets jamais de clé d'API dans un fichier. Ne contourne aucun contrôle de `check`.
+- Une version publiée ne change jamais. Ne mets jamais le mot de passe dans un fichier. Ne contourne aucun contrôle de `check`.
 - Un outil = un projet Rust indépendant (cible wasm32-wasip2), sans aucun accès implicite : tout accès réseau, fichier ou programme passe par le moteur (guide, section 9).
 ";
 

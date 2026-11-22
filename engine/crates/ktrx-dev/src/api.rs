@@ -6,7 +6,7 @@ use std::{fs, path::PathBuf, sync::Arc, time::Duration};
 
 pub const DEFAULT_REGISTRY: &str = "https://ktrx-site.tiagoantunes2009.workers.dev";
 
-/// Where `ktrx-dev login` stores the key: ~/.config/ktrx/dev.toml (Unix), %APPDATA%\ktrx\dev.toml (Windows).
+/// Where `ktrx-dev login` stores the password: ~/.config/ktrx/dev.toml (Unix), %APPDATA%\ktrx\dev.toml (Windows).
 pub fn config_path() -> Result<PathBuf> {
     #[cfg(windows)]
     let base = std::env::var_os("APPDATA").map(PathBuf::from);
@@ -20,7 +20,7 @@ pub fn config_path() -> Result<PathBuf> {
 #[derive(Default)]
 pub struct Config {
     pub registry: Option<String>,
-    pub key: Option<String>,
+    pub password: Option<String>,
 }
 
 impl Config {
@@ -30,10 +30,10 @@ impl Config {
         if let Ok(text) = fs::read_to_string(&path) {
             let value: toml::Value = toml::from_str(&text).with_context(|| format!("lecture de {}", path.display()))?;
             config.registry = value.get("registry").and_then(|v| v.as_str()).map(str::to_owned);
-            config.key = value.get("key").and_then(|v| v.as_str()).map(str::to_owned);
+            config.password = value.get("password").and_then(|v| v.as_str()).map(str::to_owned);
         }
-        if let Ok(key) = std::env::var("KTRX_API_KEY") {
-            config.key = Some(key);
+        if let Ok(password) = std::env::var("KTRX_PASSWORD") {
+            config.password = Some(password);
         }
         if let Ok(registry) = std::env::var("KTRX_REGISTRY") {
             config.registry = Some(registry);
@@ -41,14 +41,14 @@ impl Config {
         Ok(config)
     }
 
-    pub fn save(registry: &str, key: &str) -> Result<PathBuf> {
+    pub fn save(registry: &str, password: &str) -> Result<PathBuf> {
         let path = config_path()?;
         fs::create_dir_all(path.parent().unwrap())?;
         let mut table = toml::map::Map::new();
         table.insert("registry".into(), toml::Value::String(registry.into()));
-        table.insert("key".into(), toml::Value::String(key.into()));
+        table.insert("password".into(), toml::Value::String(password.into()));
         let text = format!(
-            "# Clé ktrx-dev. Fichier personnel : ne pas le partager.\n{}",
+            "# Mot de passe ktrx-dev. Fichier personnel : ne pas le partager.\n{}",
             toml::to_string(&toml::Value::Table(table))?
         );
         fs::write(&path, text).with_context(|| format!("écriture de {}", path.display()))?;
@@ -67,7 +67,7 @@ impl Config {
 
 pub struct Api {
     pub base: String,
-    key: Option<String>,
+    password: Option<String>,
     agent: ureq::Agent,
 }
 
@@ -92,17 +92,17 @@ pub fn agent() -> Result<ureq::Agent> {
 
 impl Api {
     pub fn new(config: &Config) -> Result<Self> {
-        Ok(Self { base: config.registry(), key: config.key.clone(), agent: agent()? })
+        Ok(Self { base: config.registry(), password: config.password.clone(), agent: agent()? })
     }
 
     pub fn site_url(&self, path: &str) -> String {
         format!("{}{}", self.base, path)
     }
 
-    fn key(&self) -> Result<&str> {
-        self.key
+    fn password(&self) -> Result<&str> {
+        self.password
             .as_deref()
-            .ok_or_else(|| anyhow!("pas de clé : lancer `ktrx-dev login` (ou définir KTRX_API_KEY)"))
+            .ok_or_else(|| anyhow!("pas de mot de passe : lancer `ktrx-dev login` (ou définir KTRX_PASSWORD)"))
     }
 
     /// Public GET; `None` on 404.
@@ -118,7 +118,7 @@ impl Api {
         Ok(self
             .agent
             .request(method, &self.site_url(&format!("/api/admin{path}")))
-            .set("Authorization", &format!("Bearer {}", self.key()?)))
+            .set("Authorization", &format!("Bearer {}", self.password()?)))
     }
 
     pub fn admin_json(&self, method: &str, path: &str, body: Option<Value>) -> Result<Value> {
@@ -168,7 +168,7 @@ fn describe(error: ureq::Error, what: &str) -> anyhow::Error {
                 .and_then(|v| v["error"].as_str().map(str::to_owned))
                 .unwrap_or(body);
             match code {
-                401 => anyhow!("clé refusée par le registre ({message}) : relancer `ktrx-dev login`"),
+                401 => anyhow!("mot de passe refusé par le registre ({message}) : relancer `ktrx-dev login`"),
                 403 => anyhow!("{message}"),
                 _ => anyhow!("HTTP {code} sur {what} : {message}"),
             }
