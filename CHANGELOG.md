@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0
+
+- **`file.create` accepte `executable`** : `{"path": "...", "executable": true}` ajoute les droits d'exécution sous Linux et macOS (sans effet sous Windows). Une opération générique pour tout outil qui produit un programme ou un script ; elle sert d'abord à K~HEPHAISTOS (compilateur C) pour que les exécutables générés se lancent directement. Les outils restent compatibles avec un moteur plus ancien : ils ignorent la clé et indiquent `chmod +x`.
+
 ## 0.7.0
 
 **KTRX pour les IA.**

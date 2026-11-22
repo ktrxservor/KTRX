@@ -229,6 +229,15 @@ impl FileState {
             _ => format!("cannot create file: {e}"),
         })?;
         ensure_regular(&file)?;
+        // Programs and scripts a tool generates must be runnable: `executable` sets the
+        // execute bits (no effect on Windows, where the extension decides).
+        if request
+            .get("executable")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
+            make_executable(&file)?;
+        }
         let mut written = 0u64;
         if !initial.is_empty() {
             self.reserve(initial.len() as u64)?;
@@ -498,6 +507,19 @@ fn check_component(part: &std::ffi::OsStr) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(unix)]
+fn make_executable(file: &File) -> Result<(), String> {
+    use std::os::unix::fs::PermissionsExt;
+    let mode = file.metadata().map_err(|e| e.to_string())?.permissions().mode();
+    file.set_permissions(std::fs::Permissions::from_mode(mode | 0o111))
+        .map_err(|e| format!("cannot mark the file executable: {e}"))
+}
+
+#[cfg(not(unix))]
+fn make_executable(_file: &File) -> Result<(), String> {
+    Ok(())
+}
+
 fn ensure_regular(file: &File) -> Result<(), String> {
     let metadata = file.metadata().map_err(|e| e.to_string())?;
     if metadata.is_file() {
@@ -652,6 +674,22 @@ mod tests {
             std::fs::read_to_string(dir.join("keep.txt")).unwrap(),
             "new"
         );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn marks_created_files_executable_on_request() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = scratch();
+        let mut state = FileState::new(Some(dir.clone())).unwrap();
+        call(&mut state, "file.create", json!({"path": "tool", "executable": true, "bytes_base64": b64(b"#!/bin/sh\n")})).unwrap();
+        call(&mut state, "file.create", json!({"path": "plain"})).unwrap();
+        call(&mut state, "file.close", json!({"path": "tool"})).unwrap();
+        call(&mut state, "file.close", json!({"path": "plain"})).unwrap();
+        let mode = |n: &str| std::fs::metadata(dir.join(n)).unwrap().permissions().mode();
+        assert_ne!(mode("tool") & 0o111, 0);
+        assert_eq!(mode("plain") & 0o111, 0);
         std::fs::remove_dir_all(dir).unwrap();
     }
 
