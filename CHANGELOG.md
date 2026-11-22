@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.2
+
+- **Mémoire par outil : 512 Mio** (au lieu de 64 Mio). C'est une borne de ressources générique : elle permet à un outil de traiter une image ou un fichier volumineux (un outil de conversion d'images, par exemple) sans rien changer au bac à sable. La mémoire n'est allouée qu'à l'usage ; un outil qui en demande davantage est interrompu.
+
 ## 0.6.1
 
 **Plus aucune dépendance à GitHub pour travailler sur les outils.**

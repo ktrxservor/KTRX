@@ -453,7 +453,7 @@ impl Runtime {
         Ok(Self {
             engine,
             limits: StoreLimitsBuilder::new()
-                .memory_size(64 * 1024 * 1024)
+                .memory_size(512 * 1024 * 1024)
                 .instances(8)
                 .memories(4)
                 .tables(8)

@@ -545,7 +545,7 @@ Toutes les routes exigent `Authorization: Bearer <clé>`. Sans clé valide : `40
 Frontière stricte entre le mécanisme générique (moteur) et le métier (outils) :
 
 - `ktrx-core` charge et valide manifestes et archives, et transforme la ligne de commande en JSON.
-- `ktrx-runtime` compile et exécute les composants WebAssembly (Wasmtime) : un store par exécution, mémoire limitée à 64 Mio, échéances, annulation et pont d'appels hôte génériques. Il ne connaît aucun outil, protocole, scan, empreinte, CVE ni algorithme de hachage.
+- `ktrx-runtime` compile et exécute les composants WebAssembly (Wasmtime) : un store par exécution, mémoire limitée à 512 Mio, échéances, annulation et pont d'appels hôte génériques. Il ne connaît aucun outil, protocole, scan, empreinte, CVE ni algorithme de hachage.
 - `ktrx-cli` (binaire `ktrx`) : exécuter (`run`, `info`) et gérer les outils (`install`, `update`, `uninstall`, `list`, `search`), demander les permissions, afficher résultats et événements. Avec `ktrx-dev`, seul endroit qui fait des requêtes HTTP (client du registre).
 - `ktrx-dev` (binaire `ktrx-dev`) : outil de l'équipe (§13).
 - `tools/` : les outils et le SDK invité `ktrx-net-sdk` (HTTP/1.1 et HTTP/2, HPACK, redirections…), construit sur les sockets génériques.
