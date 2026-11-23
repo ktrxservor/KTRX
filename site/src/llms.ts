@@ -21,6 +21,7 @@ export async function llmsTxt(env: Env, origin: string): Promise<Response> {
 
 - [Pour les IA](${origin}/ia): brancher KTRX à Claude Code, Codex, Gemini CLI, Cursor en une commande (MCP). Exemple : \`claude mcp add --scope user ktrx -- ktrx mcp\`. Le serveur expose trois actions : ktrx_search (chercher), ktrx_describe (arguments en JSON Schema), ktrx_run (lancer).
 - [Installer le moteur](${origin}/telecharger): une ligne, sans droits administrateur (Windows, macOS, Linux).
+- Interface graphique : \`ktrx ui\` ouvre une page locale (127.0.0.1) pour parcourir, installer, mettre à jour et lancer les outils ; les mêmes permissions sont demandées avant chaque exécution.
 - Sans MCP : \`ktrx search [mot-clé]\`, \`ktrx install <outil>\`, \`ktrx run --json <outil> <arguments>\` ; la sortie est du JSON.
 
 ## API publique (JSON, lecture seule)

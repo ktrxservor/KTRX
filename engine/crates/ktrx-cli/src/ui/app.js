@@ -453,10 +453,9 @@
           return el(
             "a",
             { class: "card", href: `#/tool/${encodeURIComponent(t.id)}` },
-            update ? el("span", { class: "chip chip-accent badge-dot", text: `v${remote.latest_version} disponible` }) : null,
             el("div", { class: "card-head" }, toolIcon(t.id, t.name), el("div", {}, el("h3", { text: t.name }), el("div", { class: "meta", text: `v${t.version}${remote ? ` · ${CATEGORIES[remote.category] || remote.category}` : ""}` }))),
             el("p", { text: t.description }),
-            el("div", { class: "card-foot" }, el("div", { class: "chips" }, permChips(t.permissions))),
+            el("div", { class: "card-foot" }, el("div", { class: "chips" }, permChips(t.permissions)), update ? el("span", { class: "chip chip-accent", text: `v${remote.latest_version} disponible` }) : null),
           );
         }),
       );
@@ -590,8 +589,10 @@
 
     const resultHost = el("div", {});
     const formPanel = el("div", { class: "panel" }, el("h2", { text: "Exécuter" }), form);
+    // Manifests may show `ktrx run 'tools/X ( Y )/K~X.tool' …`: an installed tool runs by its name.
+    const short = (x) => x.replace(/ktrx run\s+(['"])?[^'"]*K~([A-Za-z0-9-]+)\.tool\1?/, (_, _q, n) => `ktrx run ${n.toLowerCase()}`);
     const examples = tool.examples.length
-      ? el("div", { class: "panel" }, el("h2", { text: "Exemples en ligne de commande" }), el("div", { class: "examples" }, tool.examples.map((x) => el("div", { class: "example" }, el("code", { text: x }), el("button", { class: "copy", type: "button", text: "Copier", onclick: (e) => copyText(x, e.target) })))))
+      ? el("div", { class: "panel" }, el("h2", { text: "Exemples en ligne de commande" }), el("div", { class: "examples" }, tool.examples.map(short).map((x) => el("div", { class: "example" }, el("code", { text: x }), el("button", { class: "copy", type: "button", text: "Copier", onclick: (e) => copyText(x, e.target) })))))
       : null;
 
     const aside = el(

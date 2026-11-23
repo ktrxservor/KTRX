@@ -398,3 +398,11 @@ code, pre, kbd { font-family: var(--mono); font-size: 0.88em; letter-spacing: 0;
 
 .skeleton { background: linear-gradient(90deg, var(--bg-alt), var(--line-soft), var(--bg-alt)); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: var(--radius); min-height: 220px; }
 @keyframes shimmer { to { background-position: -200% 0; } }
+
+/* ---------- screenshots ---------- */
+.shot { margin: 0; }
+.shot picture, .shot img { display: block; width: 100%; height: auto; }
+.shot img { border-radius: 14px; border: 1px solid var(--line-soft); box-shadow: var(--shadow); }
+.shot figcaption { font-size: 14px; color: var(--muted); margin-top: 12px; text-align: center; letter-spacing: -0.01em; }
+.shot-wide { max-width: 980px; margin: 0 auto; }
+.prose .shot { margin: 24px 0 8px; }

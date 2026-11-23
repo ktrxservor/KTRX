@@ -7,7 +7,7 @@ KTRX exécute des outils de sécurité, d'analyse et de conversion dans un bac �
 ## Installer
 
 ```sh
-# macOS (Apple Silicon ou Intel) et Linux (x86_64 ou ARM64)
+# macOS (Intel ; Apple Silicon via Rosetta pour la 0.9.x) et Linux (x86_64 ou ARM64)
 curl -fsSL https://ktrx-site.tiagoantunes2009.workers.dev/install.sh | sh
 ```
 
@@ -31,6 +31,8 @@ ktrx ui                          # l'interface graphique, dans le navigateur
 
 Un outil qui demande le réseau, des fichiers ou des programmes n'obtient rien sans votre accord (`-y` accepte d'avance ce que l'outil déclare, `--write-dir` limite l'écriture à un dossier, `--allow-program` restreint les programmes). Documentation complète : page *Documentation* du site.
 
+**Interface graphique.** `ktrx ui` démarre un petit serveur local (127.0.0.1 uniquement, jeton aléatoire par lancement) et ouvre une page, au thème du site, pour parcourir le catalogue, installer, mettre à jour, supprimer et lancer les outils (formulaire généré depuis le manifeste, résultat JSON, progression, annulation). Elle n'ajoute aucune capacité : elle lance les mêmes commandes `ktrx install | update | uninstall | run`, et chaque exécution affiche d'abord les permissions de l'outil, sans lesquelles rien ne démarre. Options : `--port`, `--no-open`, `--write-dir`, `--registry`.
+
 ## Ce dépôt
 
 | | |
@@ -43,8 +45,6 @@ Un outil qui demande le réseau, des fichiers ou des programmes n'obtient rien s
 Le site héberge les outils, leurs sources et les binaires ; GitHub sert uniquement à compiler le moteur et `ktrx-dev` pour chaque plateforme (workflow `release.yml`, déclenché par un tag `v*`). Les deux ne sont pas reliés : l'équipe publie les outils et les versions du moteur sur le site avec `ktrx-dev`.
 
 ## Contribuer (équipe)
-
-**Interface graphique :** `ktrx ui` ouvre une page locale (thème du site) pour parcourir le catalogue, installer, mettre à jour, supprimer et lancer les outils, avec les mêmes permissions demandées avant chaque exécution.
 
 **Pour les assistants IA :** `ktrx mcp` met les outils à disposition de Claude, Codex, Gemini, Cursor… (`claude mcp add --scope user ktrx -- ktrx mcp`) ; voir la page `/ia` du site.
 

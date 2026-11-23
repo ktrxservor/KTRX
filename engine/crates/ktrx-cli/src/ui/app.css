@@ -170,7 +170,6 @@ a.card:hover, button.card:hover { text-decoration: none; transform: translateY(-
 .tool-icon { width: 46px; height: 46px; border-radius: 11px; flex: none; background: var(--bg-alt); object-fit: cover; }
 .tool-icon-fallback { width: 46px; height: 46px; border-radius: 11px; flex: none; background: var(--text); color: var(--bg); display: grid; place-items: center; font-weight: 700; font-size: 19px; }
 .tool-icon.is-large, .tool-icon-fallback.is-large { width: 72px; height: 72px; border-radius: 17px; font-size: 30px; }
-.badge-dot { position: absolute; top: 18px; right: 18px; }
 
 .skeleton { background: linear-gradient(90deg, var(--bg-alt) 25%, var(--line-soft) 50%, var(--bg-alt) 75%); background-size: 200% 100%; animation: shimmer 1.3s linear infinite; border-radius: var(--radius); min-height: 214px; }
 @keyframes shimmer { to { background-position: -200% 0; } }
@@ -188,7 +187,8 @@ a.card:hover, button.card:hover { text-decoration: none; transform: translateY(-
 .layout { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 40px; align-items: start; }
 @media (max-width: 900px) { .layout { grid-template-columns: 1fr; gap: 28px; } .tool-head { align-items: flex-start; } }
 .panel { background: var(--surface); border: 1px solid var(--line-soft); border-radius: var(--radius); padding: 28px; box-shadow: var(--shadow); }
-.panel + .panel { margin-top: 22px; }
+.layout > div:first-child { display: grid; gap: 22px; min-width: 0; }
+.layout > div:first-child > div:empty { display: none; }
 .panel h2 { font-size: 20px; letter-spacing: -0.025em; margin: 0 0 20px; }
 .aside { position: sticky; top: 76px; display: grid; gap: 16px; }
 @media (max-width: 900px) { .aside { position: static; } }

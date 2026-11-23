@@ -39,6 +39,7 @@
         <a href="#installer">Installer KTRX</a>
         <a href="#outils">Installer des outils</a>
         <a href="#lancer">Lancer un outil</a>
+        <a href="#interface">Interface graphique</a>
         <a href="#permissions">Permissions</a>
         <a href="#securite">Sécurité</a>
         <a href="#ia">Assistants IA</a>
@@ -83,7 +84,7 @@ ktrx run thoth --encode "Bonjour"</code></pre></div>
           <table>
             <thead><tr><th>Variable</th><th>Effet</th></tr></thead>
             <tbody>
-              <tr><td><code>KTRX_VERSION=0.6.0</code></td><td>installe cette version au lieu de la dernière</td></tr>
+              <tr><td><code>KTRX_VERSION=0.8.0</code></td><td>installe cette version au lieu de la dernière</td></tr>
               <tr><td><code>KTRX_INSTALL=/chemin</code></td><td>autre dossier d'installation (le moteur va dans <code>bin/</code>)</td></tr>
               <tr><td><code>KTRX_NO_MODIFY_PATH=1</code></td><td>ne modifie pas le <code>PATH</code></td></tr>
             </tbody>
@@ -120,6 +121,38 @@ ktrx run thoth --encode "Bonjour"</code></pre></div>
             <li><code>--events</code> : progression puis résultat en JSON, une ligne par événement.</li>
           </ul>
           <p>Un outil long affiche sa progression. <kbd>Ctrl</kbd>+<kbd>C</kbd> l'interrompt proprement. On peut aussi lancer une archive directement : <code>ktrx run ./K~THOTH.tool --encode "Bonjour"</code>.</p>
+        </section>
+
+        <section id="interface">
+          <h2>Interface graphique</h2>
+          <p>Vous préférez cliquer à taper ? <code>ktrx ui</code> ouvre une page dans votre navigateur pour tout faire : parcourir le catalogue, installer, mettre à jour et supprimer des outils, puis les lancer avec un formulaire.</p>
+          <div class="code"><pre><code>ktrx ui</code></pre></div>
+          <p>La commande démarre un petit serveur qui n'écoute que sur votre ordinateur (<code>127.0.0.1</code>, port 4747 ou un port libre) et ouvre la page. <kbd>Ctrl</kbd>+<kbd>C</kbd> dans le terminal l'arrête. L'interface suit le thème clair ou sombre de votre système.</p>
+          <h3>Mes outils et catalogue</h3>
+          <p>« Mes outils » liste ce qui est installé et signale les mises à jour disponibles ; « Catalogue » propose tous les outils, avec recherche, filtres par catégorie et leurs permissions. Un clic sur <em>Installer</em> ou <em>Mettre à jour</em> lance la même commande que le terminal, avec la même vérification SHA-256.</p>
+          <figure class="shot"><picture><source media="(prefers-color-scheme: dark)" srcset="/assets/ui-tools-dark.png"><img src="/assets/ui-tools-light.png" alt="La page Mes outils : six outils installés sous forme de cartes." width="1900" height="1187" loading="lazy" decoding="async"></picture><figcaption>« Mes outils » : ce qui est installé, avec les permissions de chaque outil.</figcaption></figure>
+          <h3>Lancer un outil</h3>
+          <p>Chaque outil a sa page : un formulaire est généré à partir de ses arguments (champs requis, interrupteurs, nombres, sélecteur de fichiers), puis le résultat s'affiche en JSON coloré, avec copie et téléchargement. Un outil long montre sa progression et peut être annulé.</p>
+          <figure class="shot"><picture><source media="(prefers-color-scheme: dark)" srcset="/assets/ui-form-dark.png"><img src="/assets/ui-form-light.png" alt="La page d un outil : formulaire, résultat JSON coloré et exemples en ligne de commande." width="1900" height="1662" loading="lazy" decoding="async"></picture><figcaption>Un outil lancé depuis l'interface : formulaire, résultat et exemples.</figcaption></figure>
+          <h3>Les permissions restent les vôtres</h3>
+          <p>Rien n'est assoupli : avant chaque exécution d'un outil qui déclare des permissions, une fenêtre les liste et rien ne démarre sans votre accord, valable pour cette seule exécution. Les écritures restent dans le dossier que vous choisissez, et un outil qui lance des programmes ne peut lancer que ceux que vous cochez (ou, s'il ne les limite pas, que si vous l'autorisez explicitement).</p>
+          <h3>Sécurité du serveur local</h3>
+          <ul>
+            <li>il n'écoute que sur la boucle locale : aucune autre machine ne peut s'y connecter ;</li>
+            <li>chaque lancement génère un jeton aléatoire, transmis au navigateur dans le fragment de l'adresse (jamais envoyé sur le réseau) et exigé pour toute action ;</li>
+            <li>les en-têtes <code>Host</code> et <code>Origin</code> sont contrôlés, ce qui empêche un autre site web d'agir à votre place.</li>
+          </ul>
+          <h3>Options</h3>
+          <table>
+            <thead><tr><th>Option</th><th>Effet</th></tr></thead>
+            <tbody>
+              <tr><td><code>--port 8080</code></td><td>port d'écoute (par défaut 4747, ou un port libre s'il est pris)</td></tr>
+              <tr><td><code>--no-open</code></td><td>n'ouvre pas le navigateur : affiche seulement l'adresse</td></tr>
+              <tr><td><code>--write-dir DOSSIER</code></td><td>dossier d'écriture proposé par défaut (sinon <code>~/.ktrx/workspace</code>)</td></tr>
+              <tr><td><code>--registry URL</code></td><td>autre registre (comme pour <code>ktrx install</code>)</td></tr>
+            </tbody>
+          </table>
+          <p>Disponible depuis KTRX 0.9 : relancez la commande d'installation pour mettre le moteur à jour.</p>
         </section>
 
         <section id="permissions">
@@ -168,7 +201,7 @@ ktrx run thoth --encode "Bonjour"</code></pre></div>
         <section id="mettre-a-jour">
           <h2>Mettre à jour, désinstaller</h2>
           <h3>Mettre à jour</h3>
-          <p>Le moteur : relancez la commande d'installation. Les outils : <code>ktrx update</code>.</p>
+          <p>Le moteur : relancez la commande d'installation. Les outils : <code>ktrx update</code>, ou le bouton « Tout mettre à jour » de l'<a href="#interface">interface graphique</a>.</p>
           <h3>Désinstaller</h3>
           <p>macOS et Linux : <code>rm -rf ~/.ktrx</code>, puis retirez les lignes précédées de <code># KTRX</code> dans <code>~/.zshrc</code>, <code>~/.bashrc</code> ou <code>~/.profile</code>.</p>
           <p>Windows (PowerShell) : <code>Remove-Item -Recurse -Force $env:USERPROFILE\.ktrx</code>, puis retirez <code>%USERPROFILE%\.ktrx\bin</code> du <code>PATH</code> utilisateur (Paramètres › « Modifier les variables d'environnement pour votre compte »).</p>
@@ -186,6 +219,10 @@ ktrx run thoth --encode "Bonjour"</code></pre></div>
           <p>KTRX utilise les variables <code>HTTPS_PROXY</code>, <code>HTTP_PROXY</code> et <code>NO_PROXY</code> : <code>export HTTPS_PROXY=http://proxy.exemple:8080</code>.</p>
           <h3>« aucune version de KTRX n'est publiée pour cette machine »</h3>
           <p>Votre système ou processeur n'est pas pris en charge. KTRX existe pour Windows x64, macOS 10.15+ et Linux x86_64 ou ARM64.</p>
+          <h3>« ktrx ui » : la page ne s'ouvre pas, ou « Session expirée »</h3>
+          <p>Si aucun navigateur ne s'ouvre, copiez l'adresse affichée dans le terminal (elle contient le jeton de cette session) ou relancez avec <code>--no-open</code>. « Session expirée » ou « Connexion perdue » veut dire que <code>ktrx ui</code> a été arrêté ou relancé : relancez-le et ouvrez la nouvelle adresse. Si le port est pris, choisissez-en un autre avec <code>--port</code>.</p>
+          <h3>macOS avec une puce Apple Silicon</h3>
+          <p>Les versions 0.9.x du moteur sont compilées pour Intel et fonctionnent sur Apple Silicon grâce à Rosetta 2 (<code>softwareupdate --install-rosetta</code> s'il n'est pas installé). Une version universelle suivra.</p>
           <h3>« this tool requires KTRX X.Y.Z or newer »</h3>
           <p>L'outil a besoin d'un moteur plus récent : relancez la commande d'installation pour mettre KTRX à jour.</p>
         </section>
