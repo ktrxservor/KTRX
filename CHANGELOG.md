@@ -2,7 +2,7 @@
 
 ## 0.9.1
 
-- **Interface (`ktrx ui`)** : espacement corrigé entre le formulaire, le résultat et les exemples d'un outil ; les exemples en ligne de commande s'affichent sous la forme `ktrx run <outil> …` (plus de chemin de dépôt) ; le badge de mise à jour d'une carte ne chevauche plus son titre.
+- **Interface (`ktrx ui`)** : les interrupteurs (options booléennes) se basculent en cliquant n'importe où sur leur ligne, et plus seulement sur le bouton ; espacement corrigé entre le formulaire, le résultat et les exemples d'un outil ; les exemples en ligne de commande s'affichent sous la forme `ktrx run <outil> …` (plus de chemin de dépôt) ; le badge de mise à jour d'une carte ne chevauche plus son titre.
 - **Documentation** : section « Interface graphique » avec captures (clair et sombre) sur la page d'accueil et dans la documentation, `ktrx ui` ajouté à `README.md`, `DEVELOPING.md` et `/llms.txt`, notes sur macOS (binaire Intel, Rosetta sur Apple Silicon, universel à venir).
 
 ## 0.9.0

@@ -673,7 +673,8 @@
       box.checked = arg.default === true;
       return {
         arg,
-        node: el("div", { class: "field" }, el("div", { class: "switch" }, el("div", {}, el("div", { class: "label", text: arg.name }), hint), el("span", { class: "toggle" }, box, el("i")))),
+        // The whole row is the label: clicking anywhere on it flips the switch.
+        node: el("div", { class: "field" }, el("label", { class: "switch", for: `f-${arg.name}` }, el("span", { class: "switch-text" }, el("span", { class: "label", text: arg.name }), hint), box)),
         read: () => box.checked,
         focus: () => box.focus(),
         setInvalid: () => {},
