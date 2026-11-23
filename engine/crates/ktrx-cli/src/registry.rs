@@ -62,7 +62,7 @@ impl Registry {
         Ok(Self { base, agent })
     }
 
-    fn get_json(&self, path: &str) -> Result<Value> {
+    pub fn get_json(&self, path: &str) -> Result<Value> {
         let url = format!("{}{}", self.base, path);
         let response = self
             .agent
@@ -339,7 +339,7 @@ pub fn locate(tool: PathBuf) -> PathBuf {
         .unwrap_or(tool)
 }
 
-fn installed_tools(dir: &Path) -> Vec<(PathBuf, ToolPackage)> {
+pub fn installed_tools(dir: &Path) -> Vec<(PathBuf, ToolPackage)> {
     let mut tools: Vec<_> = fs::read_dir(dir)
         .into_iter()
         .flatten()
@@ -352,7 +352,7 @@ fn installed_tools(dir: &Path) -> Vec<(PathBuf, ToolPackage)> {
     tools
 }
 
-fn normalize(name: &str) -> String {
+pub fn normalize(name: &str) -> String {
     name.trim()
         .trim_start_matches("K~")
         .trim_start_matches("k~")

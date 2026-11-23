@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.0
+
+**Une interface graphique : `ktrx ui`.** Aucun changement du moteur ni des outils ; la ligne de commande reste identique.
+
+- **`ktrx ui`** lance un petit serveur local (127.0.0.1 uniquement, port 4747 ou un port libre) et ouvre une page dans le navigateur, au thème du site (clair et sombre automatiques). On y parcourt le catalogue, on installe, met à jour (un outil ou tous) et supprime des outils, et on les exécute avec un formulaire généré depuis leur manifeste : champs requis, booléens, entiers, sélecteur de fichiers, exemples, résultat JSON coloré (copie, téléchargement), progression, annulation.
+- **Les règles du moteur sont inchangées.** Installer, mettre à jour et supprimer lancent les mêmes commandes `ktrx install | update | uninstall` (vérification SHA-256 comprise) ; exécuter un outil lance `ktrx run`. Avant chaque exécution, une feuille affiche les permissions déclarées par l'outil et rien ne démarre sans l'accord de l'utilisateur pour cette exécution ; les écritures restent confinées au dossier choisi, les programmes à la liste du manifeste (ou à un accord explicite pour « n'importe quel programme »).
+- **Sécurité du serveur local** : écoute sur la boucle locale seulement, jeton aléatoire par lancement (transmis dans le fragment de l'URL, jamais sur le réseau), contrôle des en-têtes `Host` et `Origin` (DNS rebinding, requêtes d'autres sites), JSON obligatoire pour les actions, politique CSP stricte. Aucune dépendance ajoutée.
+- Options : `--port`, `--no-open`, `--write-dir`, `--registry`.
+
 ## 0.8.0
 
 - **`file.create` accepte `executable`** : `{"path": "...", "executable": true}` ajoute les droits d'exécution sous Linux et macOS (sans effet sous Windows). Une opération générique pour tout outil qui produit un programme ou un script ; elle sert d'abord à K~HEPHAISTOS (compilateur C) pour que les exécutables générés se lancent directement. Les outils restent compatibles avec un moteur plus ancien : ils ignorent la clé et indiquent `chmod +x`.

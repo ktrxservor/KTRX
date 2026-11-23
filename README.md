@@ -26,6 +26,7 @@ ktrx install anubis              # installer un outil (vérifié par SHA-256)
 ktrx run anubis --help           # ses options
 ktrx run thoth --encode "Bonjour"
 ktrx list · ktrx update · ktrx uninstall anubis
+ktrx ui                          # l'interface graphique, dans le navigateur
 ```
 
 Un outil qui demande le réseau, des fichiers ou des programmes n'obtient rien sans votre accord (`-y` accepte d'avance ce que l'outil déclare, `--write-dir` limite l'écriture à un dossier, `--allow-program` restreint les programmes). Documentation complète : page *Documentation* du site.
@@ -42,6 +43,8 @@ Un outil qui demande le réseau, des fichiers ou des programmes n'obtient rien s
 Le site héberge les outils, leurs sources et les binaires ; GitHub sert uniquement à compiler le moteur et `ktrx-dev` pour chaque plateforme (workflow `release.yml`, déclenché par un tag `v*`). Les deux ne sont pas reliés : l'équipe publie les outils et les versions du moteur sur le site avec `ktrx-dev`.
 
 ## Contribuer (équipe)
+
+**Interface graphique :** `ktrx ui` ouvre une page locale (thème du site) pour parcourir le catalogue, installer, mettre à jour, supprimer et lancer les outils, avec les mêmes permissions demandées avant chaque exécution.
 
 **Pour les assistants IA :** `ktrx mcp` met les outils à disposition de Claude, Codex, Gemini, Cursor… (`claude mcp add --scope user ktrx -- ktrx mcp`) ; voir la page `/ia` du site.
 

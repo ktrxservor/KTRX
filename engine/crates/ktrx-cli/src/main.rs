@@ -24,6 +24,7 @@ use ktrx_core::{ToolPackage, validate_arguments};
 use ktrx_runtime::{Approvals, Runtime};
 mod mcp;
 mod registry;
+mod ui;
 
 use std::{
     io::{self, IsTerminal, Write},
@@ -130,6 +131,26 @@ enum Command {
         /// Directory tools with file-write may write inside (default: ~/.ktrx/workspace).
         #[arg(long = "write-dir", value_name = "DIR")]
         write_dir: Option<PathBuf>,
+    },
+    /// Open a graphical interface in your browser: browse, install, update, remove and run tools.
+    ///
+    /// Starts a small server that listens on this computer only (127.0.0.1) and opens a page.
+    /// Everything the interface does goes through the same commands and the same permission
+    /// rules as the command line: each run shows the permissions the tool asks for, and nothing
+    /// runs until you approve them. Stop it with Ctrl+C.
+    Ui {
+        /// Port to listen on (default: 4747, or any free port if it is taken).
+        #[arg(long, value_name = "PORT")]
+        port: Option<u16>,
+        /// Do not open the browser; just print the address.
+        #[arg(long)]
+        no_open: bool,
+        /// Default directory for tools that write files (default: ~/.ktrx/workspace).
+        #[arg(long = "write-dir", value_name = "DIR")]
+        write_dir: Option<PathBuf>,
+        /// Registry base URL (default: $KTRX_REGISTRY or the official registry).
+        #[arg(long, value_name = "URL")]
+        registry: Option<String>,
     },
 }
 
@@ -309,6 +330,7 @@ fn execute(cli: Cli) -> Result<()> {
             registry::Registry::new(registry)?.search(query.as_deref())?;
         }
         Command::Mcp { allow, write_dir } => mcp::serve(allow, write_dir)?,
+        Command::Ui { port, no_open, write_dir, registry } => ui::serve(ui::Options { port, open: !no_open, write_dir, registry })?,
         Command::Info { tool } => {
             let p = ToolPackage::open(registry::locate(tool))?;
             println!("{}  {}", p.manifest.name, p.manifest.version);
