@@ -38,7 +38,10 @@ jobs:
           - { os: ubuntu-latest,    asset: linux,        target: x86_64-unknown-linux-musl }
           - { os: ubuntu-24.04-arm, asset: linux-arm64,  target: aarch64-unknown-linux-musl }
           - { os: windows-latest,   asset: windows,      target: x86_64-pc-windows-msvc }
-          - { os: macos-latest,     asset: macos-arm64,  target: aarch64-apple-darwin, deployment: "11.0" }
+          # TEMPORARY (0.9.0): no Apple Silicon runner was available, so this release ships the Intel
+          # macOS build only (it runs on Apple Silicon through Rosetta). Restore this line, and the
+          # lipo step below, to ship the universal binary again.
+          # - { os: macos-latest,     asset: macos-arm64,  target: aarch64-apple-darwin, deployment: "11.0" }
           - { os: macos-15-intel,   asset: macos-x86_64, target: x86_64-apple-darwin,  deployment: "10.15" }
     env:
       MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment }}
@@ -101,22 +104,20 @@ jobs:
           if-no-files-found: error
 
   macos:
-    name: build (macos universal)
+    name: build (macos)
     needs: build
-    runs-on: macos-latest
+    runs-on: macos-15-intel
     steps:
       - uses: actions/download-artifact@v4
-        with: { name: slice-macos-arm64, path: arm64 }
-      - uses: actions/download-artifact@v4
         with: { name: slice-macos-x86_64, path: x86_64 }
-      - name: Join, sign and check
+      - name: Sign and check (Intel build only, see the matrix)
         run: |
           mkdir dist
           for b in ktrx ktrx-dev; do
-            lipo -create "arm64/$b" "x86_64/$b" -output "dist/$b"
+            cp "x86_64/$b" "dist/$b"
             chmod 755 "dist/$b"
-            codesign --force --sign - "dist/$b"      # Apple Silicon only runs signed code
-            [ "$(lipo -archs "dist/$b")" = "x86_64 arm64" ]
+            codesign --force --sign - "dist/$b"
+            [ "$(lipo -archs "dist/$b")" = "x86_64" ]
             "dist/$b" --version
           done
           tar -C dist -czf ktrx-macos.tar.gz ktrx
